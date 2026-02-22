@@ -27,16 +27,31 @@ public final class RobotConfig {
     public static final boolean InvertLeftSide = false;
     public static final boolean InvertRightSide = true;
 
-    /** FLUX 2026 robot configuration. Encoder offsets must be calibrated via Phoenix Tuner X. */
-    public static final RobotConfig FluxRobot2026 = new RobotConfig(
-            "*",
-            "rio",
-            20,
-            //                     drive, steer, encoder, offset, x,     y,     invertSide,       steerInv, encInv
-            new SwerveModuleConfig(2,     1,     21,      0.0,    11.5,  11.5,  InvertLeftSide,   false,    false),  // Front Left
-            new SwerveModuleConfig(4,     3,     22,      0.0,    11.5,  -11.5, InvertRightSide,  false,    false),  // Front Right
-            new SwerveModuleConfig(6,     5,     23,      0.0,    -11.5, 11.5,  InvertLeftSide,   false,    false),  // Back Left
-            new SwerveModuleConfig(8,     7,     24,      0.0,    -11.5, -11.5, InvertRightSide,  false,    false)); // Back Right
+        /**
+     * Coral robot configuration (competition robot with elevator).
+     * Uses "Drivetrain" CANivore bus with Pigeon ID 20.
+     */
+    public static final RobotConfig CoralRobot = new RobotConfig(
+        "CANdace",
+        "rio",
+        24,
+
+        new SwerveModuleConfig(7, 8, 23, 0.124267578125, 11.5, 11.5, InvertLeftSide, false, false),
+        new SwerveModuleConfig(1, 2, 20, -0.291015625, 11.5, -11.5, InvertRightSide, false, false),
+        new SwerveModuleConfig(5, 6, 22, 0.048828125, -11.5, 11.5, InvertLeftSide, false, false),
+        new SwerveModuleConfig(3, 4, 21, -0.371826171875, -11.5, -11.5, InvertRightSide, false, false)
+    );
+
+    // /** FLUX 2026 robot configuration. Encoder offsets must be calibrated via Phoenix Tuner X. */
+    // public static final RobotConfig FluxRobot2026 = new RobotConfig(
+    //         "*",
+    //         "rio",
+    //         20,
+    //         //                     drive, steer, encoder, offset, x,     y,     invertSide,       steerInv, encInv
+    //         new SwerveModuleConfig(2,     1,     21,      0.0,    11.5,  11.5,  InvertLeftSide,   false,    false),  // Front Left
+    //         new SwerveModuleConfig(4,     3,     22,      0.0,    11.5,  -11.5, InvertRightSide,  false,    false),  // Front Right
+    //         new SwerveModuleConfig(6,     5,     23,      0.0,    -11.5, 11.5,  InvertLeftSide,   false,    false),  // Back Left
+    //         new SwerveModuleConfig(8,     7,     24,      0.0,    -11.5, -11.5, InvertRightSide,  false,    false)); // Back Right
 
     public RobotConfig(
             String driveCANBus,
