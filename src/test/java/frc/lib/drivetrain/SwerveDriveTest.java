@@ -2,11 +2,16 @@ package frc.lib.drivetrain;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.path.PathConstraints;
+import com.pathplanner.lib.path.PathPlannerPath;
+import com.pathplanner.lib.path.GoalEndState;
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import java.util.List;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+
 import edu.wpi.first.wpilibj2.command.Command;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,13 +20,13 @@ import org.junit.jupiter.api.Test;
 class SwerveDriveTest {
 
     private static final ModuleConfig FL =
-            new ModuleConfig(7, 8, 23, 0.124, 11.5, 11.5, false, false, false);
+            new ModuleConfig(7, 8, 23, 0.124, 0.2921, 0.2921, false, false, false);
     private static final ModuleConfig FR =
-            new ModuleConfig(1, 2, 20, -0.291, 11.5, -11.5, true, false, false);
+            new ModuleConfig(1, 2, 20, -0.291, 0.2921, -0.2921, true, false, false);
     private static final ModuleConfig BL =
-            new ModuleConfig(5, 6, 22, 0.048, -11.5, 11.5, false, false, false);
+            new ModuleConfig(5, 6, 22, 0.048, -0.2921, 0.2921, false, false, false);
     private static final ModuleConfig BR =
-            new ModuleConfig(3, 4, 21, -0.371, -11.5, -11.5, true, false, false);
+            new ModuleConfig(3, 4, 21, -0.371, -0.2921, -0.2921, true, false, false);
     private static final PIDGains STEER_GAINS = new PIDGains(100, 0, 0.5, 0.1, 1.5, 0);
     private static final PIDGains DRIVE_GAINS = new PIDGains(0.1, 0, 0, 0, 0.124, 0);
 
@@ -41,7 +46,7 @@ class SwerveDriveTest {
                 .frontRight(FR)
                 .backLeft(BL)
                 .backRight(BR)
-                .gearing(6.39, 12.1, 4.5, 2.0)
+                .gearing(6.39, 12.1, 4.5, 0.0508)
                 .speed(4.99, 0.75 * 2 * Math.PI)
                 .steerPID(STEER_GAINS)
                 .drivePID(DRIVE_GAINS)
@@ -52,6 +57,7 @@ class SwerveDriveTest {
 
     @BeforeEach
     void setUp() {
+        AutoBuilder.resetForTesting();
         config = buildTestConfig();
         drive = new SwerveDrive(config);
     }
@@ -66,6 +72,12 @@ class SwerveDriveTest {
     @Test
     void getConfigReturnsSameConfig() {
         assertSame(config, drive.getConfig());
+    }
+
+    @Test
+    void autoBuilderIsConfigured() {
+        assertTrue(AutoBuilder.isConfigured());
+        assertTrue(AutoBuilder.isPathfindingConfigured());
     }
 
     // --- Command factories ---
@@ -103,6 +115,26 @@ class SwerveDriveTest {
         Command cmd = drive.driveToPose(new Pose2d(1, 1, Rotation2d.kZero), 0.05);
         assertNotNull(cmd);
         assertTrue(cmd.getRequirements().contains(drive));
+    }
+
+    // --- Path planning ---
+
+    @Test
+    void pathfindToPoseReturnsCommand() {
+        Command cmd = drive.pathfindToPose(new Pose2d(5, 3, Rotation2d.fromDegrees(90)));
+        assertNotNull(cmd);
+    }
+
+    @Test
+    void followPathReturnsCommand() {
+        PathPlannerPath path = new PathPlannerPath(
+                PathPlannerPath.waypointsFromPoses(
+                        List.of(new Pose2d(0, 0, Rotation2d.kZero), new Pose2d(2, 0, Rotation2d.kZero))),
+                new PathConstraints(3.0, 3.0, Math.PI, Math.PI),
+                null,
+                new GoalEndState(0, Rotation2d.kZero));
+        Command cmd = drive.followPath(path);
+        assertNotNull(cmd);
     }
 
     // --- State queries ---
@@ -155,27 +187,23 @@ class SwerveDriveTest {
         assertTrue(cmd.isFinished(), "driveToPose should finish when already at target pose");
     }
 
+    // --- IO layer ---
+
+    @Test
+    void constructsWithCustomIO() {
+        AutoBuilder.resetForTesting();
+        DrivetrainIO noopIO = inputs -> {};
+        SwerveDrive customDrive = new SwerveDrive(config, noopIO);
+        assertNotNull(customDrive);
+    }
+
     // --- Telemetry ---
 
     @Test
-    void periodicPublishesTelemetryKeys() {
-        drive.periodic();
-
-        // Robot-level telemetry
-        assertTrue(SmartDashboard.containsKey("Drive/PositionX"));
-        assertTrue(SmartDashboard.containsKey("Drive/PositionY"));
-        assertTrue(SmartDashboard.containsKey("Drive/RotationDeg"));
-        assertTrue(SmartDashboard.containsKey("Drive/SpeedMps"));
-        assertTrue(SmartDashboard.containsKey("Drive/SpeedPercent"));
-        assertTrue(SmartDashboard.containsKey("Drive/AngularRateDegPerSec"));
-        assertTrue(SmartDashboard.containsKey("Drive/OdometryHz"));
-        assertTrue(SmartDashboard.containsKey("Drive/ActiveCommand"));
-
-        // Per-module telemetry (spot-check FL)
-        assertTrue(SmartDashboard.containsKey("Drive/FL/TargetAngleDeg"));
-        assertTrue(SmartDashboard.containsKey("Drive/FL/ActualAngleDeg"));
-        assertTrue(SmartDashboard.containsKey("Drive/FL/DriveTempC"));
-        assertTrue(SmartDashboard.containsKey("Drive/FL/DriveCurrentA"));
+    void periodicRunsWithoutError() {
+        // Logger.recordOutput has no queryable test API like SmartDashboard.containsKey,
+        // so we just verify periodic() completes without throwing
+        assertDoesNotThrow(() -> drive.periodic());
     }
 
     // --- Pose management ---

@@ -6,8 +6,8 @@ public final class ModuleConfig {
     public final int steerMotorId;
     public final int encoderId;
     public final double encoderOffsetRotations;
-    public final double xPositionInches;
-    public final double yPositionInches;
+    public final double xPositionMeters;
+    public final double yPositionMeters;
     public final boolean invertDrive;
     public final boolean invertSteer;
     public final boolean invertEncoder;
@@ -17,8 +17,8 @@ public final class ModuleConfig {
             int steerMotorId,
             int encoderId,
             double encoderOffsetRotations,
-            double xPositionInches,
-            double yPositionInches,
+            double xPositionMeters,
+            double yPositionMeters,
             boolean invertDrive,
             boolean invertSteer,
             boolean invertEncoder) {
@@ -34,8 +34,8 @@ public final class ModuleConfig {
         this.steerMotorId = steerMotorId;
         this.encoderId = encoderId;
         this.encoderOffsetRotations = encoderOffsetRotations;
-        this.xPositionInches = xPositionInches;
-        this.yPositionInches = yPositionInches;
+        this.xPositionMeters = xPositionMeters;
+        this.yPositionMeters = yPositionMeters;
         this.invertDrive = invertDrive;
         this.invertSteer = invertSteer;
         this.invertEncoder = invertEncoder;

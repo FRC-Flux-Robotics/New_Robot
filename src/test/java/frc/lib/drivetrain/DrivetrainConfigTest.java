@@ -9,13 +9,13 @@ import org.junit.jupiter.api.Test;
 class DrivetrainConfigTest {
 
     private static final ModuleConfig FL =
-            new ModuleConfig(7, 8, 23, 0.124, 11.5, 11.5, false, false, false);
+            new ModuleConfig(7, 8, 23, 0.124, 0.2921, 0.2921, false, false, false);
     private static final ModuleConfig FR =
-            new ModuleConfig(1, 2, 20, -0.291, 11.5, -11.5, true, false, false);
+            new ModuleConfig(1, 2, 20, -0.291, 0.2921, -0.2921, true, false, false);
     private static final ModuleConfig BL =
-            new ModuleConfig(5, 6, 22, 0.048, -11.5, 11.5, false, false, false);
+            new ModuleConfig(5, 6, 22, 0.048, -0.2921, 0.2921, false, false, false);
     private static final ModuleConfig BR =
-            new ModuleConfig(3, 4, 21, -0.371, -11.5, -11.5, true, false, false);
+            new ModuleConfig(3, 4, 21, -0.371, -0.2921, -0.2921, true, false, false);
     private static final PIDGains STEER_GAINS = new PIDGains(100, 0, 0.5, 0.1, 1.5, 0);
     private static final PIDGains DRIVE_GAINS = new PIDGains(0.1, 0, 0, 0, 0.124, 0);
 
@@ -27,7 +27,7 @@ class DrivetrainConfigTest {
                 .frontRight(FR)
                 .backLeft(BL)
                 .backRight(BR)
-                .gearing(6.39, 12.1, 4.5, 2.0)
+                .gearing(6.39, 12.1, 4.5, 0.0508)
                 .speed(4.99, 0.75 * 2 * Math.PI)
                 .steerPID(STEER_GAINS)
                 .drivePID(DRIVE_GAINS)
@@ -47,7 +47,7 @@ class DrivetrainConfigTest {
         assertEquals(6.39, config.driveGearRatio);
         assertEquals(12.1, config.steerGearRatio);
         assertEquals(4.5, config.couplingRatio);
-        assertEquals(2.0, config.wheelRadiusInches);
+        assertEquals(0.0508, config.wheelRadiusMeters, 0.0001);
         assertEquals(4.99, config.maxSpeedMps);
         assertEquals(0.75 * 2 * Math.PI, config.maxAngularRateRadPerSec, 0.001);
         assertSame(STEER_GAINS, config.steerGains);
@@ -74,7 +74,7 @@ class DrivetrainConfigTest {
         assertThrows(IllegalStateException.class, () -> DrivetrainConfig.builder()
                 .canBus("CANdace")
                 .frontLeft(FL).frontRight(FR).backLeft(BL).backRight(BR)
-                .gearing(6.39, 12.1, 4.5, 2.0)
+                .gearing(6.39, 12.1, 4.5, 0.0508)
                 .speed(4.99, 4.71)
                 .steerPID(STEER_GAINS).drivePID(DRIVE_GAINS)
                 .currentLimits(40, 35, 20, 120)
@@ -107,7 +107,7 @@ class DrivetrainConfigTest {
                 .canBus("CANdace")
                 .pigeonId(24)
                 .frontLeft(FL).frontRight(FR).backLeft(BL).backRight(BR)
-                .gearing(6.39, 12.1, 4.5, 2.0)
+                .gearing(6.39, 12.1, 4.5, 0.0508)
                 .steerPID(STEER_GAINS).drivePID(DRIVE_GAINS)
                 .currentLimits(40, 35, 20, 120)
                 .build());
@@ -125,7 +125,7 @@ class DrivetrainConfigTest {
                 .canBus("CANdace")
                 .pigeonId(24)
                 .frontLeft(FL).frontRight(FR).backLeft(BL).backRight(BR)
-                .gearing(6.39, 12.1, 4.5, 2.0)
+                .gearing(6.39, 12.1, 4.5, 0.0508)
                 .speed(4.99, 4.71)
                 .steerPID(STEER_GAINS).drivePID(DRIVE_GAINS)
                 .build());
@@ -194,7 +194,7 @@ class DrivetrainConfigTest {
         assertEquals(8, mc.SteerMotorId);
         assertEquals(23, mc.EncoderId);
         assertEquals(0.124, mc.EncoderOffset, 0.001);
-        assertEquals(0.2921, mc.LocationX, 0.001); // 11.5 inches in meters
+        assertEquals(0.2921, mc.LocationX, 0.001);
         assertEquals(0.2921, mc.LocationY, 0.001);
         assertFalse(mc.DriveMotorInverted);
         assertFalse(mc.SteerMotorInverted);
@@ -225,7 +225,7 @@ class DrivetrainConfigTest {
                 .canBus("CANdace")
                 .pigeonId(24)
                 .frontLeft(FL).frontRight(FR).backLeft(BL).backRight(BR)
-                .gearing(6.39, 12.1, 4.5, 2.0)
+                .gearing(6.39, 12.1, 4.5, 0.0508)
                 .speed(4.99, 4.71)
                 .steerPID(STEER_GAINS).drivePID(DRIVE_GAINS)
                 .currentLimits(40, 35, 20, 120)

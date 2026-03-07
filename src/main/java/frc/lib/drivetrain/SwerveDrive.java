@@ -5,9 +5,13 @@ import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.swerve.SwerveDrivetrain;
 import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
-import com.ctre.phoenix6.swerve.SwerveModule;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.config.PIDConstants;
+import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+import com.pathplanner.lib.path.PathConstraints;
+import com.pathplanner.lib.path.PathPlannerPath;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -19,9 +23,8 @@ import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import org.littletonrobotics.junction.Logger;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import java.util.function.DoubleSupplier;
 
@@ -45,6 +48,9 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     private static final double DIAGNOSTIC_COOLDOWN_SEC = 2.0;
 
     private final DrivetrainConfig config;
+    private final DrivetrainIO io;
+    private final DrivetrainIOInputsAutoLogged inputs = new DrivetrainIOInputsAutoLogged();
+    private final PathConstraints pathConstraints;
 
     // Reusable swerve requests (never allocate in loops)
     private final SwerveRequest.FieldCentric fieldCentricRequest;
@@ -66,6 +72,10 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     private double lastSimTime;
 
     public SwerveDrive(DrivetrainConfig config) {
+        this(config, null); // IO created after super() returns
+    }
+
+    SwerveDrive(DrivetrainConfig config, DrivetrainIO io) {
         super(
                 TalonFX::new,
                 TalonFX::new,
@@ -77,11 +87,35 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                 config.createModuleConstants(config.backRight));
 
         this.config = config;
+        this.io = (io != null) ? io : new DrivetrainIOTalonFX(this::getState, this::getModule);
+
+        pathConstraints = new PathConstraints(
+                config.maxSpeedMps,
+                config.maxSpeedMps,
+                config.maxAngularRateRadPerSec,
+                config.maxAngularRateRadPerSec * 2.0);
 
         fieldCentricRequest = new SwerveRequest.FieldCentric()
                 .withDeadband(config.maxSpeedMps * config.translationDeadband)
                 .withRotationalDeadband(config.maxAngularRateRadPerSec * config.rotationDeadband)
                 .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+
+        AutoBuilder.configure(
+                this::getPose,
+                this::resetPose,
+                this::getVelocity,
+                (speeds, feedforwards) -> setControl(
+                        robotCentricRequest
+                                .withVelocityX(speeds.vxMetersPerSecond)
+                                .withVelocityY(speeds.vyMetersPerSecond)
+                                .withRotationalRate(speeds.omegaRadiansPerSecond)),
+                new PPHolonomicDriveController(
+                        new PIDConstants(5.0, 0, 0),
+                        new PIDConstants(5.0, 0, 0)),
+                config.toRobotConfig(),
+                () -> DriverStation.getAlliance()
+                        .orElse(Alliance.Blue) == Alliance.Red,
+                this);
 
         if (Utils.isSimulation()) {
             startSimThread();
@@ -146,18 +180,16 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                 .until(() -> xController.atGoal() && yController.atGoal() && rotController.atGoal());
     }
 
-    // --- DriveInterface: Path planning (stubs for Sprint 1) ---
+    // --- DriveInterface: Path planning (PathPlanner) ---
 
     @Override
     public Command pathfindToPose(Pose2d target) {
-        System.out.println("[SwerveDrive] pathfindToPose is a stub — add PathPlanner in Sprint 1");
-        return Commands.none();
+        return AutoBuilder.pathfindToPose(target, pathConstraints);
     }
 
     @Override
-    public Command followPath(Object path) {
-        System.out.println("[SwerveDrive] followPath is a stub — add PathPlanner in Sprint 1");
-        return Commands.none();
+    public Command followPath(PathPlannerPath path) {
+        return AutoBuilder.followPath(path);
     }
 
     // --- DriveInterface: State queries ---
@@ -222,51 +254,41 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
             });
         }
 
-        // --- Telemetry ---
+        // --- IO inputs (logged for replay) ---
+        io.updateInputs(inputs);
+        Logger.processInputs("Drive", inputs);
+
+        // --- Computed outputs ---
         SwerveDriveState state = getState();
         Pose2d pose = state.Pose;
         ChassisSpeeds speeds = state.Speeds;
 
-        // Robot-level
-        SmartDashboard.putNumber("Drive/PositionX", pose.getX());
-        SmartDashboard.putNumber("Drive/PositionY", pose.getY());
-        SmartDashboard.putNumber("Drive/RotationDeg", pose.getRotation().getDegrees());
+        // Struct logging for complex types
+        Logger.recordOutput("Drive/Pose", pose);
+        Logger.recordOutput("Drive/Speeds", speeds);
+
+        // Robot-level computed outputs
+        Logger.recordOutput("Drive/PositionX", pose.getX());
+        Logger.recordOutput("Drive/PositionY", pose.getY());
+        Logger.recordOutput("Drive/RotationDeg", pose.getRotation().getDegrees());
 
         double linearSpeed = Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
-        SmartDashboard.putNumber("Drive/SpeedMps", linearSpeed);
-        SmartDashboard.putNumber("Drive/SpeedPercent", linearSpeed / config.maxSpeedMps * 100.0);
-        SmartDashboard.putNumber("Drive/AngularRateDegPerSec",
+        Logger.recordOutput("Drive/SpeedMps", linearSpeed);
+        Logger.recordOutput("Drive/SpeedPercent", linearSpeed / config.maxSpeedMps * 100.0);
+        Logger.recordOutput("Drive/AngularRateDegPerSec",
                 Math.toDegrees(speeds.omegaRadiansPerSecond));
-        SmartDashboard.putNumber("Drive/OdometryHz", 1.0 / state.OdometryPeriod);
+        Logger.recordOutput("Drive/OdometryHz",
+                inputs.odometryPeriodSec > 0 ? 1.0 / inputs.odometryPeriodSec : 0);
 
         // Active command
         Command active = getCurrentCommand();
-        SmartDashboard.putString("Drive/ActiveCommand", active != null ? active.getName() : "none");
+        Logger.recordOutput("Drive/ActiveCommand", active != null ? active.getName() : "none");
 
-        // Per-module
+        // Per-module struct outputs
         SwerveModuleState[] moduleStates = state.ModuleStates;
         SwerveModuleState[] moduleTargets = state.ModuleTargets;
-        for (int i = 0; i < 4; i++) {
-            String prefix = "Drive/" + MODULE_NAMES[i] + "/";
-
-            // Target vs actual angles and speeds
-            double targetAngle = moduleTargets[i].angle.getDegrees();
-            double actualAngle = moduleStates[i].angle.getDegrees();
-            SmartDashboard.putNumber(prefix + "TargetAngleDeg", targetAngle);
-            SmartDashboard.putNumber(prefix + "ActualAngleDeg", actualAngle);
-            SmartDashboard.putNumber(prefix + "AngleErrorDeg", targetAngle - actualAngle);
-            SmartDashboard.putNumber(prefix + "TargetSpeedMps", moduleTargets[i].speedMetersPerSecond);
-            SmartDashboard.putNumber(prefix + "ActualSpeedMps", moduleStates[i].speedMetersPerSecond);
-
-            // Motor temperatures and current
-            SwerveModule<TalonFX, TalonFX, CANcoder> module = getModule(i);
-            SmartDashboard.putNumber(prefix + "DriveTempC",
-                    module.getDriveMotor().getDeviceTemp().getValueAsDouble());
-            SmartDashboard.putNumber(prefix + "SteerTempC",
-                    module.getSteerMotor().getDeviceTemp().getValueAsDouble());
-            SmartDashboard.putNumber(prefix + "DriveCurrentA",
-                    module.getDriveMotor().getStatorCurrent().getValueAsDouble());
-        }
+        Logger.recordOutput("Drive/ModuleStates", moduleStates);
+        Logger.recordOutput("Drive/ModuleTargets", moduleTargets);
 
         checkDiagnostics(state);
     }
@@ -277,9 +299,9 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         boolean warned = false;
 
         // Stale odometry (CAN timeout indicator)
-        double odometryHz = 1.0 / state.OdometryPeriod;
+        double odometryHz = inputs.odometryPeriodSec > 0 ? 1.0 / inputs.odometryPeriodSec : 0;
         boolean odometryStale = odometryHz < ODOMETRY_MIN_HZ;
-        SmartDashboard.putBoolean("Drive/Diagnostics/OdometryStale", odometryStale);
+        Logger.recordOutput("Drive/Diagnostics/OdometryStale", odometryStale);
         if (odometryStale && cooldownExpired) {
             DriverStation.reportWarning(
                     String.format("Drive: Stale odometry (%.0f Hz) - possible CAN timeout", odometryHz), false);
@@ -292,15 +314,14 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         for (int i = 0; i < 4; i++) {
             String name = MODULE_NAMES[i];
             String diagPrefix = "Drive/Diagnostics/" + name + "/";
-            SwerveModule<TalonFX, TalonFX, CANcoder> module = getModule(i);
 
-            // Motor temperatures
-            double driveTemp = module.getDriveMotor().getDeviceTemp().getValueAsDouble();
-            double steerTemp = module.getSteerMotor().getDeviceTemp().getValueAsDouble();
+            // Motor temperatures (from IO inputs)
+            double driveTemp = inputs.driveTempC[i];
+            double steerTemp = inputs.steerTempC[i];
             boolean driveTempWarn = driveTemp > MOTOR_TEMP_WARN_C;
             boolean steerTempWarn = steerTemp > MOTOR_TEMP_WARN_C;
-            SmartDashboard.putBoolean(diagPrefix + "DriveTempWarn", driveTempWarn);
-            SmartDashboard.putBoolean(diagPrefix + "SteerTempWarn", steerTempWarn);
+            Logger.recordOutput(diagPrefix + "DriveTempWarn", driveTempWarn);
+            Logger.recordOutput(diagPrefix + "SteerTempWarn", steerTempWarn);
 
             if (cooldownExpired) {
                 if (driveTemp > MOTOR_TEMP_ERROR_C) {
@@ -327,17 +348,17 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
             double angleError = Math.abs(
                     moduleTargets[i].angle.getDegrees() - moduleStates[i].angle.getDegrees());
             boolean alignmentWarn = angleError > ALIGNMENT_ERROR_WARN_DEG;
-            SmartDashboard.putBoolean(diagPrefix + "AlignmentWarn", alignmentWarn);
+            Logger.recordOutput(diagPrefix + "AlignmentWarn", alignmentWarn);
             if (alignmentWarn && cooldownExpired) {
                 DriverStation.reportWarning(
                         String.format("Drive: %s module misaligned (%.0f deg error)", name, angleError), false);
                 warned = true;
             }
 
-            // Drive current near limit
-            double driveCurrent = module.getDriveMotor().getStatorCurrent().getValueAsDouble();
+            // Drive current near limit (from IO inputs)
+            double driveCurrent = inputs.driveCurrentA[i];
             boolean currentWarn = driveCurrent > config.driveStatorCurrentLimit * CURRENT_WARN_FRACTION;
-            SmartDashboard.putBoolean(diagPrefix + "CurrentWarn", currentWarn);
+            Logger.recordOutput(diagPrefix + "CurrentWarn", currentWarn);
             if (currentWarn && cooldownExpired) {
                 DriverStation.reportWarning(
                         String.format("Drive: %s drive current high (%.0fA/%.0fA limit)",

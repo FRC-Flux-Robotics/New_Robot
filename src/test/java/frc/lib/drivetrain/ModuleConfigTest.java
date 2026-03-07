@@ -8,13 +8,13 @@ class ModuleConfigTest {
 
     @Test
     void constructsWithValidConfig() {
-        ModuleConfig config = new ModuleConfig(7, 8, 23, 0.124, 11.5, 11.5, false, false, false);
+        ModuleConfig config = new ModuleConfig(7, 8, 23, 0.124, 0.2921, 0.2921, false, false, false);
         assertEquals(7, config.driveMotorId);
         assertEquals(8, config.steerMotorId);
         assertEquals(23, config.encoderId);
         assertEquals(0.124, config.encoderOffsetRotations, 0.001);
-        assertEquals(11.5, config.xPositionInches);
-        assertEquals(11.5, config.yPositionInches);
+        assertEquals(0.2921, config.xPositionMeters, 0.0001);
+        assertEquals(0.2921, config.yPositionMeters, 0.0001);
         assertFalse(config.invertDrive);
         assertFalse(config.invertSteer);
         assertFalse(config.invertEncoder);
@@ -22,7 +22,7 @@ class ModuleConfigTest {
 
     @Test
     void storesInversionFlags() {
-        ModuleConfig config = new ModuleConfig(7, 8, 23, 0.0, 11.5, 11.5, true, true, true);
+        ModuleConfig config = new ModuleConfig(7, 8, 23, 0.0, 0.2921, 0.2921, true, true, true);
         assertTrue(config.invertDrive);
         assertTrue(config.invertSteer);
         assertTrue(config.invertEncoder);
@@ -32,48 +32,48 @@ class ModuleConfigTest {
     void rejectsDriveMotorIdTooLow() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ModuleConfig(-1, 8, 23, 0.0, 11.5, 11.5, false, false, false));
+                () -> new ModuleConfig(-1, 8, 23, 0.0, 0.2921, 0.2921, false, false, false));
     }
 
     @Test
     void rejectsDriveMotorIdTooHigh() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ModuleConfig(63, 8, 23, 0.0, 11.5, 11.5, false, false, false));
+                () -> new ModuleConfig(63, 8, 23, 0.0, 0.2921, 0.2921, false, false, false));
     }
 
     @Test
     void rejectsSteerMotorIdOutOfRange() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ModuleConfig(7, -1, 23, 0.0, 11.5, 11.5, false, false, false));
+                () -> new ModuleConfig(7, -1, 23, 0.0, 0.2921, 0.2921, false, false, false));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ModuleConfig(7, 63, 23, 0.0, 11.5, 11.5, false, false, false));
+                () -> new ModuleConfig(7, 63, 23, 0.0, 0.2921, 0.2921, false, false, false));
     }
 
     @Test
     void rejectsEncoderIdOutOfRange() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ModuleConfig(7, 8, -1, 0.0, 11.5, 11.5, false, false, false));
+                () -> new ModuleConfig(7, 8, -1, 0.0, 0.2921, 0.2921, false, false, false));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ModuleConfig(7, 8, 63, 0.0, 11.5, 11.5, false, false, false));
+                () -> new ModuleConfig(7, 8, 63, 0.0, 0.2921, 0.2921, false, false, false));
     }
 
     @Test
     void rejectsEncoderOffsetTooLow() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ModuleConfig(7, 8, 23, -1.1, 11.5, 11.5, false, false, false));
+                () -> new ModuleConfig(7, 8, 23, -1.1, 0.2921, 0.2921, false, false, false));
     }
 
     @Test
     void rejectsEncoderOffsetTooHigh() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new ModuleConfig(7, 8, 23, 1.1, 11.5, 11.5, false, false, false));
+                () -> new ModuleConfig(7, 8, 23, 1.1, 0.2921, 0.2921, false, false, false));
     }
 
     @Test
@@ -84,7 +84,7 @@ class ModuleConfigTest {
 
     @Test
     void acceptsBoundaryEncoderOffsets() {
-        assertDoesNotThrow(() -> new ModuleConfig(7, 8, 23, -1.0, 11.5, 11.5, false, false, false));
-        assertDoesNotThrow(() -> new ModuleConfig(7, 8, 23, 1.0, 11.5, 11.5, false, false, false));
+        assertDoesNotThrow(() -> new ModuleConfig(7, 8, 23, -1.0, 0.2921, 0.2921, false, false, false));
+        assertDoesNotThrow(() -> new ModuleConfig(7, 8, 23, 1.0, 0.2921, 0.2921, false, false, false));
     }
 }

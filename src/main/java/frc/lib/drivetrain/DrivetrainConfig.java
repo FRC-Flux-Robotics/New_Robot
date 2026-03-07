@@ -12,6 +12,9 @@ import com.ctre.phoenix6.swerve.SwerveModuleConstants.DriveMotorArrangement;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants.SteerFeedbackType;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants.SteerMotorArrangement;
 import com.ctre.phoenix6.swerve.SwerveModuleConstantsFactory;
+import com.pathplanner.lib.config.RobotConfig;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.system.plant.DCMotor;
 
 /**
  * Unified configuration for a swerve drivetrain. Holds all hardware IDs, tuning parameters,
@@ -33,7 +36,7 @@ public final class DrivetrainConfig {
     public final double driveGearRatio;
     public final double steerGearRatio;
     public final double couplingRatio;
-    public final double wheelRadiusInches;
+    public final double wheelRadiusMeters;
 
     // --- Speed ---
     public final double maxSpeedMps;
@@ -67,7 +70,7 @@ public final class DrivetrainConfig {
         this.driveGearRatio = b.driveGearRatio;
         this.steerGearRatio = b.steerGearRatio;
         this.couplingRatio = b.couplingRatio;
-        this.wheelRadiusInches = b.wheelRadiusInches;
+        this.wheelRadiusMeters = b.wheelRadiusMeters;
         this.maxSpeedMps = b.maxSpeedMps;
         this.maxAngularRateRadPerSec = b.maxAngularRateRadPerSec;
         this.steerGains = b.steerGains;
@@ -89,6 +92,33 @@ public final class DrivetrainConfig {
         return new SwerveDrivetrainConstants()
                 .withCANBusName(canBus)
                 .withPigeon2Id(pigeonId);
+    }
+
+    /** Build a PathPlanner RobotConfig from this config. */
+    public RobotConfig toRobotConfig() {
+        com.pathplanner.lib.config.ModuleConfig ppModuleConfig =
+                new com.pathplanner.lib.config.ModuleConfig(
+                        Meters.of(wheelRadiusMeters),
+                        MetersPerSecond.of(maxSpeedMps),
+                        1.0, // wheelCOF placeholder
+                        DCMotor.getKrakenX60(1).withReduction(driveGearRatio),
+                        Amps.of(driveStatorCurrentLimit),
+                        1);
+
+        return new RobotConfig(
+                Kilograms.of(74), // ~163 lbs robot mass estimate
+                KilogramSquareMeters.of(6.0), // MOI estimate for ~28" frame
+                ppModuleConfig,
+                modulePosition(frontLeft),
+                modulePosition(frontRight),
+                modulePosition(backLeft),
+                modulePosition(backRight));
+    }
+
+    private Translation2d modulePosition(ModuleConfig module) {
+        return new Translation2d(
+                Meters.of(module.xPositionMeters),
+                Meters.of(module.yPositionMeters));
     }
 
     /** Build CTRE SwerveModuleConstantsFactory from this config. */
@@ -113,7 +143,7 @@ public final class DrivetrainConfig {
                 .withDriveMotorGearRatio(driveGearRatio)
                 .withSteerMotorGearRatio(steerGearRatio)
                 .withCouplingGearRatio(couplingRatio)
-                .withWheelRadius(Inches.of(wheelRadiusInches))
+                .withWheelRadius(Meters.of(wheelRadiusMeters))
                 .withSteerMotorGains(steerGains.toSlot0Configs())
                 .withDriveMotorGains(driveGains.toSlot0Configs())
                 .withSteerMotorClosedLoopOutput(ClosedLoopOutputType.Voltage)
@@ -149,8 +179,8 @@ public final class DrivetrainConfig {
                         module.driveMotorId,
                         module.encoderId,
                         Rotations.of(module.encoderOffsetRotations),
-                        Inches.of(module.xPositionInches),
-                        Inches.of(module.yPositionInches),
+                        Meters.of(module.xPositionMeters),
+                        Meters.of(module.yPositionMeters),
                         module.invertDrive,
                         module.invertSteer,
                         module.invertEncoder);
@@ -166,7 +196,7 @@ public final class DrivetrainConfig {
         private double driveGearRatio;
         private double steerGearRatio;
         private double couplingRatio;
-        private double wheelRadiusInches;
+        private double wheelRadiusMeters;
         private double maxSpeedMps;
         private double maxAngularRateRadPerSec;
         private PIDGains steerGains;
@@ -217,7 +247,7 @@ public final class DrivetrainConfig {
                 double driveGearRatio,
                 double steerGearRatio,
                 double couplingRatio,
-                double wheelRadiusInches) {
+                double wheelRadiusMeters) {
             if (driveGearRatio <= 0) {
                 throw new IllegalArgumentException("driveGearRatio must be > 0, got: " + driveGearRatio);
             }
@@ -227,14 +257,14 @@ public final class DrivetrainConfig {
             if (couplingRatio < 0) {
                 throw new IllegalArgumentException("couplingRatio must be >= 0, got: " + couplingRatio);
             }
-            if (wheelRadiusInches <= 0) {
+            if (wheelRadiusMeters <= 0) {
                 throw new IllegalArgumentException(
-                        "wheelRadiusInches must be > 0, got: " + wheelRadiusInches);
+                        "wheelRadiusMeters must be > 0, got: " + wheelRadiusMeters);
             }
             this.driveGearRatio = driveGearRatio;
             this.steerGearRatio = steerGearRatio;
             this.couplingRatio = couplingRatio;
-            this.wheelRadiusInches = wheelRadiusInches;
+            this.wheelRadiusMeters = wheelRadiusMeters;
             return this;
         }
 

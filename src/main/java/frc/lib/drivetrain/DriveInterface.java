@@ -1,5 +1,6 @@
 package frc.lib.drivetrain;
 
+import com.pathplanner.lib.path.PathPlannerPath;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
@@ -41,20 +42,16 @@ public interface DriveInterface {
      * Generate a path to the target pose at runtime using PathPlanner pathfinding.
      * Handles obstacle avoidance if constraints are configured.
      * Use for long-range moves where straight-line isn't safe.
-     *
-     * <p>TODO: Change parameter type to PathPlannerPath when vendordep is added (Sprint 1).
      */
     Command pathfindToPose(Pose2d target);
 
     // --- Pre-computed paths ---
 
     /**
-     * Follow a pre-built path (designed in PathPlanner GUI).
+     * Follow a pre-built PathPlannerPath (designed in PathPlanner GUI).
      * Use for autonomous routines with known waypoints.
-     *
-     * @param path PathPlannerPath object (passed as Object until vendordep is added in Sprint 1)
      */
-    Command followPath(Object path);
+    Command followPath(PathPlannerPath path);
 
     // --- State queries ---
 

@@ -2,6 +2,8 @@ package frc.robot;
 
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import edu.wpi.first.math.filter.SlewRateLimiter;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -20,8 +22,14 @@ public class RobotContainer {
     private final SlewRateLimiter translationYLimiter = new SlewRateLimiter(6.0);
     private final SlewRateLimiter rotationLimiter = new SlewRateLimiter(8.0);
 
+    private final SendableChooser<Command> autoChooser = new SendableChooser<>();
+
     public RobotContainer(DrivetrainConfig config) {
         drivetrain = new SwerveDrive(config);
+
+        autoChooser.setDefaultOption("Drive Forward", Autos.driveForward(drivetrain));
+        autoChooser.addOption("Do Nothing", Commands.none());
+        SmartDashboard.putData("Auto Chooser", autoChooser);
 
         configureBindings();
     }
@@ -59,6 +67,6 @@ public class RobotContainer {
     }
 
     public Command getAutonomousCommand() {
-        return Commands.none();
+        return autoChooser.getSelected();
     }
 }
