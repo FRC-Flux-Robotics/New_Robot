@@ -71,10 +71,20 @@ public class RobotContainer {
         // Note: X is forward and Y is left per WPILib convention, joystick Y is inverted
         drivetrain.setDefaultCommand(
                 drivetrain.driveFieldCentric(
-                        () -> translationXLimiter.calculate(
-                                applyInputCurve(-driverController.getLeftY())) * maxSpeed,
-                        () -> translationYLimiter.calculate(
-                                applyInputCurve(-driverController.getLeftX())) * maxSpeed,
+                        () -> {
+                            double x = applyInputCurve(-driverController.getLeftY());
+                            double y = applyInputCurve(-driverController.getLeftX());
+                            double mag = Math.hypot(x, y);
+                            if (mag > 1.0) x /= mag;
+                            return translationXLimiter.calculate(x) * maxSpeed;
+                        },
+                        () -> {
+                            double x = applyInputCurve(-driverController.getLeftY());
+                            double y = applyInputCurve(-driverController.getLeftX());
+                            double mag = Math.hypot(x, y);
+                            if (mag > 1.0) y /= mag;
+                            return translationYLimiter.calculate(y) * maxSpeed;
+                        },
                         () -> rotationLimiter.calculate(
                                 applyInputCurve(-driverController.getRightX())) * maxAngularRate));
 
@@ -86,13 +96,23 @@ public class RobotContainer {
         // Left trigger = aim at target while driving (field-centric facing point)
         driverController.leftTrigger(0.5).whileTrue(
                 drivetrain.driveFieldCentricFacingPoint(
-                        () -> translationXLimiter.calculate(
-                                applyInputCurve(-driverController.getLeftY())) * maxSpeed,
-                        () -> translationYLimiter.calculate(
-                                applyInputCurve(-driverController.getLeftX())) * maxSpeed,
+                        () -> {
+                            double x = applyInputCurve(-driverController.getLeftY());
+                            double y = applyInputCurve(-driverController.getLeftX());
+                            double mag = Math.hypot(x, y);
+                            if (mag > 1.0) x /= mag;
+                            return translationXLimiter.calculate(x) * maxSpeed;
+                        },
+                        () -> {
+                            double x = applyInputCurve(-driverController.getLeftY());
+                            double y = applyInputCurve(-driverController.getLeftX());
+                            double mag = Math.hypot(x, y);
+                            if (mag > 1.0) y /= mag;
+                            return translationYLimiter.calculate(y) * maxSpeed;
+                        },
                         () -> SPEAKER_POSITION));
 
-        // A button = drive to tag 3 using vision (hold to keep driving)
+        // A button = drive to and align with tag 3 using vision (hold to keep driving)
         if (tagCamera != null) {
             driverController.a().whileTrue(goToTag());
         }
@@ -168,9 +188,9 @@ public class RobotContainer {
         // P-control: drive forward until TAG_STOP_DISTANCE_M, center laterally, face tag
         double vx = MathUtil.clamp(TAG_FORWARD_KP * (forwardDist - TAG_STOP_DISTANCE_M),
                 -TAG_MAX_SPEED_MPS, TAG_MAX_SPEED_MPS);
-        double vy = MathUtil.clamp(TAG_LATERAL_KP * lateralOff,
+        double vy = MathUtil.clamp(-TAG_LATERAL_KP * lateralOff,
                 -TAG_MAX_SPEED_MPS, TAG_MAX_SPEED_MPS);
-        double omega = MathUtil.clamp(TAG_ROTATION_KP * yawRad,
+        double omega = MathUtil.clamp(-TAG_ROTATION_KP * yawRad,
                 -TAG_MAX_OMEGA_RAD, TAG_MAX_OMEGA_RAD);
 
         // Stop forward motion if close enough
@@ -190,7 +210,11 @@ public class RobotContainer {
     }
 
     private static double applyInputCurve(double value) {
-        return Math.copySign(value * value, value);
+        
+        if(value > .00001 && value < .01){
+            return .0005;
+        }
+        return (Math.copySign(value * value, value));
     }
 
     public Command getAutonomousCommand() {
