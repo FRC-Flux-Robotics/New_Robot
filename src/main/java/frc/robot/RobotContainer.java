@@ -10,12 +10,16 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.math.geometry.Translation2d;
 import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.SwerveDrive;
 import frc.robot.Constants.OperatorConstants;
 import org.littletonrobotics.junction.Logger;
 
 public class RobotContainer {
+    // TODO: Update with actual 2026 game field coordinates
+    private static final Translation2d SPEAKER_POSITION = new Translation2d(0.0, 5.55);
+
     public final SwerveDrive drivetrain;
 
     private final CommandXboxController driverController =
@@ -57,6 +61,15 @@ public class RobotContainer {
         final var idle = new SwerveRequest.Idle();
         RobotModeTriggers.disabled()
                 .whileTrue(drivetrain.applyRequest(() -> idle).ignoringDisable(true));
+
+        // Left trigger = aim at target while driving (field-centric facing point)
+        driverController.leftTrigger(0.5).whileTrue(
+                drivetrain.driveFieldCentricFacingPoint(
+                        () -> translationXLimiter.calculate(
+                                applyInputCurve(-driverController.getLeftY())) * maxSpeed,
+                        () -> translationYLimiter.calculate(
+                                applyInputCurve(-driverController.getLeftX())) * maxSpeed,
+                        () -> SPEAKER_POSITION));
 
         // X button = brake (lock wheels in X pattern)
         driverController.x().whileTrue(drivetrain.brake());

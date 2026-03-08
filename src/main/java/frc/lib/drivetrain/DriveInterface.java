@@ -3,9 +3,11 @@ package frc.lib.drivetrain;
 import com.pathplanner.lib.path.PathPlannerPath;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj2.command.Command;
 import java.util.function.DoubleSupplier;
+import java.util.function.Supplier;
 
 /**
  * Clean interface for drivetrain consumers (other subsystems, autonomous routines).
@@ -20,6 +22,12 @@ public interface DriveInterface {
 
     /** Continuous robot-centric driving. vx/vy in m/s, omega in rad/s. */
     Command driveRobotCentric(DoubleSupplier vx, DoubleSupplier vy, DoubleSupplier omega);
+
+    /** Continuous field-centric driving that auto-rotates to face a field point.
+     *  vx/vy in m/s, heading tracks angle from robot to fieldTarget. */
+    Command driveFieldCentricFacingPoint(
+            DoubleSupplier vx, DoubleSupplier vy,
+            Supplier<Translation2d> fieldTarget);
 
     /** Lock wheels in X pattern. Runs until interrupted. */
     Command brake();

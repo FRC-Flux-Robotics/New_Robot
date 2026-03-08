@@ -17,6 +17,7 @@ import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.math.numbers.N1;
@@ -32,6 +33,7 @@ import org.littletonrobotics.junction.Logger;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import java.util.function.DoubleSupplier;
+import java.util.function.Supplier;
 
 /**
  * Config-driven swerve drivetrain subsystem. Constructed solely from a {@link DrivetrainConfig}.
@@ -78,6 +80,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
     private final SwerveRequest.RobotCentric autoRequest = new SwerveRequest.RobotCentric()
             .withDriveRequestType(DriveRequestType.Velocity);
+    private final SwerveRequest.FieldCentricFacingAngle facingAngleRequest;
     private final SwerveRequest.SwerveDriveBrake brakeRequest = new SwerveRequest.SwerveDriveBrake();
     private final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
 
@@ -133,6 +136,12 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                 .withRotationalDeadband(config.maxAngularRateRadPerSec * config.rotationDeadband)
                 .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
+        facingAngleRequest = new SwerveRequest.FieldCentricFacingAngle()
+                .withDeadband(config.maxSpeedMps * config.translationDeadband)
+                .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+        facingAngleRequest.HeadingController.setPID(5.0, 0, 0);
+        facingAngleRequest.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
+
         AutoBuilder.configure(
                 this::getPose,
                 this::resetPose,
@@ -177,6 +186,29 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                     .withVelocityX(vx.getAsDouble() * scale)
                     .withVelocityY(vy.getAsDouble() * scale)
                     .withRotationalRate(omega.getAsDouble() * scale));
+        });
+    }
+
+    @Override
+    public Command driveFieldCentricFacingPoint(
+            DoubleSupplier vx, DoubleSupplier vy,
+            Supplier<Translation2d> fieldTarget) {
+        return run(() -> {
+            double scale = getVoltageSpeedScale();
+            Translation2d target = fieldTarget.get();
+            Pose2d pose = getPose();
+            double dx = target.getX() - pose.getX();
+            double dy = target.getY() - pose.getY();
+            Rotation2d targetAngle = new Rotation2d(dx, dy);
+
+            setControl(facingAngleRequest
+                    .withVelocityX(vx.getAsDouble() * scale)
+                    .withVelocityY(vy.getAsDouble() * scale)
+                    .withTargetDirection(targetAngle));
+
+            Logger.recordOutput("Drive/FacingPoint/TargetAngleDeg", targetAngle.getDegrees());
+            Logger.recordOutput("Drive/FacingPoint/HeadingErrorDeg",
+                    targetAngle.minus(pose.getRotation()).getDegrees());
         });
     }
 

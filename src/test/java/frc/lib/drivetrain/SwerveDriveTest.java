@@ -3,6 +3,7 @@ package frc.lib.drivetrain;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+import edu.wpi.first.math.geometry.Translation2d;
 import com.pathplanner.lib.path.PathConstraints;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.path.GoalEndState;
@@ -94,6 +95,38 @@ class SwerveDriveTest {
         Command cmd = drive.driveRobotCentric(() -> 0, () -> 0, () -> 0);
         assertNotNull(cmd);
         assertTrue(cmd.getRequirements().contains(drive));
+    }
+
+    @Test
+    void driveFieldCentricFacingPointReturnsCommand() {
+        Command cmd = drive.driveFieldCentricFacingPoint(
+                () -> 0, () -> 0, () -> new Translation2d(5, 5));
+        assertNotNull(cmd);
+        assertTrue(cmd.getRequirements().contains(drive));
+    }
+
+    @Test
+    void driveFieldCentricFacingPointExecutesWithoutError() {
+        Command cmd = drive.driveFieldCentricFacingPoint(
+                () -> 1.0, () -> 0.5, () -> new Translation2d(8, 4));
+        assertDoesNotThrow(() -> {
+            cmd.initialize();
+            cmd.execute();
+        });
+    }
+
+    @Test
+    void driveFieldCentricFacingPointCallsSupplierEachCycle() {
+        int[] callCount = {0};
+        Command cmd = drive.driveFieldCentricFacingPoint(
+                () -> 0, () -> 0, () -> {
+                    callCount[0]++;
+                    return new Translation2d(3, 3);
+                });
+        cmd.initialize();
+        cmd.execute();
+        cmd.execute();
+        assertEquals(2, callCount[0], "Target supplier should be called each execute cycle");
     }
 
     @Test

@@ -38,9 +38,14 @@
 ### Buttons
 | Button | Action |
 |--------|--------|
+| **Left Trigger** (hold past 50%) | **Aim at target** - robot auto-rotates to face the speaker while you keep driving with left stick |
 | **X** (hold) | Brake - locks wheels in X pattern |
 | **Right Bumper** (press) | Reset field-centric heading |
 | **Both Bumpers** (hold) | Emergency stop (brake + warning logged) |
+
+### Aim While Driving (Left Trigger)
+
+Hold the left trigger past halfway. The robot will automatically rotate to face the speaker/goal while you steer with the left stick. Release the trigger to go back to normal driving. Use this to line up shots while maneuvering.
 
 ---
 
@@ -85,6 +90,8 @@ Select auto routine on SmartDashboard via **Auto Chooser**:
 | `Drive/BrownoutSpeedScale` | Current speed multiplier (1.0 = full) |
 | `Drive/PoseConfidence` | HIGH / MEDIUM / LOW / DEAD_RECKONING |
 | `Drive/ActiveCommand` | Currently running drive command |
+| `Drive/FacingPoint/HeadingErrorDeg` | Aim error when left trigger held (should converge to 0) |
+| `Drive/FacingPoint/TargetAngleDeg` | Target heading angle when aiming |
 
 ---
 
@@ -96,6 +103,7 @@ Select auto routine on SmartDashboard via **Auto Chooser**:
 4. **Need to stop fast**: Hold both bumpers for emergency stop
 5. **"CAN issues" on dashboard**: Check CANivore (CANdace) USB connection to RoboRIO
 6. **Vision not working**: Check `Drive/Vision/0/Connected`, verify camera powered
+7. **Aim mode not rotating**: Check `Drive/FacingPoint/HeadingErrorDeg` — if not updating, verify left trigger reaches 50%
 
 ---
 
