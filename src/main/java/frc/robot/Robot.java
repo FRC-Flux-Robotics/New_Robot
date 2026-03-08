@@ -28,6 +28,10 @@ public class Robot extends LoggedRobot {
   public Robot() {
     // Configure AdvantageKit logging before any other initialization
     Logger.recordMetadata("ProjectName", "FLUX-2026");
+    Logger.recordMetadata("GitSHA", BuildConstants.GIT_SHA);
+    Logger.recordMetadata("BuildDate", BuildConstants.BUILD_DATE);
+    Logger.recordMetadata("RobotName", "CORAL");
+    Logger.recordMetadata("FieldLayout", "COMPETITION");
 
     if (isReal()) {
       // Real robot: log to disk and publish to NetworkTables

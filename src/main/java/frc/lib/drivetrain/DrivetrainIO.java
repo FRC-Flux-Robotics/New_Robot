@@ -33,6 +33,7 @@ public interface DrivetrainIO {
         public double[] visionTimestampSec = new double[0];
         public int[] visionTagCount = new int[0];
         public double[] visionAmbiguity = new double[0];
+        public double[] visionAvgTagDistM = new double[0];
     }
 
     void updateInputs(DrivetrainIOInputsAutoLogged inputs);

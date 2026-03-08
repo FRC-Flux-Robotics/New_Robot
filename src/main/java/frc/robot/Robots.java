@@ -24,7 +24,8 @@ public final class Robots {
             .steerPID(new PIDGains(100, 0, 0.5, 0.1, 1.5, 0))
             .drivePID(new PIDGains(0.1, 0, 0, 0, 0.124, 0))
             .currentLimits(40, 35, 20, 120)
-            .deadband(0.1, 0.1)
+            .deadband(0.05, 0.1)
+            .mass(74.0, 6.0) // ~163 lbs robot, MOI estimate for ~28" frame
             // TODO: Measure actual camera position on robot
             .camera("front", new Transform3d(0.3, 0, 0.25, new Rotation3d(0, Math.toRadians(-15), 0)))
             .build();

@@ -6,6 +6,7 @@ import com.ctre.phoenix6.swerve.SwerveDrivetrain.SwerveDriveState;
 import com.ctre.phoenix6.swerve.SwerveModule;
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.wpilibj.RobotController;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.IntFunction;
@@ -83,14 +84,28 @@ public class DrivetrainIOTalonFX implements DrivetrainIO {
         // Vision
         int camCount = cameras.length;
         if (camCount > 0) {
-            inputs.visionConnected = new boolean[camCount];
-            inputs.visionHasEstimate = new boolean[camCount];
-            inputs.visionPoseX = new double[camCount];
-            inputs.visionPoseY = new double[camCount];
-            inputs.visionPoseRotDeg = new double[camCount];
-            inputs.visionTimestampSec = new double[camCount];
-            inputs.visionTagCount = new int[camCount];
-            inputs.visionAmbiguity = new double[camCount];
+            // Allocate arrays only once, reuse and zero each cycle
+            if (inputs.visionConnected.length != camCount) {
+                inputs.visionConnected = new boolean[camCount];
+                inputs.visionHasEstimate = new boolean[camCount];
+                inputs.visionPoseX = new double[camCount];
+                inputs.visionPoseY = new double[camCount];
+                inputs.visionPoseRotDeg = new double[camCount];
+                inputs.visionTimestampSec = new double[camCount];
+                inputs.visionTagCount = new int[camCount];
+                inputs.visionAmbiguity = new double[camCount];
+                inputs.visionAvgTagDistM = new double[camCount];
+            } else {
+                Arrays.fill(inputs.visionConnected, false);
+                Arrays.fill(inputs.visionHasEstimate, false);
+                Arrays.fill(inputs.visionPoseX, 0);
+                Arrays.fill(inputs.visionPoseY, 0);
+                Arrays.fill(inputs.visionPoseRotDeg, 0);
+                Arrays.fill(inputs.visionTimestampSec, 0);
+                Arrays.fill(inputs.visionTagCount, 0);
+                Arrays.fill(inputs.visionAmbiguity, 0);
+                Arrays.fill(inputs.visionAvgTagDistM, 0);
+            }
 
             for (int i = 0; i < camCount; i++) {
                 inputs.visionConnected[i] = cameras[i].isConnected();
@@ -113,6 +128,11 @@ public class DrivetrainIOTalonFX implements DrivetrainIO {
                     inputs.visionTagCount[i] = est.targetsUsed.size();
                     if (!est.targetsUsed.isEmpty()) {
                         inputs.visionAmbiguity[i] = est.targetsUsed.get(0).getPoseAmbiguity();
+                        double totalDist = 0;
+                        for (var target : est.targetsUsed) {
+                            totalDist += target.getBestCameraToTarget().getTranslation().getNorm();
+                        }
+                        inputs.visionAvgTagDistM[i] = totalDist / est.targetsUsed.size();
                     }
                 }
             }

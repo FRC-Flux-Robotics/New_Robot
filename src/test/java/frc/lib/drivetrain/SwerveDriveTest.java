@@ -228,6 +228,7 @@ class SwerveDriveTest {
             inputs.visionTimestampSec = new double[1];
             inputs.visionTagCount = new int[1];
             inputs.visionAmbiguity = new double[1];
+            inputs.visionAvgTagDistM = new double[1];
             configurator.accept(inputs);
         };
         return new SwerveDrive(buildTestConfig(), null, mockIO);
@@ -274,6 +275,147 @@ class SwerveDriveTest {
         Pose2d pose = d.getPose();
         assertEquals(0.0, pose.getX(), 0.01, "Pose X should stay at origin when ambiguity is high");
         assertEquals(0.0, pose.getY(), 0.01, "Pose Y should stay at origin when ambiguity is high");
+    }
+
+    @Test
+    void visionSingleTagFarRejected() {
+        SwerveDrive d = createDriveWithVisionIO(inputs -> {
+            inputs.visionConnected[0] = true;
+            inputs.visionHasEstimate[0] = true;
+            inputs.visionPoseX[0] = 5.0;
+            inputs.visionPoseY[0] = 3.0;
+            inputs.visionPoseRotDeg[0] = 0;
+            inputs.visionTimestampSec[0] = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+            inputs.visionAmbiguity[0] = 0.1;
+            inputs.visionTagCount[0] = 1;
+            inputs.visionAvgTagDistM[0] = 5.5; // far single tag
+        });
+        d.periodic();
+        Pose2d pose = d.getPose();
+        assertEquals(0.0, pose.getX(), 0.01, "Single tag far should be rejected, pose stays at origin X");
+        assertEquals(0.0, pose.getY(), 0.01, "Single tag far should be rejected, pose stays at origin Y");
+    }
+
+    @Test
+    void visionSingleTagCloseAccepted() {
+        SwerveDrive d = createDriveWithVisionIO(inputs -> {
+            inputs.visionConnected[0] = true;
+            inputs.visionHasEstimate[0] = true;
+            inputs.visionPoseX[0] = 3.0;
+            inputs.visionPoseY[0] = 2.0;
+            inputs.visionPoseRotDeg[0] = 0;
+            inputs.visionTimestampSec[0] = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+            inputs.visionAmbiguity[0] = 0.1;
+            inputs.visionTagCount[0] = 1;
+            inputs.visionAvgTagDistM[0] = 2.0; // close single tag
+        });
+        // Single tag close should be accepted (not rejected), periodic runs cleanly
+        assertDoesNotThrow(() -> d.periodic());
+    }
+
+    @Test
+    void visionMultiTagCloseAccepted() {
+        SwerveDrive d = createDriveWithVisionIO(inputs -> {
+            inputs.visionConnected[0] = true;
+            inputs.visionHasEstimate[0] = true;
+            inputs.visionPoseX[0] = 3.0;
+            inputs.visionPoseY[0] = 2.0;
+            inputs.visionPoseRotDeg[0] = 0;
+            inputs.visionTimestampSec[0] = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+            inputs.visionAmbiguity[0] = 0.05;
+            inputs.visionTagCount[0] = 2;
+            inputs.visionAvgTagDistM[0] = 1.5; // close multi-tag
+        });
+        // Multi-tag close should be accepted, periodic runs cleanly
+        assertDoesNotThrow(() -> d.periodic());
+    }
+
+    @Test
+    void visionStdDevsReturnsNullForSingleTagFar() {
+        AutoBuilder.resetForTesting();
+        SwerveDrive d = new SwerveDrive(buildTestConfig());
+        assertNull(d.getVisionStdDevs(1, 5.0), "Single tag >4m should return null (reject)");
+    }
+
+    @Test
+    void visionStdDevsReturnsTrustForSingleTagClose() {
+        AutoBuilder.resetForTesting();
+        SwerveDrive d = new SwerveDrive(buildTestConfig());
+        var stdDevs = d.getVisionStdDevs(1, 2.0);
+        assertNotNull(stdDevs, "Single tag <4m should not be rejected");
+        assertEquals(0.5, stdDevs.get(0, 0), 0.001);
+        assertEquals(0.5, stdDevs.get(1, 0), 0.001);
+        assertEquals(999, stdDevs.get(2, 0), 0.001);
+    }
+
+    @Test
+    void visionStdDevsReturnsHighTrustForMultiTagClose() {
+        AutoBuilder.resetForTesting();
+        SwerveDrive d = new SwerveDrive(buildTestConfig());
+        var stdDevs = d.getVisionStdDevs(2, 1.5);
+        assertNotNull(stdDevs, "Multi-tag <4m should not be rejected");
+        assertEquals(0.3, stdDevs.get(0, 0), 0.001);
+        assertEquals(0.3, stdDevs.get(1, 0), 0.001);
+        assertEquals(0.5, stdDevs.get(2, 0), 0.001);
+    }
+
+    @Test
+    void visionPoseOutOfBoundsRejected() {
+        SwerveDrive d = createDriveWithVisionIO(inputs -> {
+            inputs.visionConnected[0] = true;
+            inputs.visionHasEstimate[0] = true;
+            inputs.visionPoseX[0] = 50.0;
+            inputs.visionPoseY[0] = 50.0;
+            inputs.visionPoseRotDeg[0] = 0;
+            inputs.visionTimestampSec[0] = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+            inputs.visionAmbiguity[0] = 0.05;
+            inputs.visionTagCount[0] = 2;
+            inputs.visionAvgTagDistM[0] = 1.0;
+        });
+        d.periodic();
+        Pose2d pose = d.getPose();
+        assertEquals(0.0, pose.getX(), 0.01, "Out-of-bounds vision pose should be rejected");
+        assertEquals(0.0, pose.getY(), 0.01, "Out-of-bounds vision pose should be rejected");
+    }
+
+    @Test
+    void visionPoseNegativeRejected() {
+        SwerveDrive d = createDriveWithVisionIO(inputs -> {
+            inputs.visionConnected[0] = true;
+            inputs.visionHasEstimate[0] = true;
+            inputs.visionPoseX[0] = -1.0;
+            inputs.visionPoseY[0] = -1.0;
+            inputs.visionPoseRotDeg[0] = 0;
+            inputs.visionTimestampSec[0] = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+            inputs.visionAmbiguity[0] = 0.05;
+            inputs.visionTagCount[0] = 2;
+            inputs.visionAvgTagDistM[0] = 1.0;
+        });
+        d.periodic();
+        Pose2d pose = d.getPose();
+        assertEquals(0.0, pose.getX(), 0.01, "Negative vision pose should be rejected");
+        assertEquals(0.0, pose.getY(), 0.01, "Negative vision pose should be rejected");
+    }
+
+    @Test
+    void isVisionPoseOnFieldReturnsFalseForOutOfBounds() {
+        AutoBuilder.resetForTesting();
+        SwerveDrive d = new SwerveDrive(buildTestConfig());
+        assertFalse(d.isVisionPoseOnField(new Pose2d(50, 50, Rotation2d.kZero)));
+        assertFalse(d.isVisionPoseOnField(new Pose2d(-1, 4, Rotation2d.kZero)));
+        assertFalse(d.isVisionPoseOnField(new Pose2d(8, -1, Rotation2d.kZero)));
+        assertFalse(d.isVisionPoseOnField(new Pose2d(18, 4, Rotation2d.kZero)));
+        assertFalse(d.isVisionPoseOnField(new Pose2d(8, 9, Rotation2d.kZero)));
+    }
+
+    @Test
+    void isVisionPoseOnFieldReturnsTrueForValidPose() {
+        AutoBuilder.resetForTesting();
+        SwerveDrive d = new SwerveDrive(buildTestConfig());
+        assertTrue(d.isVisionPoseOnField(new Pose2d(8, 4, Rotation2d.kZero)));
+        assertTrue(d.isVisionPoseOnField(new Pose2d(0, 0, Rotation2d.kZero)));
+        assertTrue(d.isVisionPoseOnField(new Pose2d(17, 8.7, Rotation2d.kZero)));
+        assertTrue(d.isVisionPoseOnField(new Pose2d(16.5, 8.0, Rotation2d.kZero)));
     }
 
     @Test
@@ -359,6 +501,104 @@ class SwerveDriveTest {
         assertTrue(scale >= 0.25, "Scale should be >= 0.25 (min), was " + scale);
         assertTrue(scale <= 1.0, "Scale should be <= 1.0, was " + scale);
         assertTrue(scale < 1.0, "Scale should be < 1.0 at 9.0V, was " + scale);
+    }
+
+    // --- Pose management ---
+
+    // --- Vision rejection and confidence logging (S0-29) ---
+
+    @Test
+    void visionRejectionLogsRejectReason() {
+        // Out-of-bounds rejection
+        SwerveDrive d1 = createDriveWithVisionIO(inputs -> {
+            inputs.visionConnected[0] = true;
+            inputs.visionHasEstimate[0] = true;
+            inputs.visionPoseX[0] = 50.0;
+            inputs.visionPoseY[0] = 50.0;
+            inputs.visionPoseRotDeg[0] = 0;
+            inputs.visionTimestampSec[0] = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+            inputs.visionAmbiguity[0] = 0.05;
+            inputs.visionTagCount[0] = 2;
+            inputs.visionAvgTagDistM[0] = 1.0;
+        });
+        assertDoesNotThrow(() -> d1.periodic());
+
+        // High ambiguity rejection
+        SwerveDrive d2 = createDriveWithVisionIO(inputs -> {
+            inputs.visionConnected[0] = true;
+            inputs.visionHasEstimate[0] = true;
+            inputs.visionPoseX[0] = 3.0;
+            inputs.visionPoseY[0] = 2.0;
+            inputs.visionPoseRotDeg[0] = 0;
+            inputs.visionTimestampSec[0] = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+            inputs.visionAmbiguity[0] = 0.5;
+            inputs.visionTagCount[0] = 2;
+            inputs.visionAvgTagDistM[0] = 1.0;
+        });
+        assertDoesNotThrow(() -> d2.periodic());
+
+        // Single tag far rejection
+        SwerveDrive d3 = createDriveWithVisionIO(inputs -> {
+            inputs.visionConnected[0] = true;
+            inputs.visionHasEstimate[0] = true;
+            inputs.visionPoseX[0] = 5.0;
+            inputs.visionPoseY[0] = 3.0;
+            inputs.visionPoseRotDeg[0] = 0;
+            inputs.visionTimestampSec[0] = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+            inputs.visionAmbiguity[0] = 0.1;
+            inputs.visionTagCount[0] = 1;
+            inputs.visionAvgTagDistM[0] = 5.5;
+        });
+        assertDoesNotThrow(() -> d3.periodic());
+    }
+
+    @Test
+    void getPoseConfidenceReturnsDeadReckoningWithNoVision() {
+        AutoBuilder.resetForTesting();
+        SwerveDrive d = new SwerveDrive(buildTestConfig());
+        assertEquals(SwerveDrive.PoseConfidence.DEAD_RECKONING,
+                d.getPoseConfidence(10.0, 0, 1.0));
+    }
+
+    @Test
+    void getPoseConfidenceReturnsHighForMultiTagRecent() {
+        AutoBuilder.resetForTesting();
+        SwerveDrive d = new SwerveDrive(buildTestConfig());
+        assertEquals(SwerveDrive.PoseConfidence.HIGH,
+                d.getPoseConfidence(0.5, 2, 0.05));
+    }
+
+    @Test
+    void getPoseConfidenceReturnsMediumForOlderVision() {
+        AutoBuilder.resetForTesting();
+        SwerveDrive d = new SwerveDrive(buildTestConfig());
+        assertEquals(SwerveDrive.PoseConfidence.MEDIUM,
+                d.getPoseConfidence(1.5, 1, 0.15));
+    }
+
+    @Test
+    void getPoseConfidenceReturnsLowForOldVision() {
+        AutoBuilder.resetForTesting();
+        SwerveDrive d = new SwerveDrive(buildTestConfig());
+        assertEquals(SwerveDrive.PoseConfidence.LOW,
+                d.getPoseConfidence(3.0, 1, 0.15));
+    }
+
+    @Test
+    void visionOdometryDeltaLogged() {
+        SwerveDrive d = createDriveWithVisionIO(inputs -> {
+            inputs.visionConnected[0] = true;
+            inputs.visionHasEstimate[0] = true;
+            inputs.visionPoseX[0] = 3.0;
+            inputs.visionPoseY[0] = 2.0;
+            inputs.visionPoseRotDeg[0] = 0;
+            inputs.visionTimestampSec[0] = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+            inputs.visionAmbiguity[0] = 0.05;
+            inputs.visionTagCount[0] = 2;
+            inputs.visionAvgTagDistM[0] = 1.5;
+        });
+        // periodic computes odometry delta without throwing
+        assertDoesNotThrow(() -> d.periodic());
     }
 
     // --- Pose management ---

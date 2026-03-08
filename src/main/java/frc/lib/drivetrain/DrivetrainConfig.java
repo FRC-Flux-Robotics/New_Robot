@@ -59,11 +59,15 @@ public final class DrivetrainConfig {
     public final double translationDeadband;
     public final double rotationDeadband;
 
+    // --- Mass properties (PathPlanner) ---
+    public final double massKg;
+    public final double moiKgM2;
+
     // --- Vision cameras ---
     public final List<CameraConfig> cameras;
 
-    // Cached factory instance (built lazily)
-    private SwerveModuleConstantsFactory<TalonFXConfiguration, TalonFXConfiguration, CANcoderConfiguration>
+    // Cached factory instance (built eagerly for thread safety)
+    private final SwerveModuleConstantsFactory<TalonFXConfiguration, TalonFXConfiguration, CANcoderConfiguration>
             cachedFactory;
 
     private DrivetrainConfig(Builder b) {
@@ -87,7 +91,10 @@ public final class DrivetrainConfig {
         this.slipCurrentAmps = b.slipCurrentAmps;
         this.translationDeadband = b.translationDeadband;
         this.rotationDeadband = b.rotationDeadband;
+        this.massKg = b.massKg;
+        this.moiKgM2 = b.moiKgM2;
         this.cameras = List.copyOf(b.cameras);
+        this.cachedFactory = toModuleConstantsFactory();
     }
 
     public static Builder builder() {
@@ -113,8 +120,8 @@ public final class DrivetrainConfig {
                         1);
 
         return new RobotConfig(
-                Kilograms.of(74), // ~163 lbs robot mass estimate
-                KilogramSquareMeters.of(6.0), // MOI estimate for ~28" frame
+                Kilograms.of(massKg),
+                KilogramSquareMeters.of(moiKgM2),
                 ppModuleConfig,
                 modulePosition(frontLeft),
                 modulePosition(frontRight),
@@ -171,9 +178,6 @@ public final class DrivetrainConfig {
 
     private SwerveModuleConstantsFactory<TalonFXConfiguration, TalonFXConfiguration, CANcoderConfiguration>
             getModuleConstantsFactory() {
-        if (cachedFactory == null) {
-            cachedFactory = toModuleConstantsFactory();
-        }
         return cachedFactory;
     }
 
@@ -214,6 +218,8 @@ public final class DrivetrainConfig {
         private double slipCurrentAmps;
         private double translationDeadband;
         private double rotationDeadband;
+        private double massKg = 74.0;
+        private double moiKgM2 = 6.0;
         private final List<CameraConfig> cameras = new ArrayList<>();
 
         private Builder() {}
@@ -320,6 +326,18 @@ public final class DrivetrainConfig {
             this.driveSupplyCurrentLimit = driveSupply;
             this.steerStatorCurrentLimit = steerStator;
             this.slipCurrentAmps = slip;
+            return this;
+        }
+
+        public Builder mass(double massKg, double moiKgM2) {
+            if (massKg <= 0) {
+                throw new IllegalArgumentException("massKg must be > 0, got: " + massKg);
+            }
+            if (moiKgM2 <= 0) {
+                throw new IllegalArgumentException("moiKgM2 must be > 0, got: " + moiKgM2);
+            }
+            this.massKg = massKg;
+            this.moiKgM2 = moiKgM2;
             return this;
         }
 

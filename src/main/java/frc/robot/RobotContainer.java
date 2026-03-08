@@ -31,6 +31,7 @@ public class RobotContainer {
         drivetrain = new SwerveDrive(config, fieldLayout);
 
         autoChooser.setDefaultOption("Drive Forward", Autos.driveForward(drivetrain));
+        autoChooser.addOption("Forward Turn Back", Autos.forwardTurnBack(drivetrain));
         autoChooser.addOption("Do Nothing", Commands.none());
         SmartDashboard.putData("Auto Chooser", autoChooser);
 
@@ -72,7 +73,7 @@ public class RobotContainer {
                                 .withName("EmergencyStop"));
 
         // Right bumper = reset field-centric heading
-        driverController.rightBumper().onTrue(
+        driverController.rightBumper().and(driverController.leftBumper().negate()).onTrue(
                 drivetrain.runOnce(() -> drivetrain.resetHeading()));
     }
 

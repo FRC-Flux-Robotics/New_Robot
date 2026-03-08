@@ -12,11 +12,15 @@ import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import com.pathplanner.lib.path.PathConstraints;
 import com.pathplanner.lib.path.PathPlannerPath;
+import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import edu.wpi.first.math.numbers.N1;
+import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -34,7 +38,7 @@ import java.util.function.DoubleSupplier;
  * Implements {@link DriveInterface} for clean API access by other subsystems.
  */
 public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
-        implements Subsystem, DriveInterface {
+        implements Subsystem, DriveInterface, AutoCloseable {
 
     private static final double kSimLoopPeriod = 0.005; // 5 ms
     private static final double kMovingThresholdMps = 0.02;
@@ -53,6 +57,13 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     private static final double CURRENT_WARN_FRACTION = 0.9;
     private static final double DIAGNOSTIC_COOLDOWN_SEC = 2.0;
     private static final double VISION_MAX_AMBIGUITY = 0.2;
+    private static final double VISION_MAX_DIST_M = 4.0;
+
+    // Field bounds (FRC field ~16.54m x 8.21m, with 0.5m margin for robot overhang)
+    private static final double FIELD_MAX_X_M = 17.0;
+    private static final double FIELD_MAX_Y_M = 8.7;
+
+    enum PoseConfidence { HIGH, MEDIUM, LOW, DEAD_RECKONING }
 
     private final DrivetrainConfig config;
     private final DrivetrainIO io;
@@ -65,6 +76,8 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
     private final SwerveRequest.RobotCentric robotCentricRequest = new SwerveRequest.RobotCentric()
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+    private final SwerveRequest.RobotCentric autoRequest = new SwerveRequest.RobotCentric()
+            .withDriveRequestType(DriveRequestType.Velocity);
     private final SwerveRequest.SwerveDriveBrake brakeRequest = new SwerveRequest.SwerveDriveBrake();
     private final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
 
@@ -75,6 +88,11 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
 
     // Diagnostics
     private double lastDiagnosticTimeSec = 0;
+
+    // Vision confidence tracking
+    private double lastAcceptedVisionTimeSec = 0;
+    private int lastMaxTagCount = 0;
+    private double lastMinAmbiguity = 1.0;
 
     // Simulation
     private Notifier simNotifier = null;
@@ -106,9 +124,9 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
 
         pathConstraints = new PathConstraints(
                 config.maxSpeedMps,
-                config.maxSpeedMps,
+                2.5, // conservative linear accel (m/s²) — avoids tipping and wheel slip
                 config.maxAngularRateRadPerSec,
-                config.maxAngularRateRadPerSec * 2.0);
+                Math.PI); // conservative angular accel (rad/s²)
 
         fieldCentricRequest = new SwerveRequest.FieldCentric()
                 .withDeadband(config.maxSpeedMps * config.translationDeadband)
@@ -120,11 +138,10 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                 this::resetPose,
                 this::getVelocity,
                 (speeds, feedforwards) -> {
-                    double scale = getVoltageSpeedScale();
-                    setControl(robotCentricRequest
-                            .withVelocityX(speeds.vxMetersPerSecond * scale)
-                            .withVelocityY(speeds.vyMetersPerSecond * scale)
-                            .withRotationalRate(speeds.omegaRadiansPerSecond * scale));
+                    setControl(autoRequest
+                            .withVelocityX(speeds.vxMetersPerSecond)
+                            .withVelocityY(speeds.vyMetersPerSecond)
+                            .withRotationalRate(speeds.omegaRadiansPerSecond));
                 },
                 new PPHolonomicDriveController(
                         new PIDConstants(5.0, 0, 0),
@@ -198,6 +215,17 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                     double omega = rotController.calculate(
                             current.getRotation().getRadians(), target.getRotation().getRadians()) * scale;
                     setControl(driveToPoseRequest.withVelocityX(vx).withVelocityY(vy).withRotationalRate(omega));
+
+                    // PID telemetry for tuning
+                    Logger.recordOutput("Drive/DriveToPose/ErrorX", xController.getPositionError());
+                    Logger.recordOutput("Drive/DriveToPose/ErrorY", yController.getPositionError());
+                    Logger.recordOutput("Drive/DriveToPose/ErrorRotDeg",
+                            Math.toDegrees(rotController.getPositionError()));
+                    Logger.recordOutput("Drive/DriveToPose/OutputVx", vx);
+                    Logger.recordOutput("Drive/DriveToPose/OutputVy", vy);
+                    Logger.recordOutput("Drive/DriveToPose/OutputOmega", omega);
+                    Logger.recordOutput("Drive/DriveToPose/AtGoal",
+                            xController.atGoal() && yController.atGoal() && rotController.atGoal());
                 })
                 .until(() -> xController.atGoal() && yController.atGoal() && rotController.atGoal());
     }
@@ -218,12 +246,14 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
 
     @Override
     public Pose2d getPose() {
-        return getState().Pose;
+        SwerveDriveState state = getState();
+        return state != null ? state.Pose : new Pose2d();
     }
 
     @Override
     public ChassisSpeeds getVelocity() {
-        return getState().Speeds;
+        SwerveDriveState state = getState();
+        return state != null ? state.Speeds : new ChassisSpeeds();
     }
 
     @Override
@@ -256,6 +286,33 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         super.addVisionMeasurement(visionPose, Utils.fpgaToCurrentTime(timestampSeconds));
     }
 
+    /**
+     * Returns standard deviations for vision measurement based on tag count and distance,
+     * or null if the measurement should be rejected.
+     */
+    Matrix<N3, N1> getVisionStdDevs(int tagCount, double avgDistM) {
+        if (tagCount == 1 && avgDistM > VISION_MAX_DIST_M) {
+            return null; // reject single tag far away
+        }
+        if (tagCount >= 2 && avgDistM <= VISION_MAX_DIST_M) {
+            return VecBuilder.fill(0.3, 0.3, 0.5); // multi-tag close: high trust
+        }
+        // 1 tag close, or 2+ tags far: moderate trust, don't trust rotation
+        return VecBuilder.fill(0.5, 0.5, 999);
+    }
+
+    PoseConfidence getPoseConfidence(double secSinceVision, int maxTagCount, double minAmbiguity) {
+        if (secSinceVision > 5.0) return PoseConfidence.DEAD_RECKONING;
+        if (maxTagCount >= 2 && minAmbiguity <= 0.1 && secSinceVision <= 1.0) return PoseConfidence.HIGH;
+        if (secSinceVision <= 2.0) return PoseConfidence.MEDIUM;
+        return PoseConfidence.LOW;
+    }
+
+    boolean isVisionPoseOnField(Pose2d pose) {
+        return pose.getX() >= 0 && pose.getX() <= FIELD_MAX_X_M
+            && pose.getY() >= 0 && pose.getY() <= FIELD_MAX_Y_M;
+    }
+
     @Override
     public DrivetrainConfig getConfig() {
         return config;
@@ -282,6 +339,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
 
         // --- Computed outputs ---
         SwerveDriveState state = getState();
+        if (state == null) return;
         Pose2d pose = state.Pose;
         ChassisSpeeds speeds = state.Speeds;
 
@@ -329,11 +387,16 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         Logger.recordOutput("Drive/TotalCurrentA", totalCurrentA);
 
         // Vision fusion
+        int cycleMaxTagCount = 0;
+        double cycleMinAmbiguity = 1.0;
+        boolean anyAccepted = false;
+
         for (int i = 0; i < inputs.visionConnected.length; i++) {
             String vPrefix = "Drive/Vision/" + i + "/";
             Logger.recordOutput(vPrefix + "Connected", inputs.visionConnected[i]);
             Logger.recordOutput(vPrefix + "TagCount", inputs.visionTagCount[i]);
             Logger.recordOutput(vPrefix + "Ambiguity", inputs.visionAmbiguity[i]);
+            Logger.recordOutput(vPrefix + "AvgTagDistM", inputs.visionAvgTagDistM[i]);
 
             if (inputs.visionHasEstimate[i]) {
                 Pose2d visionPose = new Pose2d(
@@ -342,11 +405,46 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                         Rotation2d.fromDegrees(inputs.visionPoseRotDeg[i]));
                 Logger.recordOutput(vPrefix + "EstimatedPose", visionPose);
 
-                if (inputs.visionAmbiguity[i] <= VISION_MAX_AMBIGUITY) {
-                    addVisionMeasurement(visionPose, inputs.visionTimestampSec[i]);
+                double odometryDelta = pose.getTranslation().getDistance(visionPose.getTranslation());
+                Logger.recordOutput(vPrefix + "OdometryDeltaM", odometryDelta);
+                double latencyMs = (Timer.getFPGATimestamp() - inputs.visionTimestampSec[i]) * 1000.0;
+                Logger.recordOutput(vPrefix + "LatencyMs", latencyMs);
+
+                if (!isVisionPoseOnField(visionPose)) {
+                    Logger.recordOutput(vPrefix + "Rejected", true);
+                    Logger.recordOutput(vPrefix + "RejectReason", "OutOfBounds");
+                } else if (inputs.visionAmbiguity[i] > VISION_MAX_AMBIGUITY) {
+                    Logger.recordOutput(vPrefix + "Rejected", true);
+                    Logger.recordOutput(vPrefix + "RejectReason", "HighAmbiguity");
+                } else {
+                    Matrix<N3, N1> stdDevs = getVisionStdDevs(
+                            inputs.visionTagCount[i], inputs.visionAvgTagDistM[i]);
+                    if (stdDevs == null) {
+                        Logger.recordOutput(vPrefix + "Rejected", true);
+                        Logger.recordOutput(vPrefix + "RejectReason", "SingleTagFar");
+                    } else {
+                        Logger.recordOutput(vPrefix + "Rejected", false);
+                        Logger.recordOutput(vPrefix + "RejectReason", "");
+                        super.addVisionMeasurement(visionPose,
+                                Utils.fpgaToCurrentTime(inputs.visionTimestampSec[i]), stdDevs);
+                        anyAccepted = true;
+                        cycleMaxTagCount = Math.max(cycleMaxTagCount, inputs.visionTagCount[i]);
+                        cycleMinAmbiguity = Math.min(cycleMinAmbiguity, inputs.visionAmbiguity[i]);
+                    }
                 }
             }
         }
+
+        if (anyAccepted) {
+            lastAcceptedVisionTimeSec = Timer.getFPGATimestamp();
+            lastMaxTagCount = cycleMaxTagCount;
+            lastMinAmbiguity = cycleMinAmbiguity;
+        }
+
+        PoseConfidence confidence = getPoseConfidence(
+                Timer.getFPGATimestamp() - lastAcceptedVisionTimeSec,
+                lastMaxTagCount, lastMinAmbiguity);
+        Logger.recordOutput("Drive/PoseConfidence", confidence.name());
 
         checkDiagnostics(state);
     }
@@ -452,6 +550,37 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         if (warned) {
             lastDiagnosticTimeSec = now;
         }
+
+        // Health summary for driver dashboard
+        boolean allHealthy = !odometryStale && brownoutScale >= 1.0;
+        String statusMessage = "Ready";
+
+        if (odometryStale) {
+            allHealthy = false;
+            statusMessage = "CAN issues";
+        }
+
+        for (int i = 0; i < 4; i++) {
+            if (inputs.driveTempC[i] > MOTOR_TEMP_WARN_C || inputs.steerTempC[i] > MOTOR_TEMP_WARN_C) {
+                allHealthy = false;
+                statusMessage = MODULE_NAMES[i] + " motor hot";
+            }
+        }
+
+        // Check vision camera connectivity
+        for (int i = 0; i < inputs.visionConnected.length; i++) {
+            if (!inputs.visionConnected[i]) {
+                allHealthy = false;
+                statusMessage = "Camera " + i + " disconnected";
+            }
+        }
+
+        if (brownoutScale < 1.0) {
+            statusMessage = String.format("Low battery (%.1fV)", inputs.batteryVoltage);
+        }
+
+        Logger.recordOutput("Drive/AllHealthy", allHealthy);
+        Logger.recordOutput("Drive/StatusMessage", statusMessage);
     }
 
     // --- Brownout protection ---
@@ -475,6 +604,15 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
             updateSimState(deltaTime, RobotController.getBatteryVoltage());
         });
         simNotifier.startPeriodic(kSimLoopPeriod);
+    }
+
+    @Override
+    public void close() {
+        if (simNotifier != null) {
+            simNotifier.stop();
+            simNotifier.close();
+            simNotifier = null;
+        }
     }
 
     /**
