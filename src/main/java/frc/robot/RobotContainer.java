@@ -2,15 +2,18 @@ package frc.robot;
 
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import edu.wpi.first.math.filter.SlewRateLimiter;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.SwerveDrive;
 import frc.robot.Constants.OperatorConstants;
+import org.littletonrobotics.junction.Logger;
 
 public class RobotContainer {
     public final SwerveDrive drivetrain;
@@ -24,8 +27,8 @@ public class RobotContainer {
 
     private final SendableChooser<Command> autoChooser = new SendableChooser<>();
 
-    public RobotContainer(DrivetrainConfig config) {
-        drivetrain = new SwerveDrive(config);
+    public RobotContainer(DrivetrainConfig config, AprilTagFieldLayout fieldLayout) {
+        drivetrain = new SwerveDrive(config, fieldLayout);
 
         autoChooser.setDefaultOption("Drive Forward", Autos.driveForward(drivetrain));
         autoChooser.addOption("Do Nothing", Commands.none());
@@ -56,6 +59,17 @@ public class RobotContainer {
 
         // X button = brake (lock wheels in X pattern)
         driverController.x().whileTrue(drivetrain.brake());
+
+        // Emergency stop: both bumpers = brake + report
+        driverController.leftBumper().and(driverController.rightBumper())
+                .whileTrue(
+                        drivetrain.brake()
+                                .beforeStarting(() -> {
+                                    DriverStation.reportWarning("EMERGENCY STOP ACTIVATED", false);
+                                    Logger.recordOutput("Drive/EmergencyStop", true);
+                                })
+                                .finallyDo(() -> Logger.recordOutput("Drive/EmergencyStop", false))
+                                .withName("EmergencyStop"));
 
         // Right bumper = reset field-centric heading
         driverController.rightBumper().onTrue(

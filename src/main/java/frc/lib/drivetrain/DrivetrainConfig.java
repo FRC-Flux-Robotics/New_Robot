@@ -13,8 +13,11 @@ import com.ctre.phoenix6.swerve.SwerveModuleConstants.SteerFeedbackType;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants.SteerMotorArrangement;
 import com.ctre.phoenix6.swerve.SwerveModuleConstantsFactory;
 import com.pathplanner.lib.config.RobotConfig;
+import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.system.plant.DCMotor;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Unified configuration for a swerve drivetrain. Holds all hardware IDs, tuning parameters,
@@ -56,6 +59,9 @@ public final class DrivetrainConfig {
     public final double translationDeadband;
     public final double rotationDeadband;
 
+    // --- Vision cameras ---
+    public final List<CameraConfig> cameras;
+
     // Cached factory instance (built lazily)
     private SwerveModuleConstantsFactory<TalonFXConfiguration, TalonFXConfiguration, CANcoderConfiguration>
             cachedFactory;
@@ -81,6 +87,7 @@ public final class DrivetrainConfig {
         this.slipCurrentAmps = b.slipCurrentAmps;
         this.translationDeadband = b.translationDeadband;
         this.rotationDeadband = b.rotationDeadband;
+        this.cameras = List.copyOf(b.cameras);
     }
 
     public static Builder builder() {
@@ -207,6 +214,7 @@ public final class DrivetrainConfig {
         private double slipCurrentAmps;
         private double translationDeadband;
         private double rotationDeadband;
+        private final List<CameraConfig> cameras = new ArrayList<>();
 
         private Builder() {}
 
@@ -312,6 +320,11 @@ public final class DrivetrainConfig {
             this.driveSupplyCurrentLimit = driveSupply;
             this.steerStatorCurrentLimit = steerStator;
             this.slipCurrentAmps = slip;
+            return this;
+        }
+
+        public Builder camera(String name, Transform3d robotToCamera) {
+            cameras.add(new CameraConfig(name, robotToCamera));
             return this;
         }
 

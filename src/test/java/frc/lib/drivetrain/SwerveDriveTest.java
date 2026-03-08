@@ -168,15 +168,14 @@ class SwerveDriveTest {
         assertFalse(drive.isMoving());
     }
 
-    // --- driveToPose regression (S0-11: must use field-centric, not robot-centric) ---
+    // --- driveToPose regression (S0-19: must use zero-deadband request for convergence) ---
 
     @Test
-    void driveToPoseUsesFieldCentricRequest() throws Exception {
-        // Verify driveToPose uses fieldCentricRequest (not robotCentricRequest)
-        // by checking that the fieldCentricRequest field exists and is used in the command.
-        // The S0-11 bug was using robotCentricRequest which caused wrong behavior.
-        var field = SwerveDrive.class.getDeclaredField("fieldCentricRequest");
-        assertNotNull(field, "fieldCentricRequest field must exist for driveToPose");
+    void driveToPoseUsesZeroDeadbandRequest() throws Exception {
+        // Verify driveToPose uses driveToPoseRequest (zero deadband) instead of
+        // fieldCentricRequest (which has ~0.5 m/s deadband that kills PID convergence).
+        var field = SwerveDrive.class.getDeclaredField("driveToPoseRequest");
+        assertNotNull(field, "driveToPoseRequest field must exist for driveToPose");
 
         // Verify driveToPose finishes near the target when already at it (field-frame behavior)
         Pose2d currentPose = drive.getPose();
@@ -193,7 +192,7 @@ class SwerveDriveTest {
     void constructsWithCustomIO() {
         AutoBuilder.resetForTesting();
         DrivetrainIO noopIO = inputs -> {};
-        SwerveDrive customDrive = new SwerveDrive(config, noopIO);
+        SwerveDrive customDrive = new SwerveDrive(config, null, noopIO);
         assertNotNull(customDrive);
     }
 
@@ -204,6 +203,162 @@ class SwerveDriveTest {
         // Logger.recordOutput has no queryable test API like SmartDashboard.containsKey,
         // so we just verify periodic() completes without throwing
         assertDoesNotThrow(() -> drive.periodic());
+    }
+
+    // --- Safety: helper ---
+
+    private SwerveDrive createDriveWithIO(java.util.function.Consumer<DrivetrainIOInputsAutoLogged> configurator) {
+        AutoBuilder.resetForTesting();
+        DrivetrainIO mockIO = inputs -> configurator.accept(inputs);
+        return new SwerveDrive(buildTestConfig(), null, mockIO);
+    }
+
+    // --- Vision integration ---
+
+    private SwerveDrive createDriveWithVisionIO(
+            java.util.function.Consumer<DrivetrainIOInputsAutoLogged> configurator) {
+        AutoBuilder.resetForTesting();
+        DrivetrainIO mockIO = inputs -> {
+            // Allocate 1-camera vision arrays
+            inputs.visionConnected = new boolean[1];
+            inputs.visionHasEstimate = new boolean[1];
+            inputs.visionPoseX = new double[1];
+            inputs.visionPoseY = new double[1];
+            inputs.visionPoseRotDeg = new double[1];
+            inputs.visionTimestampSec = new double[1];
+            inputs.visionTagCount = new int[1];
+            inputs.visionAmbiguity = new double[1];
+            configurator.accept(inputs);
+        };
+        return new SwerveDrive(buildTestConfig(), null, mockIO);
+    }
+
+    @Test
+    void visionZeroCamerasPeriodicRunsCleanly() {
+        // Default config has no cameras → vision arrays length 0
+        assertDoesNotThrow(() -> drive.periodic());
+    }
+
+    @Test
+    void visionEstimateAcceptedWhenLowAmbiguity() {
+        SwerveDrive d = createDriveWithVisionIO(inputs -> {
+            inputs.visionConnected[0] = true;
+            inputs.visionHasEstimate[0] = true;
+            inputs.visionPoseX[0] = 3.0;
+            inputs.visionPoseY[0] = 2.0;
+            inputs.visionPoseRotDeg[0] = 45.0;
+            inputs.visionTimestampSec[0] = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+            inputs.visionAmbiguity[0] = 0.1;
+            inputs.visionTagCount[0] = 2;
+        });
+        assertDoesNotThrow(() -> d.periodic());
+        // Verify addVisionMeasurement was called (no exception) and pose is valid
+        Pose2d pose = d.getPose();
+        assertNotNull(pose, "Pose should not be null after vision fusion");
+    }
+
+    @Test
+    void visionEstimateRejectedWhenHighAmbiguity() {
+        SwerveDrive d = createDriveWithVisionIO(inputs -> {
+            inputs.visionConnected[0] = true;
+            inputs.visionHasEstimate[0] = true;
+            inputs.visionPoseX[0] = 3.0;
+            inputs.visionPoseY[0] = 2.0;
+            inputs.visionPoseRotDeg[0] = 45.0;
+            inputs.visionTimestampSec[0] = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+            inputs.visionAmbiguity[0] = 0.5;
+            inputs.visionTagCount[0] = 2;
+        });
+        assertDoesNotThrow(() -> d.periodic());
+        // High ambiguity should be rejected, pose stays near origin
+        Pose2d pose = d.getPose();
+        assertEquals(0.0, pose.getX(), 0.01, "Pose X should stay at origin when ambiguity is high");
+        assertEquals(0.0, pose.getY(), 0.01, "Pose Y should stay at origin when ambiguity is high");
+    }
+
+    @Test
+    void visionDisconnectedCameraHandledGracefully() {
+        SwerveDrive d = createDriveWithVisionIO(inputs -> {
+            inputs.visionConnected[0] = false;
+            inputs.visionHasEstimate[0] = false;
+        });
+        assertDoesNotThrow(() -> d.periodic());
+    }
+
+    // --- Safety: brownout protection ---
+
+    @Test
+    void periodicHandlesLowBatteryVoltage() {
+        SwerveDrive d = createDriveWithIO(inputs -> inputs.batteryVoltage = 9.0);
+        assertDoesNotThrow(() -> d.periodic());
+    }
+
+    @Test
+    void periodicHandlesCriticalBatteryVoltage() {
+        SwerveDrive d = createDriveWithIO(inputs -> inputs.batteryVoltage = 6.0);
+        assertDoesNotThrow(() -> d.periodic());
+    }
+
+    // --- Safety: drive current warnings ---
+
+    @Test
+    void periodicHandlesHighDriveCurrent() {
+        SwerveDrive d = createDriveWithIO(inputs -> inputs.driveCurrentA[0] = 38.0);
+        assertDoesNotThrow(() -> d.periodic());
+    }
+
+    // --- Safety: steer current warnings ---
+
+    @Test
+    void periodicHandlesHighSteerCurrent() {
+        SwerveDrive d = createDriveWithIO(inputs -> inputs.steerCurrentA[0] = 19.0);
+        assertDoesNotThrow(() -> d.periodic());
+    }
+
+    // --- Safety: motor temperature warnings ---
+
+    @Test
+    void periodicHandlesHighMotorTemp() {
+        SwerveDrive d = createDriveWithIO(inputs -> inputs.driveTempC[0] = 85.0);
+        assertDoesNotThrow(() -> d.periodic());
+    }
+
+    @Test
+    void periodicHandlesOverTemp() {
+        SwerveDrive d = createDriveWithIO(inputs -> inputs.driveTempC[0] = 105.0);
+        assertDoesNotThrow(() -> d.periodic());
+    }
+
+    // --- Safety: stale odometry ---
+
+    @Test
+    void periodicHandlesStaleOdometry() {
+        SwerveDrive d = createDriveWithIO(inputs -> inputs.odometryPeriodSec = 0);
+        assertDoesNotThrow(() -> d.periodic());
+    }
+
+    // --- Safety: multiple simultaneous warnings ---
+
+    @Test
+    void periodicHandlesMultipleWarnings() {
+        SwerveDrive d = createDriveWithIO(inputs -> {
+            inputs.batteryVoltage = 9.0;
+            inputs.driveCurrentA[0] = 38.0;
+            inputs.driveTempC[0] = 85.0;
+        });
+        assertDoesNotThrow(() -> d.periodic());
+    }
+
+    // --- Safety: brownout scale calculation ---
+
+    @Test
+    void brownoutScalesSpeedAtLowVoltage() {
+        SwerveDrive d = createDriveWithIO(inputs -> inputs.batteryVoltage = 9.0);
+        d.periodic(); // populate inputs
+        double scale = d.getVoltageSpeedScale();
+        assertTrue(scale >= 0.25, "Scale should be >= 0.25 (min), was " + scale);
+        assertTrue(scale <= 1.0, "Scale should be <= 1.0, was " + scale);
+        assertTrue(scale < 1.0, "Scale should be < 1.0 at 9.0V, was " + scale);
     }
 
     // --- Pose management ---

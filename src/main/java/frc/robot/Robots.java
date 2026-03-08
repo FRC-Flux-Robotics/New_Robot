@@ -1,5 +1,7 @@
 package frc.robot;
 
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform3d;
 import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.ModuleConfig;
 import frc.lib.drivetrain.PIDGains;
@@ -23,6 +25,8 @@ public final class Robots {
             .drivePID(new PIDGains(0.1, 0, 0, 0, 0.124, 0))
             .currentLimits(40, 35, 20, 120)
             .deadband(0.1, 0.1)
+            // TODO: Measure actual camera position on robot
+            .camera("front", new Transform3d(0.3, 0, 0.25, new Rotation3d(0, Math.toRadians(-15), 0)))
             .build();
 
     // TODO: Calibrate encoder offsets via Phoenix Tuner X before use

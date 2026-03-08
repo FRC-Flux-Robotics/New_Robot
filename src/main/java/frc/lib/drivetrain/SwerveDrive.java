@@ -18,6 +18,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Notifier;
@@ -39,6 +40,11 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     private static final double kMovingThresholdMps = 0.02;
     private static final String[] MODULE_NAMES = {"FL", "FR", "BL", "BR"};
 
+    // Brownout protection
+    private static final double BROWNOUT_START_V = 10.5;
+    private static final double BROWNOUT_MIN_V = 7.0;
+    private static final double BROWNOUT_MIN_SCALE = 0.25;
+
     // Diagnostic thresholds
     private static final double ODOMETRY_MIN_HZ = 50.0;
     private static final double MOTOR_TEMP_WARN_C = 80.0;
@@ -46,6 +52,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     private static final double ALIGNMENT_ERROR_WARN_DEG = 30.0;
     private static final double CURRENT_WARN_FRACTION = 0.9;
     private static final double DIAGNOSTIC_COOLDOWN_SEC = 2.0;
+    private static final double VISION_MAX_AMBIGUITY = 0.2;
 
     private final DrivetrainConfig config;
     private final DrivetrainIO io;
@@ -54,6 +61,8 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
 
     // Reusable swerve requests (never allocate in loops)
     private final SwerveRequest.FieldCentric fieldCentricRequest;
+    private final SwerveRequest.FieldCentric driveToPoseRequest = new SwerveRequest.FieldCentric()
+            .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
     private final SwerveRequest.RobotCentric robotCentricRequest = new SwerveRequest.RobotCentric()
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
     private final SwerveRequest.SwerveDriveBrake brakeRequest = new SwerveRequest.SwerveDriveBrake();
@@ -72,10 +81,14 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     private double lastSimTime;
 
     public SwerveDrive(DrivetrainConfig config) {
-        this(config, null); // IO created after super() returns
+        this(config, null, null);
     }
 
-    SwerveDrive(DrivetrainConfig config, DrivetrainIO io) {
+    public SwerveDrive(DrivetrainConfig config, AprilTagFieldLayout fieldLayout) {
+        this(config, fieldLayout, null);
+    }
+
+    SwerveDrive(DrivetrainConfig config, AprilTagFieldLayout fieldLayout, DrivetrainIO io) {
         super(
                 TalonFX::new,
                 TalonFX::new,
@@ -87,7 +100,9 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                 config.createModuleConstants(config.backRight));
 
         this.config = config;
-        this.io = (io != null) ? io : new DrivetrainIOTalonFX(this::getState, this::getModule);
+        this.io = (io != null) ? io : new DrivetrainIOTalonFX(
+                this::getState, this::getModule, config.driveGearRatio,
+                config.cameras, fieldLayout);
 
         pathConstraints = new PathConstraints(
                 config.maxSpeedMps,
@@ -104,11 +119,13 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                 this::getPose,
                 this::resetPose,
                 this::getVelocity,
-                (speeds, feedforwards) -> setControl(
-                        robotCentricRequest
-                                .withVelocityX(speeds.vxMetersPerSecond)
-                                .withVelocityY(speeds.vyMetersPerSecond)
-                                .withRotationalRate(speeds.omegaRadiansPerSecond)),
+                (speeds, feedforwards) -> {
+                    double scale = getVoltageSpeedScale();
+                    setControl(robotCentricRequest
+                            .withVelocityX(speeds.vxMetersPerSecond * scale)
+                            .withVelocityY(speeds.vyMetersPerSecond * scale)
+                            .withRotationalRate(speeds.omegaRadiansPerSecond * scale));
+                },
                 new PPHolonomicDriveController(
                         new PIDConstants(5.0, 0, 0),
                         new PIDConstants(5.0, 0, 0)),
@@ -126,20 +143,24 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
 
     @Override
     public Command driveFieldCentric(DoubleSupplier vx, DoubleSupplier vy, DoubleSupplier omega) {
-        return run(() -> setControl(
-                fieldCentricRequest
-                        .withVelocityX(vx.getAsDouble())
-                        .withVelocityY(vy.getAsDouble())
-                        .withRotationalRate(omega.getAsDouble())));
+        return run(() -> {
+            double scale = getVoltageSpeedScale();
+            setControl(fieldCentricRequest
+                    .withVelocityX(vx.getAsDouble() * scale)
+                    .withVelocityY(vy.getAsDouble() * scale)
+                    .withRotationalRate(omega.getAsDouble() * scale));
+        });
     }
 
     @Override
     public Command driveRobotCentric(DoubleSupplier vx, DoubleSupplier vy, DoubleSupplier omega) {
-        return run(() -> setControl(
-                robotCentricRequest
-                        .withVelocityX(vx.getAsDouble())
-                        .withVelocityY(vy.getAsDouble())
-                        .withRotationalRate(omega.getAsDouble())));
+        return run(() -> {
+            double scale = getVoltageSpeedScale();
+            setControl(robotCentricRequest
+                    .withVelocityX(vx.getAsDouble() * scale)
+                    .withVelocityY(vy.getAsDouble() * scale)
+                    .withRotationalRate(omega.getAsDouble() * scale));
+        });
     }
 
     @Override
@@ -171,11 +192,12 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
 
         return run(() -> {
                     Pose2d current = getPose();
-                    double vx = xController.calculate(current.getX(), target.getX());
-                    double vy = yController.calculate(current.getY(), target.getY());
+                    double scale = getVoltageSpeedScale();
+                    double vx = xController.calculate(current.getX(), target.getX()) * scale;
+                    double vy = yController.calculate(current.getY(), target.getY()) * scale;
                     double omega = rotController.calculate(
-                            current.getRotation().getRadians(), target.getRotation().getRadians());
-                    setControl(fieldCentricRequest.withVelocityX(vx).withVelocityY(vy).withRotationalRate(omega));
+                            current.getRotation().getRadians(), target.getRotation().getRadians()) * scale;
+                    setControl(driveToPoseRequest.withVelocityX(vx).withVelocityY(vy).withRotationalRate(omega));
                 })
                 .until(() -> xController.atGoal() && yController.atGoal() && rotController.atGoal());
     }
@@ -280,6 +302,12 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         Logger.recordOutput("Drive/OdometryHz",
                 inputs.odometryPeriodSec > 0 ? 1.0 / inputs.odometryPeriodSec : 0);
 
+        // Brownout protection
+        double brownoutScale = getVoltageSpeedScale();
+        Logger.recordOutput("Drive/BatteryVoltage", inputs.batteryVoltage);
+        Logger.recordOutput("Drive/BrownoutSpeedScale", brownoutScale);
+        Logger.recordOutput("Drive/BrownoutActive", brownoutScale < 1.0);
+
         // Active command
         Command active = getCurrentCommand();
         Logger.recordOutput("Drive/ActiveCommand", active != null ? active.getName() : "none");
@@ -290,6 +318,36 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         Logger.recordOutput("Drive/ModuleStates", moduleStates);
         Logger.recordOutput("Drive/ModuleTargets", moduleTargets);
 
+        // Per-module current telemetry
+        double totalCurrentA = 0;
+        for (int i = 0; i < 4; i++) {
+            String prefix = "Drive/" + MODULE_NAMES[i] + "/";
+            Logger.recordOutput(prefix + "DriveCurrentA", inputs.driveCurrentA[i]);
+            Logger.recordOutput(prefix + "SteerCurrentA", inputs.steerCurrentA[i]);
+            totalCurrentA += inputs.driveCurrentA[i] + inputs.steerCurrentA[i];
+        }
+        Logger.recordOutput("Drive/TotalCurrentA", totalCurrentA);
+
+        // Vision fusion
+        for (int i = 0; i < inputs.visionConnected.length; i++) {
+            String vPrefix = "Drive/Vision/" + i + "/";
+            Logger.recordOutput(vPrefix + "Connected", inputs.visionConnected[i]);
+            Logger.recordOutput(vPrefix + "TagCount", inputs.visionTagCount[i]);
+            Logger.recordOutput(vPrefix + "Ambiguity", inputs.visionAmbiguity[i]);
+
+            if (inputs.visionHasEstimate[i]) {
+                Pose2d visionPose = new Pose2d(
+                        inputs.visionPoseX[i],
+                        inputs.visionPoseY[i],
+                        Rotation2d.fromDegrees(inputs.visionPoseRotDeg[i]));
+                Logger.recordOutput(vPrefix + "EstimatedPose", visionPose);
+
+                if (inputs.visionAmbiguity[i] <= VISION_MAX_AMBIGUITY) {
+                    addVisionMeasurement(visionPose, inputs.visionTimestampSec[i]);
+                }
+            }
+        }
+
         checkDiagnostics(state);
     }
 
@@ -297,6 +355,17 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         double now = Timer.getFPGATimestamp();
         boolean cooldownExpired = (now - lastDiagnosticTimeSec) >= DIAGNOSTIC_COOLDOWN_SEC;
         boolean warned = false;
+
+        // Brownout protection active
+        double brownoutScale = getVoltageSpeedScale();
+        Logger.recordOutput("Drive/Diagnostics/BrownoutActive", brownoutScale < 1.0);
+        if (brownoutScale < 1.0 && cooldownExpired) {
+            DriverStation.reportWarning(
+                    String.format("Drive: Brownout protection active (%.1fV, %.0f%% speed)",
+                            inputs.batteryVoltage, brownoutScale * 100.0),
+                    false);
+            warned = true;
+        }
 
         // Stale odometry (CAN timeout indicator)
         double odometryHz = inputs.odometryPeriodSec > 0 ? 1.0 / inputs.odometryPeriodSec : 0;
@@ -346,7 +415,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
 
             // Module alignment error
             double angleError = Math.abs(
-                    moduleTargets[i].angle.getDegrees() - moduleStates[i].angle.getDegrees());
+                    moduleTargets[i].angle.minus(moduleStates[i].angle).getDegrees());
             boolean alignmentWarn = angleError > ALIGNMENT_ERROR_WARN_DEG;
             Logger.recordOutput(diagPrefix + "AlignmentWarn", alignmentWarn);
             if (alignmentWarn && cooldownExpired) {
@@ -366,11 +435,33 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                         false);
                 warned = true;
             }
+
+            // Steer current near limit
+            double steerCurrent = inputs.steerCurrentA[i];
+            boolean steerCurrentWarn = steerCurrent > config.steerStatorCurrentLimit * CURRENT_WARN_FRACTION;
+            Logger.recordOutput(diagPrefix + "SteerCurrentWarn", steerCurrentWarn);
+            if (steerCurrentWarn && cooldownExpired) {
+                DriverStation.reportWarning(
+                        String.format("Drive: %s steer current high (%.0fA/%.0fA limit)",
+                                name, steerCurrent, config.steerStatorCurrentLimit),
+                        false);
+                warned = true;
+            }
         }
 
         if (warned) {
             lastDiagnosticTimeSec = now;
         }
+    }
+
+    // --- Brownout protection ---
+
+    double getVoltageSpeedScale() {
+        double voltage = inputs.batteryVoltage;
+        if (voltage >= BROWNOUT_START_V) return 1.0;
+        if (voltage <= BROWNOUT_MIN_V) return BROWNOUT_MIN_SCALE;
+        return BROWNOUT_MIN_SCALE + (1.0 - BROWNOUT_MIN_SCALE)
+                * (voltage - BROWNOUT_MIN_V) / (BROWNOUT_START_V - BROWNOUT_MIN_V);
     }
 
     // --- Simulation ---

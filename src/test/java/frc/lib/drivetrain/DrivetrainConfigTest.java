@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation3d;
 import org.junit.jupiter.api.Test;
 
 class DrivetrainConfigTest {
@@ -232,5 +235,54 @@ class DrivetrainConfigTest {
                 .build();
         assertEquals(0.0, config.translationDeadband);
         assertEquals(0.0, config.rotationDeadband);
+    }
+
+    // --- Camera configuration ---
+
+    @Test
+    void buildsWithNoCameras() {
+        DrivetrainConfig config = validBuilder().build();
+        assertNotNull(config.cameras);
+        assertTrue(config.cameras.isEmpty());
+    }
+
+    @Test
+    void buildsWithCameras() {
+        Transform3d t1 = new Transform3d(new Translation3d(0.3, 0, 0.5), new Rotation3d());
+        Transform3d t2 = new Transform3d(new Translation3d(-0.3, 0, 0.5), new Rotation3d());
+        DrivetrainConfig config = validBuilder()
+                .camera("front", t1)
+                .camera("back", t2)
+                .build();
+        assertEquals(2, config.cameras.size());
+        assertEquals("front", config.cameras.get(0).name());
+        assertSame(t1, config.cameras.get(0).robotToCamera());
+        assertEquals("back", config.cameras.get(1).name());
+        assertSame(t2, config.cameras.get(1).robotToCamera());
+    }
+
+    @Test
+    void rejectsNullCameraName() {
+        Transform3d t = new Transform3d(new Translation3d(), new Rotation3d());
+        assertThrows(IllegalArgumentException.class, () -> validBuilder().camera(null, t));
+    }
+
+    @Test
+    void rejectsBlankCameraName() {
+        Transform3d t = new Transform3d(new Translation3d(), new Rotation3d());
+        assertThrows(IllegalArgumentException.class, () -> validBuilder().camera("", t));
+    }
+
+    @Test
+    void rejectsNullCameraTransform() {
+        assertThrows(IllegalArgumentException.class, () -> validBuilder().camera("cam", null));
+    }
+
+    @Test
+    void camerasListIsImmutable() {
+        Transform3d t = new Transform3d(new Translation3d(0.3, 0, 0.5), new Rotation3d());
+        DrivetrainConfig config = validBuilder().camera("front", t).build();
+        assertThrows(UnsupportedOperationException.class, () ->
+                config.cameras.add(new CameraConfig("extra", t)));
     }
 }
