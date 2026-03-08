@@ -26,8 +26,7 @@ public final class Robots {
             .currentLimits(40, 35, 20, 120)
             .deadband(0.05, 0.1)
             .mass(74.0, 6.0) // ~163 lbs robot, MOI estimate for ~28" frame
-            // TODO: Measure actual camera position on robot
-            .camera("front", new Transform3d(0.3, 0, 0.25, new Rotation3d(0, Math.toRadians(-15), 0)))
+            .camera("OV9281", new Transform3d(0.3, 0, 0.25, new Rotation3d(0, Math.toRadians(-15), 0)))
             .build();
 
     // TODO: Calibrate encoder offsets via Phoenix Tuner X before use

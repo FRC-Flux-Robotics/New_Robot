@@ -41,7 +41,7 @@ class SwerveDriveTest {
 
     private static DrivetrainConfig buildTestConfig() {
         return DrivetrainConfig.builder()
-                .canBus("rio")
+                .canBus("CANdace")
                 .pigeonId(24)
                 .frontLeft(FL)
                 .frontRight(FR)
