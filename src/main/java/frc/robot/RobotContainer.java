@@ -4,6 +4,7 @@ import com.ctre.phoenix6.swerve.SwerveRequest;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -12,6 +13,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.SwerveDrive;
@@ -39,14 +41,26 @@ public class RobotContainer {
     private final CommandXboxController driverController =
             new CommandXboxController(OperatorConstants.kDriverControllerPort);
 
-    private final SlewRateLimiter translationXLimiter = new SlewRateLimiter(6.0);
-    private final SlewRateLimiter translationYLimiter = new SlewRateLimiter(6.0);
-    private final SlewRateLimiter rotationLimiter = new SlewRateLimiter(8.0);
+    private SlewRateLimiter translationXLimiter;
+    private SlewRateLimiter translationYLimiter;
+    private SlewRateLimiter rotationLimiter;
+    private double currentAccelLimit;
+    private double currentRotAccelLimit;
+    private boolean slowMode = false;
 
     private final SendableChooser<Command> autoChooser = new SendableChooser<>();
 
     public RobotContainer(DrivetrainConfig config, AprilTagFieldLayout fieldLayout) {
+        DriverPreferences.init();
+
+        currentAccelLimit = DriverPreferences.accelLimit();
+        currentRotAccelLimit = DriverPreferences.rotAccelLimit();
+        translationXLimiter = new SlewRateLimiter(currentAccelLimit);
+        translationYLimiter = new SlewRateLimiter(currentAccelLimit);
+        rotationLimiter = new SlewRateLimiter(currentRotAccelLimit);
+
         drivetrain = new SwerveDrive(config, fieldLayout);
+        drivetrain.setTelemetry(new DriverDashboard());
 
         // Use first camera from config for tag tracking, or null if none
         if (!config.cameras.isEmpty()) {
@@ -72,21 +86,28 @@ public class RobotContainer {
         drivetrain.setDefaultCommand(
                 drivetrain.driveFieldCentric(
                         () -> {
-                            double x = applyInputCurve(-driverController.getLeftY());
-                            double y = applyInputCurve(-driverController.getLeftX());
-                            double mag = Math.hypot(x, y);
-                            if (mag > 1.0) x /= mag;
-                            return translationXLimiter.calculate(x) * maxSpeed;
+                            updateSlewRates();
+                            double speedScale = slowMode
+                                    ? DriverPreferences.slowModeScale()
+                                    : DriverPreferences.maxSpeedScale();
+                            return translationXLimiter.calculate(getClampedStick()[0]) * maxSpeed * speedScale;
                         },
                         () -> {
-                            double x = applyInputCurve(-driverController.getLeftY());
-                            double y = applyInputCurve(-driverController.getLeftX());
-                            double mag = Math.hypot(x, y);
-                            if (mag > 1.0) y /= mag;
-                            return translationYLimiter.calculate(y) * maxSpeed;
+                            double speedScale = slowMode
+                                    ? DriverPreferences.slowModeScale()
+                                    : DriverPreferences.maxSpeedScale();
+                            return translationYLimiter.calculate(getClampedStick()[1]) * maxSpeed * speedScale;
                         },
-                        () -> rotationLimiter.calculate(
-                                applyInputCurve(-driverController.getRightX())) * maxAngularRate));
+                        () -> {
+                            double rotScale = slowMode
+                                    ? DriverPreferences.slowModeScale()
+                                    : DriverPreferences.maxRotationScale();
+                            return rotationLimiter.calculate(
+                                    InputProcessing.applyInputCurve(
+                                            -driverController.getRightX(),
+                                            DriverPreferences.deadband(),
+                                            DriverPreferences.rotationExpo())) * maxAngularRate * rotScale;
+                        }));
 
         // Idle while disabled to apply neutral mode
         final var idle = new SwerveRequest.Idle();
@@ -96,21 +117,16 @@ public class RobotContainer {
         // Left trigger = aim at target while driving (field-centric facing point)
         driverController.leftTrigger(0.5).whileTrue(
                 drivetrain.driveFieldCentricFacingPoint(
-                        () -> {
-                            double x = applyInputCurve(-driverController.getLeftY());
-                            double y = applyInputCurve(-driverController.getLeftX());
-                            double mag = Math.hypot(x, y);
-                            if (mag > 1.0) x /= mag;
-                            return translationXLimiter.calculate(x) * maxSpeed;
-                        },
-                        () -> {
-                            double x = applyInputCurve(-driverController.getLeftY());
-                            double y = applyInputCurve(-driverController.getLeftX());
-                            double mag = Math.hypot(x, y);
-                            if (mag > 1.0) y /= mag;
-                            return translationYLimiter.calculate(y) * maxSpeed;
-                        },
+                        () -> translationXLimiter.calculate(getClampedStick()[0])
+                                * maxSpeed * DriverPreferences.maxSpeedScale(),
+                        () -> translationYLimiter.calculate(getClampedStick()[1])
+                                * maxSpeed * DriverPreferences.maxSpeedScale(),
                         () -> SPEAKER_POSITION));
+
+        // Right trigger = slow mode (hold)
+        driverController.rightTrigger(0.5)
+                .onTrue(Commands.runOnce(() -> slowMode = true))
+                .onFalse(Commands.runOnce(() -> slowMode = false));
 
         // A button = drive to and align with tag 3 using vision (hold to keep driving)
         if (tagCamera != null) {
@@ -134,6 +150,16 @@ public class RobotContainer {
         // Right bumper = reset field-centric heading
         driverController.rightBumper().and(driverController.leftBumper().negate()).onTrue(
                 drivetrain.runOnce(() -> drivetrain.resetHeading()));
+
+        // SysId characterization: back/start + X/Y (run one routine per log session)
+        driverController.back().and(driverController.y())
+                .whileTrue(drivetrain.sysIdDynamic(SysIdRoutine.Direction.kForward));
+        driverController.back().and(driverController.x())
+                .whileTrue(drivetrain.sysIdDynamic(SysIdRoutine.Direction.kReverse));
+        driverController.start().and(driverController.y())
+                .whileTrue(drivetrain.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
+        driverController.start().and(driverController.x())
+                .whileTrue(drivetrain.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
     }
 
     private Command goToTag() {
@@ -144,9 +170,44 @@ public class RobotContainer {
         ).withName("GoToTag" + GO_TO_TAG_ID);
     }
 
+    // Cache clamped joystick per cycle to avoid redundant reads and hypot calculations
+    private double[] cachedStick = new double[2];
+    private long cachedStickFrame = -1;
+
+    private double[] getClampedStick() {
+        long frame = Logger.getTimestamp();
+        if (frame == cachedStickFrame) return cachedStick;
+        cachedStickFrame = frame;
+        double deadband = DriverPreferences.deadband();
+        double expo = DriverPreferences.driveExpo();
+        double x = InputProcessing.applyInputCurve(-driverController.getLeftY(), deadband, expo);
+        double y = InputProcessing.applyInputCurve(-driverController.getLeftX(), deadband, expo);
+        double[] clamped = InputProcessing.clampStickMagnitude(x, y);
+        cachedStick[0] = clamped[0];
+        cachedStick[1] = clamped[1];
+        return cachedStick;
+    }
+
+    /** Recreates slew rate limiters if the driver changed accel limits on the dashboard. */
+    private void updateSlewRates() {
+        double accel = DriverPreferences.accelLimit();
+        double rotAccel = DriverPreferences.rotAccelLimit();
+        if (accel != currentAccelLimit) {
+            currentAccelLimit = accel;
+            translationXLimiter = new SlewRateLimiter(accel);
+            translationYLimiter = new SlewRateLimiter(accel);
+        }
+        if (rotAccel != currentRotAccelLimit) {
+            currentRotAccelLimit = rotAccel;
+            rotationLimiter = new SlewRateLimiter(rotAccel);
+        }
+    }
+
     // Cache per-cycle to avoid querying camera 3 times per loop
     private double[] cachedTagDrive = new double[3];
     private long cachedTagDriveFrame = -1;
+    private double lastTagResultTime = -1;
+    private static final double TAG_STALE_TIMEOUT_S = 0.5;
 
     private double[] computeTagDrive() {
         long frame = Logger.getTimestamp();
@@ -157,11 +218,17 @@ public class RobotContainer {
 
         var results = tagCamera.getAllUnreadResults();
         if (results.isEmpty()) {
-            cachedTagDrive[0] = 0;
-            cachedTagDrive[1] = 0;
-            cachedTagDrive[2] = 0;
+            // No new camera frame — keep previous cached command unless stale
+            if (lastTagResultTime >= 0
+                    && Timer.getFPGATimestamp() - lastTagResultTime > TAG_STALE_TIMEOUT_S) {
+                cachedTagDrive[0] = 0;
+                cachedTagDrive[1] = 0;
+                cachedTagDrive[2] = 0;
+                Logger.recordOutput("Drive/GoToTag/Visible", false);
+            }
             return cachedTagDrive;
         }
+        lastTagResultTime = Timer.getFPGATimestamp();
 
         var latest = results.get(results.size() - 1);
         PhotonTrackedTarget tag = null;
@@ -207,14 +274,6 @@ public class RobotContainer {
         cachedTagDrive[1] = vy;
         cachedTagDrive[2] = omega;
         return cachedTagDrive;
-    }
-
-    private static double applyInputCurve(double value) {
-        
-        if(value > .00001 && value < .01){
-            return .0005;
-        }
-        return (Math.copySign(value * value, value));
     }
 
     public Command getAutonomousCommand() {

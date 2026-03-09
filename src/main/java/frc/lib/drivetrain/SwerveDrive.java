@@ -32,8 +32,12 @@ import edu.wpi.first.wpilibj.Timer;
 import org.littletonrobotics.junction.Logger;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
+
+import static edu.wpi.first.units.Units.Volts;
+import static edu.wpi.first.units.Units.Second;
 
 /**
  * Config-driven swerve drivetrain subsystem. Constructed solely from a {@link DrivetrainConfig}.
@@ -84,6 +88,37 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     private final SwerveRequest.SwerveDriveBrake brakeRequest = new SwerveRequest.SwerveDriveBrake();
     private final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
 
+    // SysId characterization requests
+    private final SwerveRequest.SysIdSwerveTranslation sysIdTranslationRequest =
+            new SwerveRequest.SysIdSwerveTranslation();
+    private final SwerveRequest.SysIdSwerveRotation sysIdRotationRequest =
+            new SwerveRequest.SysIdSwerveRotation();
+
+    private final SysIdRoutine sysIdTranslation = new SysIdRoutine(
+            new SysIdRoutine.Config(
+                    null,        // default ramp rate (1 V/s)
+                    Volts.of(4), // 4V step to prevent brownout
+                    null,        // default timeout (10 s)
+                    state -> com.ctre.phoenix6.SignalLogger.writeString(
+                            "SysIdTranslation_State", state.toString())),
+            new SysIdRoutine.Mechanism(
+                    output -> setControl(sysIdTranslationRequest.withVolts(output)),
+                    null, this));
+
+    private final SysIdRoutine sysIdRotation = new SysIdRoutine(
+            new SysIdRoutine.Config(
+                    Volts.of(Math.PI / 6).per(Second), // rad/s² as "volts/s"
+                    Volts.of(Math.PI),                  // rad/s as "volts"
+                    null,
+                    state -> com.ctre.phoenix6.SignalLogger.writeString(
+                            "SysIdRotation_State", state.toString())),
+            new SysIdRoutine.Mechanism(
+                    output -> {
+                        setControl(sysIdRotationRequest.withRotationalRate(output.in(Volts)));
+                        com.ctre.phoenix6.SignalLogger.writeDouble("Rotational_Rate", output.in(Volts));
+                    },
+                    null, this));
+
     // Operator perspective
     private static final Rotation2d kBlueAlliancePerspective = Rotation2d.kZero;
     private static final Rotation2d kRedAlliancePerspective = Rotation2d.k180deg;
@@ -96,6 +131,11 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     private double lastAcceptedVisionTimeSec = 0;
     private int lastMaxTagCount = 0;
     private double lastMinAmbiguity = 1.0;
+
+    // Telemetry
+    private DriveTelemetry telemetry;
+    private boolean lastAllHealthy = true;
+    private String lastStatusMessage = "Ready";
 
     // Simulation
     private Notifier simNotifier = null;
@@ -220,6 +260,24 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     @Override
     public Command stop() {
         return run(() -> setControl(idleRequest));
+    }
+
+    // --- SysId characterization ---
+
+    public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
+        return sysIdTranslation.quasistatic(direction);
+    }
+
+    public Command sysIdDynamic(SysIdRoutine.Direction direction) {
+        return sysIdTranslation.dynamic(direction);
+    }
+
+    public Command sysIdRotationQuasistatic(SysIdRoutine.Direction direction) {
+        return sysIdRotation.quasistatic(direction);
+    }
+
+    public Command sysIdRotationDynamic(SysIdRoutine.Direction direction) {
+        return sysIdRotation.dynamic(direction);
     }
 
     // --- DriveInterface: Point-to-point ---
@@ -348,6 +406,11 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     @Override
     public DrivetrainConfig getConfig() {
         return config;
+    }
+
+    /** Set the telemetry consumer to receive DriveState snapshots each cycle. */
+    public void setTelemetry(DriveTelemetry telemetry) {
+        this.telemetry = telemetry;
     }
 
     // --- Subsystem ---
@@ -479,6 +542,22 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         Logger.recordOutput("Drive/PoseConfidence", confidence.name());
 
         checkDiagnostics(state);
+
+        // Build and publish DriveState snapshot
+        if (telemetry != null) {
+            telemetry.update(new DriveState(
+                    linearSpeed,
+                    linearSpeed / config.maxSpeedMps * 100.0,
+                    totalCurrentA,
+                    inputs.driveCurrentA,
+                    inputs.steerCurrentA,
+                    inputs.batteryVoltage,
+                    brownoutScale < 1.0,
+                    brownoutScale,
+                    lastAllHealthy,
+                    lastStatusMessage,
+                    active != null ? active.getName() : "none"));
+        }
     }
 
     private void checkDiagnostics(SwerveDriveState state) {
@@ -584,35 +663,35 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         }
 
         // Health summary for driver dashboard
-        boolean allHealthy = !odometryStale && brownoutScale >= 1.0;
-        String statusMessage = "Ready";
+        lastAllHealthy = !odometryStale && brownoutScale >= 1.0;
+        lastStatusMessage = "Ready";
 
         if (odometryStale) {
-            allHealthy = false;
-            statusMessage = "CAN issues";
+            lastAllHealthy = false;
+            lastStatusMessage = "CAN issues";
         }
 
         for (int i = 0; i < 4; i++) {
             if (inputs.driveTempC[i] > MOTOR_TEMP_WARN_C || inputs.steerTempC[i] > MOTOR_TEMP_WARN_C) {
-                allHealthy = false;
-                statusMessage = MODULE_NAMES[i] + " motor hot";
+                lastAllHealthy = false;
+                lastStatusMessage = MODULE_NAMES[i] + " motor hot";
             }
         }
 
         // Check vision camera connectivity
         for (int i = 0; i < inputs.visionConnected.length; i++) {
             if (!inputs.visionConnected[i]) {
-                allHealthy = false;
-                statusMessage = "Camera " + i + " disconnected";
+                lastAllHealthy = false;
+                lastStatusMessage = "Camera " + i + " disconnected";
             }
         }
 
         if (brownoutScale < 1.0) {
-            statusMessage = String.format("Low battery (%.1fV)", inputs.batteryVoltage);
+            lastStatusMessage = String.format("Low battery (%.1fV)", inputs.batteryVoltage);
         }
 
-        Logger.recordOutput("Drive/AllHealthy", allHealthy);
-        Logger.recordOutput("Drive/StatusMessage", statusMessage);
+        Logger.recordOutput("Drive/AllHealthy", lastAllHealthy);
+        Logger.recordOutput("Drive/StatusMessage", lastStatusMessage);
     }
 
     // --- Brownout protection ---
