@@ -19,7 +19,6 @@ import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.SwerveDrive;
 import frc.robot.Constants.OperatorConstants;
 import org.littletonrobotics.junction.Logger;
-import org.photonvision.PhotonCamera;
 import org.photonvision.targeting.PhotonTrackedTarget;
 
 public class RobotContainer {
@@ -36,7 +35,7 @@ public class RobotContainer {
     private static final double TAG_MAX_OMEGA_RAD = 1.5;
 
     public final SwerveDrive drivetrain;
-    private final PhotonCamera tagCamera;
+    private final boolean hasTagCamera;
 
     private final CommandXboxController driverController =
             new CommandXboxController(OperatorConstants.kDriverControllerPort);
@@ -47,6 +46,15 @@ public class RobotContainer {
     private double currentAccelLimit;
     private double currentRotAccelLimit;
     private boolean slowMode = false;
+
+    // Cached DriverPreferences values (refreshed once per cycle)
+    private double cachedDeadband;
+    private double cachedDriveExpo;
+    private double cachedRotationExpo;
+    private double cachedMaxSpeedScale;
+    private double cachedMaxRotationScale;
+    private double cachedSlowModeScale;
+    private long cachedPrefsFrame = -1;
 
     private final SendableChooser<Command> autoChooser = new SendableChooser<>();
 
@@ -62,12 +70,7 @@ public class RobotContainer {
         drivetrain = new SwerveDrive(config, fieldLayout);
         drivetrain.setTelemetry(new DriverDashboard());
 
-        // Use first camera from config for tag tracking, or null if none
-        if (!config.cameras.isEmpty()) {
-            tagCamera = new PhotonCamera(config.cameras.get(0).name());
-        } else {
-            tagCamera = null;
-        }
+        hasTagCamera = !config.cameras.isEmpty();
 
         autoChooser.setDefaultOption("Drive Forward", Autos.driveForward(drivetrain));
         autoChooser.addOption("Forward Turn Back", Autos.forwardTurnBack(drivetrain));
@@ -86,27 +89,28 @@ public class RobotContainer {
         drivetrain.setDefaultCommand(
                 drivetrain.driveFieldCentric(
                         () -> {
+                            refreshPrefsCache();
                             updateSlewRates();
                             double speedScale = slowMode
-                                    ? DriverPreferences.slowModeScale()
-                                    : DriverPreferences.maxSpeedScale();
+                                    ? cachedSlowModeScale
+                                    : cachedMaxSpeedScale;
                             return translationXLimiter.calculate(getClampedStick()[0]) * maxSpeed * speedScale;
                         },
                         () -> {
                             double speedScale = slowMode
-                                    ? DriverPreferences.slowModeScale()
-                                    : DriverPreferences.maxSpeedScale();
+                                    ? cachedSlowModeScale
+                                    : cachedMaxSpeedScale;
                             return translationYLimiter.calculate(getClampedStick()[1]) * maxSpeed * speedScale;
                         },
                         () -> {
                             double rotScale = slowMode
-                                    ? DriverPreferences.slowModeScale()
-                                    : DriverPreferences.maxRotationScale();
+                                    ? cachedSlowModeScale
+                                    : cachedMaxRotationScale;
                             return rotationLimiter.calculate(
                                     InputProcessing.applyInputCurve(
                                             -driverController.getRightX(),
-                                            DriverPreferences.deadband(),
-                                            DriverPreferences.rotationExpo())) * maxAngularRate * rotScale;
+                                            cachedDeadband,
+                                            cachedRotationExpo)) * maxAngularRate * rotScale;
                         }));
 
         // Idle while disabled to apply neutral mode
@@ -118,9 +122,9 @@ public class RobotContainer {
         driverController.leftTrigger(0.5).whileTrue(
                 drivetrain.driveFieldCentricFacingPoint(
                         () -> translationXLimiter.calculate(getClampedStick()[0])
-                                * maxSpeed * DriverPreferences.maxSpeedScale(),
+                                * maxSpeed * cachedMaxSpeedScale,
                         () -> translationYLimiter.calculate(getClampedStick()[1])
-                                * maxSpeed * DriverPreferences.maxSpeedScale(),
+                                * maxSpeed * cachedMaxSpeedScale,
                         () -> SPEAKER_POSITION));
 
         // Right trigger = slow mode (hold)
@@ -129,7 +133,7 @@ public class RobotContainer {
                 .onFalse(Commands.runOnce(() -> slowMode = false));
 
         // A button = drive to and align with tag 3 using vision (hold to keep driving)
-        if (tagCamera != null) {
+        if (hasTagCamera) {
             driverController.a().whileTrue(goToTag());
         }
 
@@ -178,14 +182,25 @@ public class RobotContainer {
         long frame = Logger.getTimestamp();
         if (frame == cachedStickFrame) return cachedStick;
         cachedStickFrame = frame;
-        double deadband = DriverPreferences.deadband();
-        double expo = DriverPreferences.driveExpo();
-        double x = InputProcessing.applyInputCurve(-driverController.getLeftY(), deadband, expo);
-        double y = InputProcessing.applyInputCurve(-driverController.getLeftX(), deadband, expo);
+        double x = InputProcessing.applyInputCurve(-driverController.getLeftY(), cachedDeadband, cachedDriveExpo);
+        double y = InputProcessing.applyInputCurve(-driverController.getLeftX(), cachedDeadband, cachedDriveExpo);
         double[] clamped = InputProcessing.clampStickMagnitude(x, y);
         cachedStick[0] = clamped[0];
         cachedStick[1] = clamped[1];
         return cachedStick;
+    }
+
+    /** Refreshes cached DriverPreferences values once per cycle. */
+    private void refreshPrefsCache() {
+        long frame = Logger.getTimestamp();
+        if (frame == cachedPrefsFrame) return;
+        cachedPrefsFrame = frame;
+        cachedDeadband = DriverPreferences.deadband();
+        cachedDriveExpo = DriverPreferences.driveExpo();
+        cachedRotationExpo = DriverPreferences.rotationExpo();
+        cachedMaxSpeedScale = DriverPreferences.maxSpeedScale();
+        cachedMaxRotationScale = DriverPreferences.maxRotationScale();
+        cachedSlowModeScale = DriverPreferences.slowModeScale();
     }
 
     /** Recreates slew rate limiters if the driver changed accel limits on the dashboard. */
@@ -216,9 +231,9 @@ public class RobotContainer {
         }
         cachedTagDriveFrame = frame;
 
-        var results = tagCamera.getAllUnreadResults();
-        if (results.isEmpty()) {
-            // No new camera frame — keep previous cached command unless stale
+        var latest = drivetrain.getLatestCameraResult(0);
+        if (latest == null) {
+            // No camera result — keep previous cached command unless stale
             if (lastTagResultTime >= 0
                     && Timer.getFPGATimestamp() - lastTagResultTime > TAG_STALE_TIMEOUT_S) {
                 cachedTagDrive[0] = 0;
@@ -230,7 +245,6 @@ public class RobotContainer {
         }
         lastTagResultTime = Timer.getFPGATimestamp();
 
-        var latest = results.get(results.size() - 1);
         PhotonTrackedTarget tag = null;
         for (var target : latest.getTargets()) {
             if (target.getFiducialId() == GO_TO_TAG_ID) {

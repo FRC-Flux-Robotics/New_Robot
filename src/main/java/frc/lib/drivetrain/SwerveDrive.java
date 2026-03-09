@@ -35,6 +35,7 @@ import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
+import org.photonvision.targeting.PhotonPipelineResult;
 
 import static edu.wpi.first.units.Units.Volts;
 import static edu.wpi.first.units.Units.Second;
@@ -64,6 +65,8 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     private static final double DIAGNOSTIC_COOLDOWN_SEC = 2.0;
     private static final double VISION_MAX_AMBIGUITY = 0.2;
     private static final double VISION_MAX_DIST_M = 4.0;
+    private static final Matrix<N3, N1> VISION_STD_HIGH_TRUST = VecBuilder.fill(0.3, 0.3, 0.5);
+    private static final Matrix<N3, N1> VISION_STD_MODERATE_TRUST = VecBuilder.fill(0.5, 0.5, 999);
 
     // Field bounds (FRC field ~16.54m x 8.21m, with 0.5m margin for robot overhang)
     private static final double FIELD_MAX_X_M = 17.0;
@@ -126,6 +129,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
 
     // Diagnostics
     private double lastDiagnosticTimeSec = 0;
+    private int periodicCycleCount = 0;
 
     // Vision confidence tracking
     private double lastAcceptedVisionTimeSec = 0;
@@ -385,10 +389,10 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
             return null; // reject single tag far away
         }
         if (tagCount >= 2 && avgDistM <= VISION_MAX_DIST_M) {
-            return VecBuilder.fill(0.3, 0.3, 0.5); // multi-tag close: high trust
+            return VISION_STD_HIGH_TRUST; // multi-tag close: high trust
         }
         // 1 tag close, or 2+ tags far: moderate trust, don't trust rotation
-        return VecBuilder.fill(0.5, 0.5, 999);
+        return VISION_STD_MODERATE_TRUST;
     }
 
     PoseConfidence getPoseConfidence(double secSinceVision, int maxTagCount, double minAmbiguity) {
@@ -408,6 +412,10 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         return config;
     }
 
+    public PhotonPipelineResult getLatestCameraResult(int cameraIndex) {
+        return io.getLatestResult(cameraIndex);
+    }
+
     /** Set the telemetry consumer to receive DriveState snapshots each cycle. */
     public void setTelemetry(DriveTelemetry telemetry) {
         this.telemetry = telemetry;
@@ -417,6 +425,9 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
 
     @Override
     public void periodic() {
+        periodicCycleCount++;
+        boolean fullLogCycle = (periodicCycleCount % 10 == 0);
+
         // Apply operator perspective based on alliance color
         if (!hasAppliedOperatorPerspective || DriverStation.isDisabled()) {
             DriverStation.getAlliance().ifPresent(allianceColor -> {
@@ -438,88 +449,113 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         Pose2d pose = state.Pose;
         ChassisSpeeds speeds = state.Speeds;
 
-        // Struct logging for complex types
+        // Always log: critical state (every cycle)
         Logger.recordOutput("Drive/Pose", pose);
         Logger.recordOutput("Drive/Speeds", speeds);
 
-        // Robot-level computed outputs
-        Logger.recordOutput("Drive/PositionX", pose.getX());
-        Logger.recordOutput("Drive/PositionY", pose.getY());
-        Logger.recordOutput("Drive/RotationDeg", pose.getRotation().getDegrees());
-
         double linearSpeed = Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
-        Logger.recordOutput("Drive/SpeedMps", linearSpeed);
-        Logger.recordOutput("Drive/SpeedPercent", linearSpeed / config.maxSpeedMps * 100.0);
-        Logger.recordOutput("Drive/AngularRateDegPerSec",
-                Math.toDegrees(speeds.omegaRadiansPerSecond));
-        Logger.recordOutput("Drive/OdometryHz",
-                inputs.odometryPeriodSec > 0 ? 1.0 / inputs.odometryPeriodSec : 0);
 
-        // Brownout protection
+        // Throttled: derived pose fields and diagnostics (every 200ms)
+        if (fullLogCycle) {
+            Logger.recordOutput("Drive/PositionX", pose.getX());
+            Logger.recordOutput("Drive/PositionY", pose.getY());
+            Logger.recordOutput("Drive/RotationDeg", pose.getRotation().getDegrees());
+            Logger.recordOutput("Drive/SpeedMps", linearSpeed);
+            Logger.recordOutput("Drive/SpeedPercent", linearSpeed / config.maxSpeedMps * 100.0);
+            Logger.recordOutput("Drive/AngularRateDegPerSec",
+                    Math.toDegrees(speeds.omegaRadiansPerSecond));
+            Logger.recordOutput("Drive/OdometryHz",
+                    inputs.odometryPeriodSec > 0 ? 1.0 / inputs.odometryPeriodSec : 0);
+        }
+
+        // Brownout protection (throttled)
         double brownoutScale = getVoltageSpeedScale();
-        Logger.recordOutput("Drive/BatteryVoltage", inputs.batteryVoltage);
-        Logger.recordOutput("Drive/BrownoutSpeedScale", brownoutScale);
-        Logger.recordOutput("Drive/BrownoutActive", brownoutScale < 1.0);
+        if (fullLogCycle) {
+            Logger.recordOutput("Drive/BatteryVoltage", inputs.batteryVoltage);
+            Logger.recordOutput("Drive/BrownoutSpeedScale", brownoutScale);
+            Logger.recordOutput("Drive/BrownoutActive", brownoutScale < 1.0);
+        }
 
-        // Active command
+        // Active command (always log)
         Command active = getCurrentCommand();
         Logger.recordOutput("Drive/ActiveCommand", active != null ? active.getName() : "none");
 
-        // Per-module struct outputs
+        // Per-module struct outputs (always log)
         SwerveModuleState[] moduleStates = state.ModuleStates;
         SwerveModuleState[] moduleTargets = state.ModuleTargets;
         Logger.recordOutput("Drive/ModuleStates", moduleStates);
         Logger.recordOutput("Drive/ModuleTargets", moduleTargets);
 
-        // Per-module current telemetry
+        // Per-module current telemetry (throttled)
         double totalCurrentA = 0;
         for (int i = 0; i < 4; i++) {
-            String prefix = "Drive/" + MODULE_NAMES[i] + "/";
-            Logger.recordOutput(prefix + "DriveCurrentA", inputs.driveCurrentA[i]);
-            Logger.recordOutput(prefix + "SteerCurrentA", inputs.steerCurrentA[i]);
             totalCurrentA += inputs.driveCurrentA[i] + inputs.steerCurrentA[i];
         }
-        Logger.recordOutput("Drive/TotalCurrentA", totalCurrentA);
+        if (fullLogCycle) {
+            for (int i = 0; i < 4; i++) {
+                String prefix = "Drive/" + MODULE_NAMES[i] + "/";
+                Logger.recordOutput(prefix + "DriveCurrentA", inputs.driveCurrentA[i]);
+                Logger.recordOutput(prefix + "SteerCurrentA", inputs.steerCurrentA[i]);
+            }
+            Logger.recordOutput("Drive/TotalCurrentA", totalCurrentA);
+        }
 
-        // Vision fusion
+        // Vision fusion (always run fusion logic, throttle detail logs)
         int cycleMaxTagCount = 0;
         double cycleMinAmbiguity = 1.0;
         boolean anyAccepted = false;
 
         for (int i = 0; i < inputs.visionConnected.length; i++) {
-            String vPrefix = "Drive/Vision/" + i + "/";
-            Logger.recordOutput(vPrefix + "Connected", inputs.visionConnected[i]);
-            Logger.recordOutput(vPrefix + "TagCount", inputs.visionTagCount[i]);
-            Logger.recordOutput(vPrefix + "Ambiguity", inputs.visionAmbiguity[i]);
-            Logger.recordOutput(vPrefix + "AvgTagDistM", inputs.visionAvgTagDistM[i]);
+            if (fullLogCycle) {
+                String vPrefix = "Drive/Vision/" + i + "/";
+                Logger.recordOutput(vPrefix + "Connected", inputs.visionConnected[i]);
+                Logger.recordOutput(vPrefix + "TagCount", inputs.visionTagCount[i]);
+                Logger.recordOutput(vPrefix + "Ambiguity", inputs.visionAmbiguity[i]);
+                Logger.recordOutput(vPrefix + "AvgTagDistM", inputs.visionAvgTagDistM[i]);
+            }
 
             if (inputs.visionHasEstimate[i]) {
                 Pose2d visionPose = new Pose2d(
                         inputs.visionPoseX[i],
                         inputs.visionPoseY[i],
                         Rotation2d.fromDegrees(inputs.visionPoseRotDeg[i]));
-                Logger.recordOutput(vPrefix + "EstimatedPose", visionPose);
 
-                double odometryDelta = pose.getTranslation().getDistance(visionPose.getTranslation());
-                Logger.recordOutput(vPrefix + "OdometryDeltaM", odometryDelta);
-                double latencyMs = (Timer.getFPGATimestamp() - inputs.visionTimestampSec[i]) * 1000.0;
-                Logger.recordOutput(vPrefix + "LatencyMs", latencyMs);
+                if (fullLogCycle) {
+                    String vPrefix = "Drive/Vision/" + i + "/";
+                    Logger.recordOutput(vPrefix + "EstimatedPose", visionPose);
+                    double odometryDelta = pose.getTranslation().getDistance(visionPose.getTranslation());
+                    Logger.recordOutput(vPrefix + "OdometryDeltaM", odometryDelta);
+                    double latencyMs = (Timer.getFPGATimestamp() - inputs.visionTimestampSec[i]) * 1000.0;
+                    Logger.recordOutput(vPrefix + "LatencyMs", latencyMs);
+                }
 
                 if (!isVisionPoseOnField(visionPose)) {
-                    Logger.recordOutput(vPrefix + "Rejected", true);
-                    Logger.recordOutput(vPrefix + "RejectReason", "OutOfBounds");
+                    if (fullLogCycle) {
+                        String vPrefix = "Drive/Vision/" + i + "/";
+                        Logger.recordOutput(vPrefix + "Rejected", true);
+                        Logger.recordOutput(vPrefix + "RejectReason", "OutOfBounds");
+                    }
                 } else if (inputs.visionAmbiguity[i] > VISION_MAX_AMBIGUITY) {
-                    Logger.recordOutput(vPrefix + "Rejected", true);
-                    Logger.recordOutput(vPrefix + "RejectReason", "HighAmbiguity");
+                    if (fullLogCycle) {
+                        String vPrefix = "Drive/Vision/" + i + "/";
+                        Logger.recordOutput(vPrefix + "Rejected", true);
+                        Logger.recordOutput(vPrefix + "RejectReason", "HighAmbiguity");
+                    }
                 } else {
                     Matrix<N3, N1> stdDevs = getVisionStdDevs(
                             inputs.visionTagCount[i], inputs.visionAvgTagDistM[i]);
                     if (stdDevs == null) {
-                        Logger.recordOutput(vPrefix + "Rejected", true);
-                        Logger.recordOutput(vPrefix + "RejectReason", "SingleTagFar");
+                        if (fullLogCycle) {
+                            String vPrefix = "Drive/Vision/" + i + "/";
+                            Logger.recordOutput(vPrefix + "Rejected", true);
+                            Logger.recordOutput(vPrefix + "RejectReason", "SingleTagFar");
+                        }
                     } else {
-                        Logger.recordOutput(vPrefix + "Rejected", false);
-                        Logger.recordOutput(vPrefix + "RejectReason", "");
+                        if (fullLogCycle) {
+                            String vPrefix = "Drive/Vision/" + i + "/";
+                            Logger.recordOutput(vPrefix + "Rejected", false);
+                            Logger.recordOutput(vPrefix + "RejectReason", "");
+                        }
                         super.addVisionMeasurement(visionPose,
                                 Utils.fpgaToCurrentTime(inputs.visionTimestampSec[i]), stdDevs);
                         anyAccepted = true;
@@ -541,10 +577,10 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                 lastMaxTagCount, lastMinAmbiguity);
         Logger.recordOutput("Drive/PoseConfidence", confidence.name());
 
-        checkDiagnostics(state);
+        checkDiagnostics(state, fullLogCycle);
 
-        // Build and publish DriveState snapshot
-        if (telemetry != null) {
+        // Build and publish DriveState snapshot (throttled — dashboard doesn't need 50Hz)
+        if (telemetry != null && fullLogCycle) {
             telemetry.update(new DriveState(
                     linearSpeed,
                     linearSpeed / config.maxSpeedMps * 100.0,
@@ -560,14 +596,16 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         }
     }
 
-    private void checkDiagnostics(SwerveDriveState state) {
+    private void checkDiagnostics(SwerveDriveState state, boolean fullLogCycle) {
         double now = Timer.getFPGATimestamp();
         boolean cooldownExpired = (now - lastDiagnosticTimeSec) >= DIAGNOSTIC_COOLDOWN_SEC;
         boolean warned = false;
 
         // Brownout protection active
         double brownoutScale = getVoltageSpeedScale();
-        Logger.recordOutput("Drive/Diagnostics/BrownoutActive", brownoutScale < 1.0);
+        if (fullLogCycle) {
+            Logger.recordOutput("Drive/Diagnostics/BrownoutActive", brownoutScale < 1.0);
+        }
         if (brownoutScale < 1.0 && cooldownExpired) {
             DriverStation.reportWarning(
                     String.format("Drive: Brownout protection active (%.1fV, %.0f%% speed)",
@@ -579,7 +617,9 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         // Stale odometry (CAN timeout indicator)
         double odometryHz = inputs.odometryPeriodSec > 0 ? 1.0 / inputs.odometryPeriodSec : 0;
         boolean odometryStale = odometryHz < ODOMETRY_MIN_HZ;
-        Logger.recordOutput("Drive/Diagnostics/OdometryStale", odometryStale);
+        if (fullLogCycle) {
+            Logger.recordOutput("Drive/Diagnostics/OdometryStale", odometryStale);
+        }
         if (odometryStale && cooldownExpired) {
             DriverStation.reportWarning(
                     String.format("Drive: Stale odometry (%.0f Hz) - possible CAN timeout", odometryHz), false);
@@ -591,15 +631,17 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         SwerveModuleState[] moduleTargets = state.ModuleTargets;
         for (int i = 0; i < 4; i++) {
             String name = MODULE_NAMES[i];
-            String diagPrefix = "Drive/Diagnostics/" + name + "/";
 
             // Motor temperatures (from IO inputs)
             double driveTemp = inputs.driveTempC[i];
             double steerTemp = inputs.steerTempC[i];
             boolean driveTempWarn = driveTemp > MOTOR_TEMP_WARN_C;
             boolean steerTempWarn = steerTemp > MOTOR_TEMP_WARN_C;
-            Logger.recordOutput(diagPrefix + "DriveTempWarn", driveTempWarn);
-            Logger.recordOutput(diagPrefix + "SteerTempWarn", steerTempWarn);
+            if (fullLogCycle) {
+                String diagPrefix = "Drive/Diagnostics/" + name + "/";
+                Logger.recordOutput(diagPrefix + "DriveTempWarn", driveTempWarn);
+                Logger.recordOutput(diagPrefix + "SteerTempWarn", steerTempWarn);
+            }
 
             if (cooldownExpired) {
                 if (driveTemp > MOTOR_TEMP_ERROR_C) {
@@ -626,7 +668,10 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
             double angleError = Math.abs(
                     moduleTargets[i].angle.minus(moduleStates[i].angle).getDegrees());
             boolean alignmentWarn = angleError > ALIGNMENT_ERROR_WARN_DEG;
-            Logger.recordOutput(diagPrefix + "AlignmentWarn", alignmentWarn);
+            if (fullLogCycle) {
+                String diagPrefix = "Drive/Diagnostics/" + name + "/";
+                Logger.recordOutput(diagPrefix + "AlignmentWarn", alignmentWarn);
+            }
             if (alignmentWarn && cooldownExpired) {
                 DriverStation.reportWarning(
                         String.format("Drive: %s module misaligned (%.0f deg error)", name, angleError), false);
@@ -636,7 +681,10 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
             // Drive current near limit (from IO inputs)
             double driveCurrent = inputs.driveCurrentA[i];
             boolean currentWarn = driveCurrent > config.driveStatorCurrentLimit * CURRENT_WARN_FRACTION;
-            Logger.recordOutput(diagPrefix + "CurrentWarn", currentWarn);
+            if (fullLogCycle) {
+                String diagPrefix = "Drive/Diagnostics/" + name + "/";
+                Logger.recordOutput(diagPrefix + "CurrentWarn", currentWarn);
+            }
             if (currentWarn && cooldownExpired) {
                 DriverStation.reportWarning(
                         String.format("Drive: %s drive current high (%.0fA/%.0fA limit)",
@@ -648,7 +696,10 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
             // Steer current near limit
             double steerCurrent = inputs.steerCurrentA[i];
             boolean steerCurrentWarn = steerCurrent > config.steerStatorCurrentLimit * CURRENT_WARN_FRACTION;
-            Logger.recordOutput(diagPrefix + "SteerCurrentWarn", steerCurrentWarn);
+            if (fullLogCycle) {
+                String diagPrefix = "Drive/Diagnostics/" + name + "/";
+                Logger.recordOutput(diagPrefix + "SteerCurrentWarn", steerCurrentWarn);
+            }
             if (steerCurrentWarn && cooldownExpired) {
                 DriverStation.reportWarning(
                         String.format("Drive: %s steer current high (%.0fA/%.0fA limit)",
@@ -690,8 +741,10 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
             lastStatusMessage = String.format("Low battery (%.1fV)", inputs.batteryVoltage);
         }
 
-        Logger.recordOutput("Drive/AllHealthy", lastAllHealthy);
-        Logger.recordOutput("Drive/StatusMessage", lastStatusMessage);
+        if (fullLogCycle) {
+            Logger.recordOutput("Drive/AllHealthy", lastAllHealthy);
+            Logger.recordOutput("Drive/StatusMessage", lastStatusMessage);
+        }
     }
 
     // --- Brownout protection ---

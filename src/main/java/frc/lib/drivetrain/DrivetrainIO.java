@@ -1,6 +1,7 @@
 package frc.lib.drivetrain;
 
 import org.littletonrobotics.junction.AutoLog;
+import org.photonvision.targeting.PhotonPipelineResult;
 
 public interface DrivetrainIO {
     @AutoLog
@@ -37,4 +38,8 @@ public interface DrivetrainIO {
     }
 
     void updateInputs(DrivetrainIOInputsAutoLogged inputs);
+
+    default PhotonPipelineResult getLatestResult(int cameraIndex) {
+        return null;
+    }
 }
