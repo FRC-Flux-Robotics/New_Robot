@@ -638,6 +638,63 @@ class SwerveDriveTest {
 
     // --- Pose management ---
 
+    // --- DriveTelemetry integration (S5-7) ---
+
+    @Test
+    void telemetryReceivesDriveStateWithCorrectValues() {
+        DriveState[] captured = {null};
+        DriveTelemetry mockTelemetry = state -> captured[0] = state;
+
+        SwerveDrive d = createDriveWithIO(inputs -> {
+            inputs.batteryVoltage = 11.0;
+            inputs.driveCurrentA[0] = 15.0;
+            inputs.steerCurrentA[2] = 7.5;
+        });
+        d.setTelemetry(mockTelemetry);
+
+        // publishDriveState fires on fullLogCycle (every 10th periodic call)
+        for (int i = 0; i < 10; i++) {
+            d.periodic();
+        }
+
+        assertNotNull(captured[0], "Telemetry should have received a DriveState");
+        assertEquals(11.0, captured[0].batteryVoltage(), 0.01);
+        assertEquals(15.0, captured[0].driveCurrentsA()[0], 0.01);
+        assertEquals(7.5, captured[0].steerCurrentsA()[2], 0.01);
+        assertNotNull(captured[0].statusMessage());
+        assertNotNull(captured[0].activeCommand());
+    }
+
+    @Test
+    void nullTelemetryPeriodicRunsWithoutError() {
+        // Explicitly do NOT call setTelemetry — telemetry is null
+        SwerveDrive d = createDriveWithIO(inputs -> inputs.batteryVoltage = 12.0);
+        for (int i = 0; i < 10; i++) {
+            assertDoesNotThrow(() -> d.periodic());
+        }
+    }
+
+    @Test
+    void driveStateDefensiveCopyOnConstruction() {
+        double[] driveCurrents = {10.0, 20.0, 30.0, 40.0};
+        double[] steerCurrents = {1.0, 2.0, 3.0, 4.0};
+        DriveState state = new DriveState(
+                1.0, 25.0, 100.0,
+                driveCurrents,
+                steerCurrents,
+                12.5, false, 1.0, true, "OK", "none");
+
+        // Mutate the original arrays after construction
+        driveCurrents[0] = 999.0;
+        steerCurrents[0] = 999.0;
+        assertEquals(10.0, state.driveCurrentsA()[0], 0.01,
+                "DriveState should defensively copy driveCurrentsA on construction");
+        assertEquals(1.0, state.steerCurrentsA()[0], 0.01,
+                "DriveState should defensively copy steerCurrentsA on construction");
+    }
+
+    // --- Pose management ---
+
     @Test
     void resetPoseSetsNewPose() {
         Pose2d newPose = new Pose2d(3.0, 2.0, Rotation2d.fromDegrees(45));

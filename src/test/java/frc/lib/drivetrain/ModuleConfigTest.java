@@ -83,6 +83,20 @@ class ModuleConfigTest {
     }
 
     @Test
+    void toStringCompactFormat() {
+        ModuleConfig config = new ModuleConfig(7, 8, 23, 0.124, 0.2921, 0.2921, false, false, false);
+        String str = config.toString();
+        assertEquals("ModuleConfig(drive=7, steer=8, encoder=23, offset=0.124, pos=(0.2921, 0.2921), inv=FFF)", str);
+    }
+
+    @Test
+    void toStringShowsInversions() {
+        ModuleConfig config = new ModuleConfig(1, 2, 3, 0.0, 0.5, -0.5, true, false, true);
+        String str = config.toString();
+        assertEquals("ModuleConfig(drive=1, steer=2, encoder=3, offset=0.0, pos=(0.5, -0.5), inv=TFT)", str);
+    }
+
+    @Test
     void acceptsBoundaryEncoderOffsets() {
         assertDoesNotThrow(() -> new ModuleConfig(7, 8, 23, -1.0, 0.2921, 0.2921, false, false, false));
         assertDoesNotThrow(() -> new ModuleConfig(7, 8, 23, 1.0, 0.2921, 0.2921, false, false, false));

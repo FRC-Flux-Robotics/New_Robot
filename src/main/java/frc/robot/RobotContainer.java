@@ -1,5 +1,6 @@
 package frc.robot;
 
+import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
@@ -17,7 +18,6 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.SwerveDrive;
-import frc.robot.Constants.OperatorConstants;
 import org.littletonrobotics.junction.Logger;
 import org.photonvision.targeting.PhotonTrackedTarget;
 
@@ -38,7 +38,7 @@ public class RobotContainer {
     private final boolean hasTagCamera;
 
     private final CommandXboxController driverController =
-            new CommandXboxController(OperatorConstants.kDriverControllerPort);
+            new CommandXboxController(0);
 
     private SlewRateLimiter translationXLimiter;
     private SlewRateLimiter translationYLimiter;
@@ -54,6 +54,8 @@ public class RobotContainer {
     private double cachedMaxSpeedScale;
     private double cachedMaxRotationScale;
     private double cachedSlowModeScale;
+    private double cachedAccelLimit;
+    private double cachedRotAccelLimit;
     private long cachedPrefsFrame = -1;
 
     private final SendableChooser<Command> autoChooser = new SendableChooser<>();
@@ -166,12 +168,64 @@ public class RobotContainer {
                 .whileTrue(drivetrain.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
     }
 
+    private final SwerveRequest.RobotCentric goToTagRequest = new SwerveRequest.RobotCentric()
+            .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+    private double lastTagResultTime = -1;
+    private static final double TAG_STALE_TIMEOUT_S = 0.5;
+
     private Command goToTag() {
-        return drivetrain.driveRobotCentric(
-                () -> computeTagDrive()[0],
-                () -> computeTagDrive()[1],
-                () -> computeTagDrive()[2]
-        ).withName("GoToTag" + GO_TO_TAG_ID);
+        return drivetrain.run(() -> {
+            var latest = drivetrain.getLatestCameraResult(0);
+            if (latest == null) {
+                if (lastTagResultTime >= 0
+                        && Timer.getFPGATimestamp() - lastTagResultTime > TAG_STALE_TIMEOUT_S) {
+                    drivetrain.setControl(goToTagRequest
+                            .withVelocityX(0).withVelocityY(0).withRotationalRate(0));
+                    Logger.recordOutput("Drive/GoToTag/Visible", false);
+                }
+                return;
+            }
+            lastTagResultTime = Timer.getFPGATimestamp();
+
+            PhotonTrackedTarget tag = null;
+            for (var target : latest.getTargets()) {
+                if (target.getFiducialId() == GO_TO_TAG_ID) {
+                    tag = target;
+                    break;
+                }
+            }
+
+            if (tag == null) {
+                drivetrain.setControl(goToTagRequest
+                        .withVelocityX(0).withVelocityY(0).withRotationalRate(0));
+                Logger.recordOutput("Drive/GoToTag/Visible", false);
+                return;
+            }
+
+            Transform3d camToTag = tag.getBestCameraToTarget();
+            double forwardDist = camToTag.getX();
+            double lateralOff = camToTag.getY();
+            double yawRad = Math.toRadians(tag.getYaw());
+
+            double vx = MathUtil.clamp(TAG_FORWARD_KP * (forwardDist - TAG_STOP_DISTANCE_M),
+                    -TAG_MAX_SPEED_MPS, TAG_MAX_SPEED_MPS);
+            double vy = MathUtil.clamp(-TAG_LATERAL_KP * lateralOff,
+                    -TAG_MAX_SPEED_MPS, TAG_MAX_SPEED_MPS);
+            double omega = MathUtil.clamp(-TAG_ROTATION_KP * yawRad,
+                    -TAG_MAX_OMEGA_RAD, TAG_MAX_OMEGA_RAD);
+
+            if (forwardDist < TAG_STOP_DISTANCE_M) {
+                vx = 0;
+            }
+
+            Logger.recordOutput("Drive/GoToTag/Visible", true);
+            Logger.recordOutput("Drive/GoToTag/DistanceM", forwardDist);
+            Logger.recordOutput("Drive/GoToTag/LateralM", lateralOff);
+            Logger.recordOutput("Drive/GoToTag/YawDeg", tag.getYaw());
+
+            drivetrain.setControl(goToTagRequest
+                    .withVelocityX(vx).withVelocityY(vy).withRotationalRate(omega));
+        }).withName("GoToTag" + GO_TO_TAG_ID);
     }
 
     // Cache clamped joystick per cycle to avoid redundant reads and hypot calculations
@@ -201,93 +255,21 @@ public class RobotContainer {
         cachedMaxSpeedScale = DriverPreferences.maxSpeedScale();
         cachedMaxRotationScale = DriverPreferences.maxRotationScale();
         cachedSlowModeScale = DriverPreferences.slowModeScale();
+        cachedAccelLimit = DriverPreferences.accelLimit();
+        cachedRotAccelLimit = DriverPreferences.rotAccelLimit();
     }
 
     /** Recreates slew rate limiters if the driver changed accel limits on the dashboard. */
     private void updateSlewRates() {
-        double accel = DriverPreferences.accelLimit();
-        double rotAccel = DriverPreferences.rotAccelLimit();
-        if (accel != currentAccelLimit) {
-            currentAccelLimit = accel;
-            translationXLimiter = new SlewRateLimiter(accel);
-            translationYLimiter = new SlewRateLimiter(accel);
+        if (cachedAccelLimit != currentAccelLimit) {
+            currentAccelLimit = cachedAccelLimit;
+            translationXLimiter = new SlewRateLimiter(cachedAccelLimit);
+            translationYLimiter = new SlewRateLimiter(cachedAccelLimit);
         }
-        if (rotAccel != currentRotAccelLimit) {
-            currentRotAccelLimit = rotAccel;
-            rotationLimiter = new SlewRateLimiter(rotAccel);
+        if (cachedRotAccelLimit != currentRotAccelLimit) {
+            currentRotAccelLimit = cachedRotAccelLimit;
+            rotationLimiter = new SlewRateLimiter(cachedRotAccelLimit);
         }
-    }
-
-    // Cache per-cycle to avoid querying camera 3 times per loop
-    private double[] cachedTagDrive = new double[3];
-    private long cachedTagDriveFrame = -1;
-    private double lastTagResultTime = -1;
-    private static final double TAG_STALE_TIMEOUT_S = 0.5;
-
-    private double[] computeTagDrive() {
-        long frame = Logger.getTimestamp();
-        if (frame == cachedTagDriveFrame) {
-            return cachedTagDrive;
-        }
-        cachedTagDriveFrame = frame;
-
-        var latest = drivetrain.getLatestCameraResult(0);
-        if (latest == null) {
-            // No camera result — keep previous cached command unless stale
-            if (lastTagResultTime >= 0
-                    && Timer.getFPGATimestamp() - lastTagResultTime > TAG_STALE_TIMEOUT_S) {
-                cachedTagDrive[0] = 0;
-                cachedTagDrive[1] = 0;
-                cachedTagDrive[2] = 0;
-                Logger.recordOutput("Drive/GoToTag/Visible", false);
-            }
-            return cachedTagDrive;
-        }
-        lastTagResultTime = Timer.getFPGATimestamp();
-
-        PhotonTrackedTarget tag = null;
-        for (var target : latest.getTargets()) {
-            if (target.getFiducialId() == GO_TO_TAG_ID) {
-                tag = target;
-                break;
-            }
-        }
-
-        if (tag == null) {
-            cachedTagDrive[0] = 0;
-            cachedTagDrive[1] = 0;
-            cachedTagDrive[2] = 0;
-            Logger.recordOutput("Drive/GoToTag/Visible", false);
-            return cachedTagDrive;
-        }
-
-        Transform3d camToTag = tag.getBestCameraToTarget();
-        double forwardDist = camToTag.getX(); // forward distance in camera frame
-        double lateralOff = camToTag.getY();  // positive = tag is left
-        double yawRad = Math.toRadians(tag.getYaw()); // positive = tag is left
-
-        // P-control: drive forward until TAG_STOP_DISTANCE_M, center laterally, face tag
-        double vx = MathUtil.clamp(TAG_FORWARD_KP * (forwardDist - TAG_STOP_DISTANCE_M),
-                -TAG_MAX_SPEED_MPS, TAG_MAX_SPEED_MPS);
-        double vy = MathUtil.clamp(-TAG_LATERAL_KP * lateralOff,
-                -TAG_MAX_SPEED_MPS, TAG_MAX_SPEED_MPS);
-        double omega = MathUtil.clamp(-TAG_ROTATION_KP * yawRad,
-                -TAG_MAX_OMEGA_RAD, TAG_MAX_OMEGA_RAD);
-
-        // Stop forward motion if close enough
-        if (forwardDist < TAG_STOP_DISTANCE_M) {
-            vx = 0;
-        }
-
-        Logger.recordOutput("Drive/GoToTag/Visible", true);
-        Logger.recordOutput("Drive/GoToTag/DistanceM", forwardDist);
-        Logger.recordOutput("Drive/GoToTag/LateralM", lateralOff);
-        Logger.recordOutput("Drive/GoToTag/YawDeg", tag.getYaw());
-
-        cachedTagDrive[0] = vx;
-        cachedTagDrive[1] = vy;
-        cachedTagDrive[2] = omega;
-        return cachedTagDrive;
     }
 
     public Command getAutonomousCommand() {

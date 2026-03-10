@@ -38,7 +38,6 @@ import java.util.function.Supplier;
 import org.photonvision.targeting.PhotonPipelineResult;
 
 import static edu.wpi.first.units.Units.Volts;
-import static edu.wpi.first.units.Units.Second;
 
 /**
  * Config-driven swerve drivetrain subsystem. Constructed solely from a {@link DrivetrainConfig}.
@@ -47,8 +46,8 @@ import static edu.wpi.first.units.Units.Second;
 public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         implements Subsystem, DriveInterface, AutoCloseable {
 
-    private static final double kSimLoopPeriod = 0.005; // 5 ms
-    private static final double kMovingThresholdMps = 0.02;
+    private static final double SIM_LOOP_PERIOD = 0.005; // 5 ms
+    private static final double MOVING_THRESHOLD_MPS = 0.02;
     private static final String[] MODULE_NAMES = {"FL", "FR", "BL", "BR"};
 
     // Brownout protection
@@ -65,6 +64,22 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     private static final double DIAGNOSTIC_COOLDOWN_SEC = 2.0;
     private static final double VISION_MAX_AMBIGUITY = 0.2;
     private static final double VISION_MAX_DIST_M = 4.0;
+
+    // PID gains for autonomous and teleop controllers
+    private static final double HEADING_KP = 5.0;
+    private static final double AUTO_TRANSLATION_KP = 5.0;
+    private static final double AUTO_ROTATION_KP = 5.0;
+    private static final double DRIVE_TO_POSE_TRANSLATION_KP = 5.0;
+    private static final double DRIVE_TO_POSE_ROTATION_KP = 5.0;
+
+    // driveToPose motion profile constraints
+    private static final double DRIVE_TO_POSE_MAX_VEL_MPS = 2.0;
+    private static final double DRIVE_TO_POSE_MAX_ACCEL_MPS2 = 2.0;
+    private static final double DRIVE_TO_POSE_ROT_TOLERANCE_DEG = 2.0;
+
+    // Path following constraints
+    private static final double PATH_MAX_ACCEL_MPS2 = 2.5;
+    private static final double PATH_MAX_ANGULAR_ACCEL_RADS2 = Math.PI;
     private static final Matrix<N3, N1> VISION_STD_HIGH_TRUST = VecBuilder.fill(0.3, 0.3, 0.5);
     private static final Matrix<N3, N1> VISION_STD_MODERATE_TRUST = VecBuilder.fill(0.5, 0.5, 999);
 
@@ -94,9 +109,6 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     // SysId characterization requests
     private final SwerveRequest.SysIdSwerveTranslation sysIdTranslationRequest =
             new SwerveRequest.SysIdSwerveTranslation();
-    private final SwerveRequest.SysIdSwerveRotation sysIdRotationRequest =
-            new SwerveRequest.SysIdSwerveRotation();
-
     private final SysIdRoutine sysIdTranslation = new SysIdRoutine(
             new SysIdRoutine.Config(
                     null,        // default ramp rate (1 V/s)
@@ -108,23 +120,9 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                     output -> setControl(sysIdTranslationRequest.withVolts(output)),
                     null, this));
 
-    private final SysIdRoutine sysIdRotation = new SysIdRoutine(
-            new SysIdRoutine.Config(
-                    Volts.of(Math.PI / 6).per(Second), // rad/s² as "volts/s"
-                    Volts.of(Math.PI),                  // rad/s as "volts"
-                    null,
-                    state -> com.ctre.phoenix6.SignalLogger.writeString(
-                            "SysIdRotation_State", state.toString())),
-            new SysIdRoutine.Mechanism(
-                    output -> {
-                        setControl(sysIdRotationRequest.withRotationalRate(output.in(Volts)));
-                        com.ctre.phoenix6.SignalLogger.writeDouble("Rotational_Rate", output.in(Volts));
-                    },
-                    null, this));
-
     // Operator perspective
-    private static final Rotation2d kBlueAlliancePerspective = Rotation2d.kZero;
-    private static final Rotation2d kRedAlliancePerspective = Rotation2d.k180deg;
+    private static final Rotation2d BLUE_ALLIANCE_PERSPECTIVE = Rotation2d.kZero;
+    private static final Rotation2d RED_ALLIANCE_PERSPECTIVE = Rotation2d.k180deg;
     private boolean hasAppliedOperatorPerspective = false;
 
     // Diagnostics
@@ -171,9 +169,9 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
 
         pathConstraints = new PathConstraints(
                 config.maxSpeedMps,
-                2.5, // conservative linear accel (m/s²) — avoids tipping and wheel slip
+                PATH_MAX_ACCEL_MPS2,
                 config.maxAngularRateRadPerSec,
-                Math.PI); // conservative angular accel (rad/s²)
+                PATH_MAX_ANGULAR_ACCEL_RADS2);
 
         fieldCentricRequest = new SwerveRequest.FieldCentric()
                 .withDeadband(config.maxSpeedMps * config.translationDeadband)
@@ -183,7 +181,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         facingAngleRequest = new SwerveRequest.FieldCentricFacingAngle()
                 .withDeadband(config.maxSpeedMps * config.translationDeadband)
                 .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
-        facingAngleRequest.HeadingController.setPID(5.0, 0, 0);
+        facingAngleRequest.HeadingController.setPID(HEADING_KP, 0, 0);
         facingAngleRequest.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
 
         AutoBuilder.configure(
@@ -197,8 +195,8 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                             .withRotationalRate(speeds.omegaRadiansPerSecond));
                 },
                 new PPHolonomicDriveController(
-                        new PIDConstants(5.0, 0, 0),
-                        new PIDConstants(5.0, 0, 0)),
+                        new PIDConstants(AUTO_TRANSLATION_KP, 0, 0),
+                        new PIDConstants(AUTO_ROTATION_KP, 0, 0)),
                 config.toRobotConfig(),
                 () -> DriverStation.getAlliance()
                         .orElse(Alliance.Blue) == Alliance.Red,
@@ -276,30 +274,25 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         return sysIdTranslation.dynamic(direction);
     }
 
-    public Command sysIdRotationQuasistatic(SysIdRoutine.Direction direction) {
-        return sysIdRotation.quasistatic(direction);
-    }
-
-    public Command sysIdRotationDynamic(SysIdRoutine.Direction direction) {
-        return sysIdRotation.dynamic(direction);
-    }
-
     // --- DriveInterface: Point-to-point ---
 
     @Override
     public Command driveToPose(Pose2d target, double toleranceMeters) {
         // PID controllers for X, Y (meters), and rotation (radians)
         ProfiledPIDController xController =
-                new ProfiledPIDController(5.0, 0, 0, new TrapezoidProfile.Constraints(2.0, 2.0));
+                new ProfiledPIDController(DRIVE_TO_POSE_TRANSLATION_KP, 0, 0,
+                        new TrapezoidProfile.Constraints(DRIVE_TO_POSE_MAX_VEL_MPS, DRIVE_TO_POSE_MAX_ACCEL_MPS2));
         ProfiledPIDController yController =
-                new ProfiledPIDController(5.0, 0, 0, new TrapezoidProfile.Constraints(2.0, 2.0));
+                new ProfiledPIDController(DRIVE_TO_POSE_TRANSLATION_KP, 0, 0,
+                        new TrapezoidProfile.Constraints(DRIVE_TO_POSE_MAX_VEL_MPS, DRIVE_TO_POSE_MAX_ACCEL_MPS2));
         ProfiledPIDController rotController =
-                new ProfiledPIDController(5.0, 0, 0, new TrapezoidProfile.Constraints(Math.PI, Math.PI));
+                new ProfiledPIDController(DRIVE_TO_POSE_ROTATION_KP, 0, 0,
+                        new TrapezoidProfile.Constraints(Math.PI, Math.PI));
         rotController.enableContinuousInput(-Math.PI, Math.PI);
 
         xController.setTolerance(toleranceMeters);
         yController.setTolerance(toleranceMeters);
-        rotController.setTolerance(Math.toRadians(2.0));
+        rotController.setTolerance(Math.toRadians(DRIVE_TO_POSE_ROT_TOLERANCE_DEG));
 
         return run(() -> {
                     Pose2d current = getPose();
@@ -360,7 +353,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         ChassisSpeeds speeds = getVelocity();
         double linearSpeed =
                 Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
-        return linearSpeed > kMovingThresholdMps;
+        return linearSpeed > MOVING_THRESHOLD_MPS;
     }
 
     // --- DriveInterface: Pose management ---
@@ -428,34 +421,51 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         periodicCycleCount++;
         boolean fullLogCycle = (periodicCycleCount % 10 == 0);
 
-        // Apply operator perspective based on alliance color
+        applyOperatorPerspective();
+
+        io.updateInputs(inputs);
+        Logger.processInputs("Drive", inputs);
+
+        SwerveDriveState state = getState();
+        if (state == null) return;
+
+        ChassisSpeeds speeds = state.Speeds;
+        double linearSpeed = Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
+
+        logPoseAndSpeed(state, speeds, linearSpeed, fullLogCycle);
+
+        double brownoutScale = getVoltageSpeedScale();
+        logBrownout(brownoutScale, fullLogCycle);
+
+        Command active = getCurrentCommand();
+        Logger.recordOutput("Drive/ActiveCommand", active != null ? active.getName() : "none");
+        Logger.recordOutput("Drive/ModuleStates", state.ModuleStates);
+        Logger.recordOutput("Drive/ModuleTargets", state.ModuleTargets);
+
+        double totalCurrentA = logModuleTelemetry(fullLogCycle);
+        fuseVision(state.Pose, fullLogCycle);
+        checkDiagnostics(state, fullLogCycle);
+        publishDriveState(linearSpeed, totalCurrentA, brownoutScale, active, fullLogCycle);
+    }
+
+    private void applyOperatorPerspective() {
         if (!hasAppliedOperatorPerspective || DriverStation.isDisabled()) {
             DriverStation.getAlliance().ifPresent(allianceColor -> {
                 setOperatorPerspectiveForward(
                         allianceColor == Alliance.Red
-                                ? kRedAlliancePerspective
-                                : kBlueAlliancePerspective);
+                                ? RED_ALLIANCE_PERSPECTIVE
+                                : BLUE_ALLIANCE_PERSPECTIVE);
                 hasAppliedOperatorPerspective = true;
             });
         }
+    }
 
-        // --- IO inputs (logged for replay) ---
-        io.updateInputs(inputs);
-        Logger.processInputs("Drive", inputs);
-
-        // --- Computed outputs ---
-        SwerveDriveState state = getState();
-        if (state == null) return;
+    private void logPoseAndSpeed(SwerveDriveState state, ChassisSpeeds speeds,
+                                 double linearSpeed, boolean fullLogCycle) {
         Pose2d pose = state.Pose;
-        ChassisSpeeds speeds = state.Speeds;
-
-        // Always log: critical state (every cycle)
         Logger.recordOutput("Drive/Pose", pose);
         Logger.recordOutput("Drive/Speeds", speeds);
 
-        double linearSpeed = Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
-
-        // Throttled: derived pose fields and diagnostics (every 200ms)
         if (fullLogCycle) {
             Logger.recordOutput("Drive/PositionX", pose.getX());
             Logger.recordOutput("Drive/PositionY", pose.getY());
@@ -467,26 +477,18 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
             Logger.recordOutput("Drive/OdometryHz",
                     inputs.odometryPeriodSec > 0 ? 1.0 / inputs.odometryPeriodSec : 0);
         }
+    }
 
-        // Brownout protection (throttled)
-        double brownoutScale = getVoltageSpeedScale();
+    private void logBrownout(double brownoutScale, boolean fullLogCycle) {
         if (fullLogCycle) {
             Logger.recordOutput("Drive/BatteryVoltage", inputs.batteryVoltage);
             Logger.recordOutput("Drive/BrownoutSpeedScale", brownoutScale);
             Logger.recordOutput("Drive/BrownoutActive", brownoutScale < 1.0);
         }
+    }
 
-        // Active command (always log)
-        Command active = getCurrentCommand();
-        Logger.recordOutput("Drive/ActiveCommand", active != null ? active.getName() : "none");
-
-        // Per-module struct outputs (always log)
-        SwerveModuleState[] moduleStates = state.ModuleStates;
-        SwerveModuleState[] moduleTargets = state.ModuleTargets;
-        Logger.recordOutput("Drive/ModuleStates", moduleStates);
-        Logger.recordOutput("Drive/ModuleTargets", moduleTargets);
-
-        // Per-module current telemetry (throttled)
+    /** Logs per-module current telemetry and returns total current draw. */
+    private double logModuleTelemetry(boolean fullLogCycle) {
         double totalCurrentA = 0;
         for (int i = 0; i < 4; i++) {
             totalCurrentA += inputs.driveCurrentA[i] + inputs.steerCurrentA[i];
@@ -499,8 +501,10 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
             }
             Logger.recordOutput("Drive/TotalCurrentA", totalCurrentA);
         }
+        return totalCurrentA;
+    }
 
-        // Vision fusion (always run fusion logic, throttle detail logs)
+    private void fuseVision(Pose2d pose, boolean fullLogCycle) {
         int cycleMaxTagCount = 0;
         double cycleMinAmbiguity = 1.0;
         boolean anyAccepted = false;
@@ -576,10 +580,10 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
                 Timer.getFPGATimestamp() - lastAcceptedVisionTimeSec,
                 lastMaxTagCount, lastMinAmbiguity);
         Logger.recordOutput("Drive/PoseConfidence", confidence.name());
+    }
 
-        checkDiagnostics(state, fullLogCycle);
-
-        // Build and publish DriveState snapshot (throttled — dashboard doesn't need 50Hz)
+    private void publishDriveState(double linearSpeed, double totalCurrentA,
+                                   double brownoutScale, Command active, boolean fullLogCycle) {
         if (telemetry != null && fullLogCycle) {
             telemetry.update(new DriveState(
                     linearSpeed,
@@ -767,7 +771,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
             lastSimTime = currentTime;
             updateSimState(deltaTime, RobotController.getBatteryVoltage());
         });
-        simNotifier.startPeriodic(kSimLoopPeriod);
+        simNotifier.startPeriodic(SIM_LOOP_PERIOD);
     }
 
     @Override

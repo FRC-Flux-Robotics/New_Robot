@@ -16,12 +16,27 @@ public final class PIDGains {
         if (kP < 0) {
             throw new IllegalArgumentException("kP must be >= 0, got: " + kP);
         }
+        if (kD < 0) {
+            throw new IllegalArgumentException("kD must be >= 0, got: " + kD);
+        }
+        if (kV < 0) {
+            throw new IllegalArgumentException("kV must be >= 0, got: " + kV);
+        }
+        if (kA < 0) {
+            throw new IllegalArgumentException("kA must be >= 0, got: " + kA);
+        }
         this.kP = kP;
         this.kI = kI;
         this.kD = kD;
         this.kS = kS;
         this.kV = kV;
         this.kA = kA;
+    }
+
+    @Override
+    public String toString() {
+        return "PIDGains(kP=" + kP + ", kI=" + kI + ", kD=" + kD
+                + ", kS=" + kS + ", kV=" + kV + ", kA=" + kA + ")";
     }
 
     /** Convert to CTRE Phoenix 6 Slot0Configs for motor controller configuration. */

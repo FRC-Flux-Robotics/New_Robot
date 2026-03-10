@@ -41,6 +41,15 @@ public final class ModuleConfig {
         this.invertEncoder = invertEncoder;
     }
 
+    @Override
+    public String toString() {
+        return "ModuleConfig(drive=" + driveMotorId + ", steer=" + steerMotorId
+                + ", encoder=" + encoderId + ", offset=" + encoderOffsetRotations
+                + ", pos=(" + xPositionMeters + ", " + yPositionMeters + ")"
+                + ", inv=" + (invertDrive ? "T" : "F") + (invertSteer ? "T" : "F")
+                + (invertEncoder ? "T" : "F") + ")";
+    }
+
     private static void validateCanId(String name, int id) {
         if (id < 0 || id > 62) {
             throw new IllegalArgumentException(name + " must be 0-62, got: " + id);

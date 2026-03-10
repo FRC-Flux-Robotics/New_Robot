@@ -120,6 +120,7 @@ jar {
 deployArtifact.jarTask = jar
 wpi.java.configureExecutableTasks(jar)
 wpi.java.configureTestTasks(test)
+wpi.java.configureTestTasks(tasks.named('integrationTest').get())
 
 // Configure string concat to always inline compile
 tasks.withType(JavaCompile) {

@@ -25,13 +25,15 @@ class InputProcessingTest {
 
     @Test
     void applyInputCurve_squaredCurveForNormalValues() {
-        // 0.5 -> 0.25, sign preserved
-        assertEquals(0.25, InputProcessing.applyInputCurve(0.5, DEADBAND, EXPO), EPSILON);
-        assertEquals(-0.25, InputProcessing.applyInputCurve(-0.5, DEADBAND, EXPO), EPSILON);
+        // 0.5 -> ((0.5-0.02)/0.98)^2 = (24/49)^2, sign preserved
+        double expected05 = Math.pow((0.5 - DEADBAND) / (1.0 - DEADBAND), EXPO);
+        assertEquals(expected05, InputProcessing.applyInputCurve(0.5, DEADBAND, EXPO), EPSILON);
+        assertEquals(-expected05, InputProcessing.applyInputCurve(-0.5, DEADBAND, EXPO), EPSILON);
 
-        // 0.8 -> 0.64
-        assertEquals(0.64, InputProcessing.applyInputCurve(0.8, DEADBAND, EXPO), EPSILON);
-        assertEquals(-0.64, InputProcessing.applyInputCurve(-0.8, DEADBAND, EXPO), EPSILON);
+        // 0.8 -> ((0.8-0.02)/0.98)^2
+        double expected08 = Math.pow((0.8 - DEADBAND) / (1.0 - DEADBAND), EXPO);
+        assertEquals(expected08, InputProcessing.applyInputCurve(0.8, DEADBAND, EXPO), EPSILON);
+        assertEquals(-expected08, InputProcessing.applyInputCurve(-0.8, DEADBAND, EXPO), EPSILON);
     }
 
     @Test
@@ -49,24 +51,37 @@ class InputProcessingTest {
     }
 
     @Test
-    void applyInputCurve_aboveDeadbandReturnsSquared() {
-        // 0.03 is above deadband, should return 0.03^2 = 0.0009
-        assertEquals(0.0009, InputProcessing.applyInputCurve(0.03, DEADBAND, EXPO), EPSILON);
-        assertEquals(-0.0009, InputProcessing.applyInputCurve(-0.03, DEADBAND, EXPO), EPSILON);
+    void applyInputCurve_aboveDeadbandReturnsScaledSquared() {
+        // 0.03 -> ((0.03-0.02)/0.98)^2 ≈ 0.000104
+        double expected = Math.pow((0.03 - DEADBAND) / (1.0 - DEADBAND), EXPO);
+        assertEquals(expected, InputProcessing.applyInputCurve(0.03, DEADBAND, EXPO), EPSILON);
+        assertEquals(-expected, InputProcessing.applyInputCurve(-0.03, DEADBAND, EXPO), EPSILON);
     }
 
     @Test
     void applyInputCurve_linearExpo() {
-        // expo=1.0 should return raw value (above deadband)
-        assertEquals(0.5, InputProcessing.applyInputCurve(0.5, DEADBAND, 1.0), EPSILON);
-        assertEquals(-0.8, InputProcessing.applyInputCurve(-0.8, DEADBAND, 1.0), EPSILON);
+        // expo=1.0 should return rescaled value (above deadband)
+        double expected05 = (0.5 - DEADBAND) / (1.0 - DEADBAND);
+        assertEquals(expected05, InputProcessing.applyInputCurve(0.5, DEADBAND, 1.0), EPSILON);
+        double expected08 = (0.8 - DEADBAND) / (1.0 - DEADBAND);
+        assertEquals(-expected08, InputProcessing.applyInputCurve(-0.8, DEADBAND, 1.0), EPSILON);
     }
 
     @Test
     void applyInputCurve_cubicExpo() {
-        // expo=3.0: 0.5 -> 0.125
-        assertEquals(0.125, InputProcessing.applyInputCurve(0.5, DEADBAND, 3.0), EPSILON);
-        assertEquals(-0.125, InputProcessing.applyInputCurve(-0.5, DEADBAND, 3.0), EPSILON);
+        // expo=3.0: 0.5 -> ((0.5-0.02)/0.98)^3
+        double expected = Math.pow((0.5 - DEADBAND) / (1.0 - DEADBAND), 3.0);
+        assertEquals(expected, InputProcessing.applyInputCurve(0.5, DEADBAND, 3.0), EPSILON);
+        assertEquals(-expected, InputProcessing.applyInputCurve(-0.5, DEADBAND, 3.0), EPSILON);
+    }
+
+    @Test
+    void applyInputCurve_continuousAtDeadbandBoundary() {
+        // Value just above deadband should produce near-zero output (no jump)
+        double justAbove = DEADBAND + 0.001;
+        double result = InputProcessing.applyInputCurve(justAbove, DEADBAND, EXPO);
+        assertTrue(result < 0.01, "Output just above deadband should be near zero, was " + result);
+        assertTrue(result > 0.0, "Output just above deadband should be positive");
     }
 
     // --- clampStickMagnitude tests ---

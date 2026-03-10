@@ -18,7 +18,8 @@ final class InputProcessing {
         if (abs <= deadband) {
             return 0.0;
         }
-        return Math.copySign(Math.pow(abs, expo), value);
+        double scaled = (abs - deadband) / (1.0 - deadband);
+        return Math.copySign(Math.pow(scaled, expo), value);
     }
 
     /**

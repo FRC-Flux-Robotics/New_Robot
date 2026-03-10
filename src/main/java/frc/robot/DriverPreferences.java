@@ -1,5 +1,6 @@
 package frc.robot;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.Preferences;
 
 /**
@@ -44,45 +45,42 @@ public final class DriverPreferences {
 
     /** Max translational speed scale factor (0.0–1.0). */
     public static double maxSpeedScale() {
-        return clamp(Preferences.getDouble(MAX_SPEED_SCALE, DEFAULT_MAX_SPEED_SCALE), 0.1, 1.0);
+        return MathUtil.clamp(Preferences.getDouble(MAX_SPEED_SCALE, DEFAULT_MAX_SPEED_SCALE), 0.1, 1.0);
     }
 
     /** Max rotational speed scale factor (0.0–1.0). */
     public static double maxRotationScale() {
-        return clamp(Preferences.getDouble(MAX_ROTATION_SCALE, DEFAULT_MAX_ROTATION_SCALE), 0.1, 1.0);
+        return MathUtil.clamp(Preferences.getDouble(MAX_ROTATION_SCALE, DEFAULT_MAX_ROTATION_SCALE), 0.1, 1.0);
     }
 
     /** Drive joystick response curve exponent (1.0 = linear, 2.0 = squared, 3.0 = cubic). */
     public static double driveExpo() {
-        return clamp(Preferences.getDouble(DRIVE_EXPO, DEFAULT_DRIVE_EXPO), 1.0, 4.0);
+        return MathUtil.clamp(Preferences.getDouble(DRIVE_EXPO, DEFAULT_DRIVE_EXPO), 1.0, 4.0);
     }
 
     /** Rotation joystick response curve exponent. */
     public static double rotationExpo() {
-        return clamp(Preferences.getDouble(ROTATION_EXPO, DEFAULT_ROTATION_EXPO), 1.0, 4.0);
+        return MathUtil.clamp(Preferences.getDouble(ROTATION_EXPO, DEFAULT_ROTATION_EXPO), 1.0, 4.0);
     }
 
     /** Joystick deadband threshold. */
     public static double deadband() {
-        return clamp(Preferences.getDouble(DEADBAND, DEFAULT_DEADBAND), 0.01, 0.25);
+        return MathUtil.clamp(Preferences.getDouble(DEADBAND, DEFAULT_DEADBAND), 0.01, 0.25);
     }
 
     /** Translational acceleration limit in m/s per second (slew rate). */
     public static double accelLimit() {
-        return clamp(Preferences.getDouble(ACCEL_LIMIT, DEFAULT_ACCEL_LIMIT), 1.0, 20.0);
+        return MathUtil.clamp(Preferences.getDouble(ACCEL_LIMIT, DEFAULT_ACCEL_LIMIT), 1.0, 20.0);
     }
 
     /** Rotational acceleration limit in rad/s per second (slew rate). */
     public static double rotAccelLimit() {
-        return clamp(Preferences.getDouble(ROT_ACCEL_LIMIT, DEFAULT_ROT_ACCEL_LIMIT), 1.0, 20.0);
+        return MathUtil.clamp(Preferences.getDouble(ROT_ACCEL_LIMIT, DEFAULT_ROT_ACCEL_LIMIT), 1.0, 20.0);
     }
 
     /** Slow mode speed scale factor (0.0–1.0). */
     public static double slowModeScale() {
-        return clamp(Preferences.getDouble(SLOW_MODE_SCALE, DEFAULT_SLOW_MODE_SCALE), 0.1, 0.8);
+        return MathUtil.clamp(Preferences.getDouble(SLOW_MODE_SCALE, DEFAULT_SLOW_MODE_SCALE), 0.1, 0.8);
     }
 
-    private static double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
-    }
 }
