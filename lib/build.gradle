@@ -1,0 +1,69 @@
+plugins {
+    id "java-library"
+    id "com.diffplug.spotless" version "7.0.4"
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+// AdvantageKit Maven repository
+repositories {
+    mavenCentral()
+    // Local WPILib Maven (installed by WPILib installer)
+    def userHome = System.getProperty("user.home")
+    maven { url = uri(new File(userHome, "wpilib/2026/maven")) }
+    // WPILib remote Maven repos (added by GradleRIO for root project only)
+    maven { url = uri("https://frcmaven.wpi.edu/artifactory/release") }
+    maven { url = uri("https://frcmaven.wpi.edu/artifactory/vendor-mvn-release") }
+    maven { url = uri("https://frcmaven.wpi.edu/artifactory/littletonrobotics-mvn-release") }
+    maven { url = uri("https://maven.ctr-electronics.com/release/") }
+    maven { url = uri("https://maven.photonvision.org/repository/internal") }
+    maven { url = uri("https://maven.photonvision.org/repository/snapshots") }
+    maven { url = uri("https://3015rangerrobotics.github.io/pathplannerlib/repo") }
+}
+
+// AdvantageKit annotation processor
+def akitJson = new groovy.json.JsonSlurper().parseText(new File(projectDir.parentFile.getAbsolutePath() + "/vendordeps/AdvantageKit.json").text)
+
+dependencies {
+    annotationProcessor "org.littletonrobotics.akit:akit-autolog:$akitJson.version"
+    api wpi.java.deps.wpilib()
+    api wpi.java.vendor.java()
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform {
+        excludeTags 'integration'
+    }
+    systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
+}
+
+tasks.register('integrationTest', Test) {
+    useJUnitPlatform {
+        includeTags 'integration'
+    }
+    systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
+}
+
+wpi.java.configureTestTasks(test)
+wpi.java.configureTestTasks(tasks.named('integrationTest').get())
+
+// Configure string concat to always inline compile
+tasks.withType(JavaCompile) {
+    options.compilerArgs.add '-XDstringConcat=inline'
+}
+
+// Spotless auto-formatting
+spotless {
+    java {
+        googleJavaFormat()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+    }
+}
+compileJava.dependsOn(spotlessApply)

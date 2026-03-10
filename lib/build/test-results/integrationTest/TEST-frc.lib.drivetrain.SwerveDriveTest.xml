@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="frc.lib.drivetrain.SwerveDriveTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-03-10T17:22:13" hostname="frc2026.us-central1-b.c.btvaroska.internal" time="1.168">
+  <properties/>
+  <testcase name="distanceToReturnsCorrectDistance()" classname="frc.lib.drivetrain.SwerveDriveTest" time="1.168"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="frc.lib.drivetrain.ModuleConfigTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-03-10T15:31:46" hostname="frc2026.us-central1-b.c.btvaroska.internal" time="0.017">
+  <properties/>
+  <testcase name="storesInversionFlags()" classname="frc.lib.drivetrain.ModuleConfigTest" time="0.0"/>
+  <testcase name="toStringCompactFormat()" classname="frc.lib.drivetrain.ModuleConfigTest" time="0.0"/>
+  <testcase name="constructsWithValidConfig()" classname="frc.lib.drivetrain.ModuleConfigTest" time="0.0"/>
+  <testcase name="acceptsBoundaryCanIds()" classname="frc.lib.drivetrain.ModuleConfigTest" time="0.001"/>
+  <testcase name="acceptsBoundaryEncoderOffsets()" classname="frc.lib.drivetrain.ModuleConfigTest" time="0.001"/>
+  <testcase name="rejectsDriveMotorIdTooLow()" classname="frc.lib.drivetrain.ModuleConfigTest" time="0.001"/>
+  <testcase name="rejectsEncoderOffsetTooLow()" classname="frc.lib.drivetrain.ModuleConfigTest" time="0.001"/>
+  <testcase name="rejectsEncoderOffsetTooHigh()" classname="frc.lib.drivetrain.ModuleConfigTest" time="0.001"/>
+  <testcase name="rejectsDriveMotorIdTooHigh()" classname="frc.lib.drivetrain.ModuleConfigTest" time="0.001"/>
+  <testcase name="toStringShowsInversions()" classname="frc.lib.drivetrain.ModuleConfigTest" time="0.001"/>
+  <testcase name="rejectsEncoderIdOutOfRange()" classname="frc.lib.drivetrain.ModuleConfigTest" time="0.001"/>
+  <testcase name="rejectsSteerMotorIdOutOfRange()" classname="frc.lib.drivetrain.ModuleConfigTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

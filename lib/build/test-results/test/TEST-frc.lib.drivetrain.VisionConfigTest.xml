@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="frc.lib.drivetrain.VisionConfigTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-03-10T15:31:46" hostname="frc2026.us-central1-b.c.btvaroska.internal" time="0.007">
+  <properties/>
+  <testcase name="builderOverridesDefaults()" classname="frc.lib.drivetrain.VisionConfigTest" time="0.0"/>
+  <testcase name="rejectsNonPositiveZHeightThreshold()" classname="frc.lib.drivetrain.VisionConfigTest" time="0.001"/>
+  <testcase name="rejectsNonPositiveStdDevCoeffs()" classname="frc.lib.drivetrain.VisionConfigTest" time="0.001"/>
+  <testcase name="defaultsMatchExpectedValues()" classname="frc.lib.drivetrain.VisionConfigTest" time="0.001"/>
+  <testcase name="rejectsNonPositiveAmbiguity()" classname="frc.lib.drivetrain.VisionConfigTest" time="0.001"/>
+  <testcase name="rejectsNonPositiveSingleTagDist()" classname="frc.lib.drivetrain.VisionConfigTest" time="0.001"/>
+  <testcase name="rejectsNonPositiveFieldBounds()" classname="frc.lib.drivetrain.VisionConfigTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="frc.lib.drivetrain.PIDGainsTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-03-10T15:31:46" hostname="frc2026.us-central1-b.c.btvaroska.internal" time="0.01">
+  <properties/>
+  <testcase name="toStringContainsAllFields()" classname="frc.lib.drivetrain.PIDGainsTest" time="0.0"/>
+  <testcase name="allowsZeroKP()" classname="frc.lib.drivetrain.PIDGainsTest" time="0.0"/>
+  <testcase name="convertsToSlot0Configs()" classname="frc.lib.drivetrain.PIDGainsTest" time="0.001"/>
+  <testcase name="allowsNegativeKI()" classname="frc.lib.drivetrain.PIDGainsTest" time="0.0"/>
+  <testcase name="allowsNegativeKS()" classname="frc.lib.drivetrain.PIDGainsTest" time="0.0"/>
+  <testcase name="constructsWithValidGains()" classname="frc.lib.drivetrain.PIDGainsTest" time="0.0"/>
+  <testcase name="rejectsNegativeKA()" classname="frc.lib.drivetrain.PIDGainsTest" time="0.001"/>
+  <testcase name="rejectsNegativeKD()" classname="frc.lib.drivetrain.PIDGainsTest" time="0.001"/>
+  <testcase name="rejectsNegativeKP()" classname="frc.lib.drivetrain.PIDGainsTest" time="0.001"/>
+  <testcase name="rejectsNegativeKV()" classname="frc.lib.drivetrain.PIDGainsTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

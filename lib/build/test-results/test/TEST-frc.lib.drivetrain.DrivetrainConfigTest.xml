@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="frc.lib.drivetrain.DrivetrainConfigTest" tests="32" skipped="0" failures="0" errors="0" timestamp="2026-03-10T15:31:46" hostname="frc2026.us-central1-b.c.btvaroska.internal" time="0.164">
+  <properties/>
+  <testcase name="rejectsMissingSpeed()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.015"/>
+  <testcase name="buildsWithAllFields()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.097"/>
+  <testcase name="rejectsMissingCanBus()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="rejectsMissingGearing()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="rejectsMissingPigeonId()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.0"/>
+  <testcase name="deadbandDefaultsToZero()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.0"/>
+  <testcase name="acceptsBoundaryPigeonId()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.0"/>
+  <testcase name="rejectsMissingModule()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="createsModuleConstantsWithInversion()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="rejectsMissingPIDGains()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="driveBaseRadiusComputesMaxDistance()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="buildsModuleConstantsFactory()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="rejectsInvalidSpeed()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.002"/>
+  <testcase name="rejectsMissingCurrentLimits()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="camerasListIsImmutable()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.008"/>
+  <testcase name="subConfigsAcceptCustomValues()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.0"/>
+  <testcase name="buildsWithNoCameras()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.0"/>
+  <testcase name="rejectsPigeonIdOutOfRange()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="simGainsIgnoredWhenReal()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.0"/>
+  <testcase name="rejectsInvalidGearing()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="rejectsBlankCameraName()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="rejectsInvalidCurrentLimits()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.002"/>
+  <testcase name="subConfigsDefaultWhenNotSet()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="simGainsDefaultToNull()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="simGainsPartialOverride()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.0"/>
+  <testcase name="rejectsNullCameraTransform()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="rejectsNullCameraName()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="createsModuleConstants()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="simGainsUsedWhenSimulation()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.0"/>
+  <testcase name="rejectsInvalidDeadband()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.001"/>
+  <testcase name="buildsWithCameras()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.0"/>
+  <testcase name="buildsDrivetrainConstants()" classname="frc.lib.drivetrain.DrivetrainConfigTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
