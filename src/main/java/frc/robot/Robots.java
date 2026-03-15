@@ -16,16 +16,16 @@ public final class Robots {
             .canBus("CANdace")
             .pigeonId(24)
             .frontLeft(new ModuleConfig(/* drive */ 7, /* steer */ 8, /* encoder */ 23,
-                    /* offset */ 0.124267578125, /* x */ 0.2921, /* y */ 0.2921,
+                    /* offset */ 0.121337890625, /* x */ 0.2921, /* y */ 0.2921,
                     /* invDrive */ false, /* invSteer */ false, /* invEnc */ false))
             .frontRight(new ModuleConfig(/* drive */ 1, /* steer */ 2, /* encoder */ 20,
-                    /* offset */ -0.291015625, /* x */ 0.2921, /* y */ -0.2921,
+                    /* offset */ -0.294921875, /* x */ 0.2921, /* y */ -0.2921,
                     /* invDrive */ true, /* invSteer */ false, /* invEnc */ false))
             .backLeft(new ModuleConfig(/* drive */ 5, /* steer */ 6, /* encoder */ 22,
-                    /* offset */ 0.048828125, /* x */ -0.2921, /* y */ 0.2921,
+                    /* offset */ 0.040771484375, /* x */ -0.2921, /* y */ 0.2921,
                     /* invDrive */ false, /* invSteer */ false, /* invEnc */ false))
             .backRight(new ModuleConfig(/* drive */ 3, /* steer */ 4, /* encoder */ 21,
-                    /* offset */ -0.371826171875, /* x */ -0.2921, /* y */ -0.2921,
+                    /* offset */ -0.376953125, /* x */ -0.2921, /* y */ -0.2921,
                     /* invDrive */ true, /* invSteer */ false, /* invEnc */ false))
             .gearing(6.394736842105262, 12.1, 4.5, 0.0508) // coupling 4.5 verified via Tuner X
             .speed(4.99, 0.75 * 2 * Math.PI)
