@@ -3,9 +3,8 @@ package frc.robot;
 import edu.wpi.first.networktables.DoubleEntry;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.wpilibj.RobotController;
-
 import frc.lib.drivetrain.DrivetrainConfig;
+import frc.lib.drivetrain.DrivetrainIO;
 import frc.lib.drivetrain.PIDGains;
 import frc.lib.drivetrain.SwerveDrive;
 
@@ -135,13 +134,14 @@ public class TunableDashboard {
     }
     m_currentMaxSpeedScale = maxSpeedScale;
 
-    // Update telemetry
-    m_batteryVoltage.set(RobotController.getBatteryVoltage());
+    // Update telemetry from batch-refreshed IO inputs
+    DrivetrainIO.Inputs inputs = m_drivetrain.getIOInputs();
+    m_batteryVoltage.set(inputs.batteryVoltage);
 
     for (int i = 0; i < 4; i++) {
-      m_driveCurrent[i].set(m_drivetrain.getModuleDriveCurrent(i));
-      m_steerCurrent[i].set(m_drivetrain.getModuleSteerCurrent(i));
-      m_moduleAngle[i].set(m_drivetrain.getModuleAngle(i));
+      m_driveCurrent[i].set(inputs.driveCurrentA[i]);
+      m_steerCurrent[i].set(inputs.steerCurrentA[i]);
+      m_moduleAngle[i].set(inputs.moduleAngleDeg[i]);
     }
   }
 }

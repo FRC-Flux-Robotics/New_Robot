@@ -43,6 +43,9 @@ public class SwerveDrive
       new SwerveRequest.RobotCentric()
           .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
+  private final DrivetrainIO m_io;
+  private final DrivetrainIO.Inputs m_ioInputs = new DrivetrainIO.Inputs();
+
   public SwerveDrive(DrivetrainConfig config) {
     super(
         TalonFX::new,
@@ -62,6 +65,8 @@ public class SwerveDrive
     m_robotCentric
         .withDeadband(m_maxSpeed * config.translationDeadband)
         .withRotationalDeadband(m_maxAngularSpeed * config.rotationDeadband);
+
+    m_io = new DrivetrainIOTalonFX(this);
   }
 
   private static SwerveDrivetrainConstants buildDrivetrainConstants(DrivetrainConfig config) {
@@ -225,6 +230,16 @@ public class SwerveDrive
     return m_maxAngularSpeed;
   }
 
+  @Override
+  public void periodic() {
+    m_io.updateInputs(m_ioInputs);
+  }
+
+  /** Returns the latest batch-refreshed IO inputs. */
+  public DrivetrainIO.Inputs getIOInputs() {
+    return m_ioInputs;
+  }
+
   // --- Implementation-specific methods for TunableDashboard ---
 
   public void applyCurrentLimits(double driveStator, double driveSupply, double steerStator) {
@@ -274,15 +289,4 @@ public class SwerveDrive
     }
   }
 
-  public double getModuleDriveCurrent(int index) {
-    return getModule(index).getDriveMotor().getStatorCurrent().getValueAsDouble();
-  }
-
-  public double getModuleSteerCurrent(int index) {
-    return getModule(index).getSteerMotor().getStatorCurrent().getValueAsDouble();
-  }
-
-  public double getModuleAngle(int index) {
-    return getModule(index).getEncoder().getPosition().getValueAsDouble() * 360.0;
-  }
 }
