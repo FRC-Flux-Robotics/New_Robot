@@ -19,7 +19,6 @@ public class TunableDashboard {
   private final DoubleEntry m_steerKD;
   private final DoubleEntry m_steerKS;
   private final DoubleEntry m_steerKV;
-  private final DoubleEntry m_maxSpeedScale;
 
   // Telemetry entries
   private final DoubleEntry m_batteryVoltage;
@@ -35,9 +34,6 @@ public class TunableDashboard {
   private double m_lastSteerKD;
   private double m_lastSteerKS;
   private double m_lastSteerKV;
-  private double m_lastMaxSpeedScale;
-
-  private double m_currentMaxSpeedScale;
 
   public TunableDashboard(SwerveDrive drivetrain, DrivetrainConfig config) {
     m_drivetrain = drivetrain;
@@ -52,7 +48,6 @@ public class TunableDashboard {
     m_steerKD = tunables.getDoubleTopic("steerKD").getEntry(config.steerGains.kD);
     m_steerKS = tunables.getDoubleTopic("steerKS").getEntry(config.steerGains.kS);
     m_steerKV = tunables.getDoubleTopic("steerKV").getEntry(config.steerGains.kV);
-    m_maxSpeedScale = tunables.getDoubleTopic("maxSpeedScale").getEntry(1.0);
 
     // Set initial values
     m_driveStatorLimit.set(config.driveStatorCurrentLimit);
@@ -62,7 +57,6 @@ public class TunableDashboard {
     m_steerKD.set(config.steerGains.kD);
     m_steerKS.set(config.steerGains.kS);
     m_steerKV.set(config.steerGains.kV);
-    m_maxSpeedScale.set(1.0);
 
     // Cache initial values
     m_lastDriveStator = config.driveStatorCurrentLimit;
@@ -72,8 +66,6 @@ public class TunableDashboard {
     m_lastSteerKD = config.steerGains.kD;
     m_lastSteerKS = config.steerGains.kS;
     m_lastSteerKV = config.steerGains.kV;
-    m_lastMaxSpeedScale = 1.0;
-    m_currentMaxSpeedScale = 1.0;
 
     // Telemetry
     NetworkTable telemetry = nt.getTable("Telemetry");
@@ -88,10 +80,6 @@ public class TunableDashboard {
     }
   }
 
-  public double getMaxSpeedScale() {
-    return m_currentMaxSpeedScale;
-  }
-
   public void periodic() {
     // Read current tunable values
     double driveStator = m_driveStatorLimit.get(m_lastDriveStator);
@@ -101,10 +89,6 @@ public class TunableDashboard {
     double steerKD = m_steerKD.get(m_lastSteerKD);
     double steerKS = m_steerKS.get(m_lastSteerKS);
     double steerKV = m_steerKV.get(m_lastSteerKV);
-    double maxSpeedScale = m_maxSpeedScale.get(m_lastMaxSpeedScale);
-
-    // Clamp speed scale to 0.0–1.0
-    maxSpeedScale = Math.max(0.0, Math.min(1.0, maxSpeedScale));
 
     // Check for current limit changes
     if (driveStator != m_lastDriveStator
@@ -127,12 +111,6 @@ public class TunableDashboard {
       m_lastSteerKS = steerKS;
       m_lastSteerKV = steerKV;
     }
-
-    // Update speed scale
-    if (maxSpeedScale != m_lastMaxSpeedScale) {
-      m_lastMaxSpeedScale = maxSpeedScale;
-    }
-    m_currentMaxSpeedScale = maxSpeedScale;
 
     // Update telemetry from batch-refreshed IO inputs
     DrivetrainIOInputsAutoLogged inputs = m_drivetrain.getIOInputs();
