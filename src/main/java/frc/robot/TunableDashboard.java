@@ -7,9 +7,10 @@ import edu.wpi.first.wpilibj.RobotController;
 
 import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.PIDGains;
+import frc.lib.drivetrain.SwerveDrive;
 
 public class TunableDashboard {
-  private final Drivetrain m_drivetrain;
+  private final SwerveDrive m_drivetrain;
 
   // Tunable entries
   private final DoubleEntry m_driveStatorLimit;
@@ -39,7 +40,7 @@ public class TunableDashboard {
 
   private double m_currentMaxSpeedScale;
 
-  public TunableDashboard(Drivetrain drivetrain, DrivetrainConfig config) {
+  public TunableDashboard(SwerveDrive drivetrain, DrivetrainConfig config) {
     m_drivetrain = drivetrain;
     NetworkTableInstance nt = NetworkTableInstance.getDefault();
 

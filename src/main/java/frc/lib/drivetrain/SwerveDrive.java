@@ -1,24 +1,22 @@
-// Copyright (c) FIRST and other WPILib contributors.
-// Open Source Software; you can modify and/or share it under the terms of
-// the WPILib BSD license file in the root directory of this project.
-
-package frc.robot;
+package frc.lib.drivetrain;
 
 import com.ctre.phoenix6.hardware.Pigeon2;
 
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveDriveOdometry;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
+import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.math.util.Units;
 
-import frc.lib.drivetrain.DrivetrainConfig;
-import frc.lib.drivetrain.ModuleConfig;
-import frc.lib.drivetrain.PIDGains;
+import frc.robot.SwerveModule;
 
-/** Represents a swerve drive style drivetrain. */
-public class Drivetrain {
+/** Swerve drivetrain implementation of DriveInterface. */
+public class SwerveDrive implements DriveInterface {
+  private final DrivetrainConfig m_config;
   private final double m_maxSpeed;
   private final double m_maxAngularSpeed;
 
@@ -32,7 +30,8 @@ public class Drivetrain {
   private final SwerveDriveKinematics m_kinematics;
   private final SwerveDriveOdometry m_odometry;
 
-  public Drivetrain(DrivetrainConfig config) {
+  public SwerveDrive(DrivetrainConfig config) {
+    m_config = config;
     m_maxSpeed = config.maxSpeedMps;
     m_maxAngularSpeed = config.maxAngularRateRadPerSec;
 
@@ -85,38 +84,9 @@ public class Drivetrain {
         Units.inchesToMeters(module.yPositionInches));
   }
 
-  public double getMaxSpeed() {
-    return m_maxSpeed;
-  }
+  // --- DriveInterface methods ---
 
-  public double getMaxAngularSpeed() {
-    return m_maxAngularSpeed;
-  }
-
-  public SwerveModule[] getModules() {
-    return new SwerveModule[] {m_frontLeft, m_frontRight, m_backLeft, m_backRight};
-  }
-
-  public void applyCurrentLimits(double driveStator, double driveSupply, double steerStator) {
-    for (SwerveModule module : getModules()) {
-      module.applyCurrentLimits(driveStator, driveSupply, steerStator);
-    }
-  }
-
-  public void applySteerPID(PIDGains gains) {
-    for (SwerveModule module : getModules()) {
-      module.applySteerPID(gains);
-    }
-  }
-
-  /**
-   * Method to drive the robot using joystick info.
-   *
-   * @param xSpeed Speed of the robot in the x direction (forward).
-   * @param ySpeed Speed of the robot in the y direction (sideways).
-   * @param rot Angular rate of the robot.
-   * @param fieldRelative Whether the provided x and y speeds are relative to the field.
-   */
+  @Override
   public void drive(
       double xSpeed, double ySpeed, double rot, boolean fieldRelative, double periodSeconds) {
     var swerveModuleStates =
@@ -134,7 +104,7 @@ public class Drivetrain {
     m_backRight.setDesiredState(swerveModuleStates[3]);
   }
 
-  /** Updates the field relative position of the robot. */
+  @Override
   public void updateOdometry() {
     m_odometry.update(
         m_gyro.getRotation2d(),
@@ -144,5 +114,69 @@ public class Drivetrain {
           m_backLeft.getPosition(),
           m_backRight.getPosition()
         });
+  }
+
+  @Override
+  public Pose2d getPose() {
+    return m_odometry.getPoseMeters();
+  }
+
+  @Override
+  public ChassisSpeeds getVelocity() {
+    SwerveModuleState[] states = {
+      m_frontLeft.getState(),
+      m_frontRight.getState(),
+      m_backLeft.getState(),
+      m_backRight.getState()
+    };
+    return m_kinematics.toChassisSpeeds(states);
+  }
+
+  @Override
+  public Rotation2d getHeading() {
+    return m_gyro.getRotation2d();
+  }
+
+  @Override
+  public DriveState getState() {
+    return new DriveState(getPose(), getVelocity(), getHeading());
+  }
+
+  @Override
+  public void resetHeading() {
+    m_gyro.reset();
+  }
+
+  @Override
+  public DrivetrainConfig getConfig() {
+    return m_config;
+  }
+
+  @Override
+  public double getMaxSpeed() {
+    return m_maxSpeed;
+  }
+
+  @Override
+  public double getMaxAngularSpeed() {
+    return m_maxAngularSpeed;
+  }
+
+  // --- Implementation-specific methods (not on interface) ---
+
+  public void applyCurrentLimits(double driveStator, double driveSupply, double steerStator) {
+    for (SwerveModule module : getModules()) {
+      module.applyCurrentLimits(driveStator, driveSupply, steerStator);
+    }
+  }
+
+  public void applySteerPID(PIDGains gains) {
+    for (SwerveModule module : getModules()) {
+      module.applySteerPID(gains);
+    }
+  }
+
+  public SwerveModule[] getModules() {
+    return new SwerveModule[] {m_frontLeft, m_frontRight, m_backLeft, m_backRight};
   }
 }

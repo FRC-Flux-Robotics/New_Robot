@@ -9,13 +9,16 @@ import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
 
+import frc.lib.drivetrain.DriveInterface;
 import frc.lib.drivetrain.DrivetrainConfig;
+import frc.lib.drivetrain.SwerveDrive;
 
 public class Robot extends TimedRobot {
   private final XboxController m_controller = new XboxController(0);
   private final DrivetrainConfig m_config = Robots.CORAL;
-  private final Drivetrain m_swerve = new Drivetrain(m_config);
-  private final TunableDashboard m_dashboard = new TunableDashboard(m_swerve, m_config);
+  private final SwerveDrive m_swerveDrive = new SwerveDrive(m_config);
+  private final DriveInterface m_drive = m_swerveDrive;
+  private final TunableDashboard m_dashboard = new TunableDashboard(m_swerveDrive, m_config);
 
   // Slew rate limiters to make joystick inputs more gentle; 1/3 sec from 0 to 1.
   private final SlewRateLimiter m_xspeedLimiter = new SlewRateLimiter(3);
@@ -30,7 +33,7 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousPeriodic() {
     driveWithJoystick(false);
-    m_swerve.updateOdometry();
+    m_drive.updateOdometry();
   }
 
   @Override
@@ -45,7 +48,7 @@ public class Robot extends TimedRobot {
     // negative values when we push forward.
     final var xSpeed =
         -m_xspeedLimiter.calculate(MathUtil.applyDeadband(m_controller.getLeftY(), 0.02))
-            * m_swerve.getMaxSpeed()
+            * m_drive.getMaxSpeed()
             * speedScale;
 
     // Get the y speed or sideways/strafe speed. We are inverting this because
@@ -53,7 +56,7 @@ public class Robot extends TimedRobot {
     // return positive values when you pull to the right by default.
     final var ySpeed =
         -m_yspeedLimiter.calculate(MathUtil.applyDeadband(m_controller.getLeftX(), 0.02))
-            * m_swerve.getMaxSpeed()
+            * m_drive.getMaxSpeed()
             * speedScale;
 
     // Get the rate of angular rotation. We are inverting this because we want a
@@ -62,8 +65,8 @@ public class Robot extends TimedRobot {
     // the right by default.
     final var rot =
         -m_rotLimiter.calculate(MathUtil.applyDeadband(m_controller.getRightX(), 0.02))
-            * m_swerve.getMaxAngularSpeed();
+            * m_drive.getMaxAngularSpeed();
 
-    m_swerve.drive(xSpeed, ySpeed, rot, fieldRelative, getPeriod());
+    m_drive.drive(xSpeed, ySpeed, rot, fieldRelative, getPeriod());
   }
 }
