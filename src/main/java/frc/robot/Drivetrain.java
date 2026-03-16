@@ -13,62 +13,100 @@ import edu.wpi.first.math.kinematics.SwerveDriveOdometry;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.util.Units;
 
+import frc.lib.drivetrain.DrivetrainConfig;
+import frc.lib.drivetrain.ModuleConfig;
+import frc.lib.drivetrain.PIDGains;
+
 /** Represents a swerve drive style drivetrain. */
 public class Drivetrain {
-  // CAN bus name
-  private static final String kCANbus = "CANdace";
+  private final double m_maxSpeed;
+  private final double m_maxAngularSpeed;
 
-  // Kraken x60 free speed: 96.7 rps, drive ratio: 6.3947, wheel radius: 2.0 in
-  private static final double kWheelRadiusMeters = Units.inchesToMeters(2.0);
-  private static final double kDriveGearRatio = 6.394736842105262;
-  private static final double kFreeSpeedRps = 96.7;
-  public static final double kMaxSpeed =
-      (kFreeSpeedRps / kDriveGearRatio) * (2.0 * Math.PI * kWheelRadiusMeters);
-  public static final double kMaxAngularSpeed = Math.PI; // 1/2 rotation per second
+  private final SwerveModule m_frontLeft;
+  private final SwerveModule m_frontRight;
+  private final SwerveModule m_backLeft;
+  private final SwerveModule m_backRight;
 
-  // Track size: 23.5 x 23.5 inches
-  private static final double kHalfTrackWidthMeters = Units.inchesToMeters(23.5 / 2.0);
-  private static final double kHalfTrackLengthMeters = Units.inchesToMeters(23.5 / 2.0);
+  private final Pigeon2 m_gyro;
 
-  private final Translation2d m_frontLeftLocation =
-      new Translation2d(kHalfTrackLengthMeters, kHalfTrackWidthMeters);
-  private final Translation2d m_frontRightLocation =
-      new Translation2d(kHalfTrackLengthMeters, -kHalfTrackWidthMeters);
-  private final Translation2d m_backLeftLocation =
-      new Translation2d(-kHalfTrackLengthMeters, kHalfTrackWidthMeters);
-  private final Translation2d m_backRightLocation =
-      new Translation2d(-kHalfTrackLengthMeters, -kHalfTrackWidthMeters);
+  private final SwerveDriveKinematics m_kinematics;
+  private final SwerveDriveOdometry m_odometry;
 
-  // Swerve modules: driveId, steerId, encoderId, canbus, encoderOffset, driveInverted, steerInverted
-  private final SwerveModule m_frontLeft =
-      new SwerveModule(7, 8, 23, kCANbus, 0.121337890625, false, false);
-  private final SwerveModule m_frontRight =
-      new SwerveModule(1, 2, 20, kCANbus, -0.294921875, true, false);
-  private final SwerveModule m_backLeft =
-      new SwerveModule(5, 6, 22, kCANbus, 0.040771484375, false, false);
-  private final SwerveModule m_backRight =
-      new SwerveModule(3, 4, 21, kCANbus, -0.376953125, true, false);
+  public Drivetrain(DrivetrainConfig config) {
+    m_maxSpeed = config.maxSpeedMps;
+    m_maxAngularSpeed = config.maxAngularRateRadPerSec;
 
-  // Pigeon 2 gyro (ID 24)
-  private final Pigeon2 m_gyro = new Pigeon2(24, kCANbus);
+    m_frontLeft = createModule(config, config.frontLeft);
+    m_frontRight = createModule(config, config.frontRight);
+    m_backLeft = createModule(config, config.backLeft);
+    m_backRight = createModule(config, config.backRight);
 
-  private final SwerveDriveKinematics m_kinematics =
-      new SwerveDriveKinematics(
-          m_frontLeftLocation, m_frontRightLocation, m_backLeftLocation, m_backRightLocation);
+    m_gyro = new Pigeon2(config.pigeonId, config.canBusName);
 
-  private final SwerveDriveOdometry m_odometry =
-      new SwerveDriveOdometry(
-          m_kinematics,
-          m_gyro.getRotation2d(),
-          new SwerveModulePosition[] {
-            m_frontLeft.getPosition(),
-            m_frontRight.getPosition(),
-            m_backLeft.getPosition(),
-            m_backRight.getPosition()
-          });
+    Translation2d flLocation = moduleLocation(config.frontLeft);
+    Translation2d frLocation = moduleLocation(config.frontRight);
+    Translation2d blLocation = moduleLocation(config.backLeft);
+    Translation2d brLocation = moduleLocation(config.backRight);
 
-  public Drivetrain() {
+    m_kinematics =
+        new SwerveDriveKinematics(flLocation, frLocation, blLocation, brLocation);
+
+    m_odometry =
+        new SwerveDriveOdometry(
+            m_kinematics,
+            m_gyro.getRotation2d(),
+            new SwerveModulePosition[] {
+              m_frontLeft.getPosition(),
+              m_frontRight.getPosition(),
+              m_backLeft.getPosition(),
+              m_backRight.getPosition()
+            });
+
     m_gyro.reset();
+  }
+
+  private SwerveModule createModule(DrivetrainConfig config, ModuleConfig module) {
+    return new SwerveModule(
+        module,
+        config.steerGains,
+        config.driveGains,
+        config.driveStatorCurrentLimit,
+        config.driveSupplyCurrentLimit,
+        config.steerStatorCurrentLimit,
+        config.canBusName,
+        config.driveGearRatio,
+        config.steerGearRatio,
+        config.wheelRadiusInches);
+  }
+
+  private Translation2d moduleLocation(ModuleConfig module) {
+    return new Translation2d(
+        Units.inchesToMeters(module.xPositionInches),
+        Units.inchesToMeters(module.yPositionInches));
+  }
+
+  public double getMaxSpeed() {
+    return m_maxSpeed;
+  }
+
+  public double getMaxAngularSpeed() {
+    return m_maxAngularSpeed;
+  }
+
+  public SwerveModule[] getModules() {
+    return new SwerveModule[] {m_frontLeft, m_frontRight, m_backLeft, m_backRight};
+  }
+
+  public void applyCurrentLimits(double driveStator, double driveSupply, double steerStator) {
+    for (SwerveModule module : getModules()) {
+      module.applyCurrentLimits(driveStator, driveSupply, steerStator);
+    }
+  }
+
+  public void applySteerPID(PIDGains gains) {
+    for (SwerveModule module : getModules()) {
+      module.applySteerPID(gains);
+    }
   }
 
   /**
@@ -89,7 +127,7 @@ public class Drivetrain {
                         xSpeed, ySpeed, rot, m_gyro.getRotation2d())
                     : new ChassisSpeeds(xSpeed, ySpeed, rot),
                 periodSeconds));
-    SwerveDriveKinematics.desaturateWheelSpeeds(swerveModuleStates, kMaxSpeed);
+    SwerveDriveKinematics.desaturateWheelSpeeds(swerveModuleStates, m_maxSpeed);
     m_frontLeft.setDesiredState(swerveModuleStates[0]);
     m_frontRight.setDesiredState(swerveModuleStates[1]);
     m_backLeft.setDesiredState(swerveModuleStates[2]);

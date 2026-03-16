@@ -19,121 +19,167 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 
-public class SwerveModule {
-  // Constants from tuner-project.json (WCP X1 12T)
-  private static final double kWheelRadiusMeters = 0.0508; // 2.0 inches
-  private static final double kWheelCircumferenceMeters = 2.0 * Math.PI * kWheelRadiusMeters;
-  private static final double kDriveGearRatio = 6.394736842105262;
-  private static final double kSteerGearRatio = 12.1;
-  private static final double kCouplingRatio = 4.5;
-  private static final double kStatorCurrentLimit = 60.0;
-  private static final double kSupplyCurrentLimit = 120.0;
+import frc.lib.drivetrain.ModuleConfig;
+import frc.lib.drivetrain.PIDGains;
 
+public class SwerveModule {
   private final TalonFX m_driveMotor;
   private final TalonFX m_steerMotor;
   private final CANcoder m_encoder;
 
+  private final double m_wheelCircumferenceMeters;
+  private final double m_driveGearRatio;
+  private final double m_steerGearRatio;
+  private final int m_encoderId;
+
   private final VelocityVoltage m_driveRequest = new VelocityVoltage(0);
   private final PositionVoltage m_steerRequest = new PositionVoltage(0);
 
-  /**
-   * Constructs a SwerveModule with Talon FX drive/steer motors and a CANcoder.
-   *
-   * @param driveMotorId CAN ID of the drive TalonFX.
-   * @param steerMotorId CAN ID of the steer TalonFX.
-   * @param encoderId CAN ID of the CANcoder.
-   * @param canbus Name of the CAN bus.
-   * @param encoderOffset Magnet offset for the CANcoder in rotations.
-   * @param driveInverted Whether the drive motor is inverted.
-   * @param steerInverted Whether the steer motor is inverted.
-   */
   public SwerveModule(
-      int driveMotorId,
-      int steerMotorId,
-      int encoderId,
+      ModuleConfig moduleConfig,
+      PIDGains steerGains,
+      PIDGains driveGains,
+      double driveStatorLimit,
+      double driveSupplyLimit,
+      double steerStatorLimit,
       String canbus,
-      double encoderOffset,
-      boolean driveInverted,
-      boolean steerInverted) {
+      double driveGearRatio,
+      double steerGearRatio,
+      double wheelRadiusInches) {
 
-    m_driveMotor = new TalonFX(driveMotorId, canbus);
-    m_steerMotor = new TalonFX(steerMotorId, canbus);
-    m_encoder = new CANcoder(encoderId, canbus);
+    double wheelRadiusMeters = edu.wpi.first.math.util.Units.inchesToMeters(wheelRadiusInches);
+    m_wheelCircumferenceMeters = 2.0 * Math.PI * wheelRadiusMeters;
+    m_driveGearRatio = driveGearRatio;
+    m_steerGearRatio = steerGearRatio;
+    m_encoderId = moduleConfig.encoderId;
+
+    m_driveMotor = new TalonFX(moduleConfig.driveMotorId, canbus);
+    m_steerMotor = new TalonFX(moduleConfig.steerMotorId, canbus);
+    m_encoder = new CANcoder(moduleConfig.encoderId, canbus);
 
     // Configure CANcoder
     var encoderConfig = new CANcoderConfiguration();
-    encoderConfig.MagnetSensor.MagnetOffset = encoderOffset;
+    encoderConfig.MagnetSensor.MagnetOffset = moduleConfig.encoderOffset;
     encoderConfig.MagnetSensor.SensorDirection = SensorDirectionValue.CounterClockwise_Positive;
     m_encoder.getConfigurator().apply(encoderConfig);
 
     // Configure drive motor
     var driveConfig = new TalonFXConfiguration();
     driveConfig.MotorOutput.Inverted =
-        driveInverted
+        moduleConfig.invertDrive
             ? InvertedValue.Clockwise_Positive
             : InvertedValue.CounterClockwise_Positive;
     driveConfig.MotorOutput.NeutralMode = NeutralModeValue.Brake;
-    driveConfig.Feedback.SensorToMechanismRatio = kDriveGearRatio;
-    driveConfig.CurrentLimits.StatorCurrentLimit = kStatorCurrentLimit;
-    driveConfig.CurrentLimits.StatorCurrentLimitEnable = true;
-    driveConfig.CurrentLimits.SupplyCurrentLimit = kSupplyCurrentLimit;
-    driveConfig.CurrentLimits.SupplyCurrentLimitEnable = true;
-    // PID gains - tune these for your robot!
-    driveConfig.Slot0.kP = 0.1;
-    driveConfig.Slot0.kI = 0.0;
-    driveConfig.Slot0.kD = 0.0;
-    driveConfig.Slot0.kV = 0.12;
+    driveConfig.Feedback.SensorToMechanismRatio = driveGearRatio;
+    applyCurrentLimitsToConfig(driveConfig, driveStatorLimit, driveSupplyLimit);
+    driveConfig.Slot0.kP = driveGains.kP;
+    driveConfig.Slot0.kI = driveGains.kI;
+    driveConfig.Slot0.kD = driveGains.kD;
+    driveConfig.Slot0.kS = driveGains.kS;
+    driveConfig.Slot0.kV = driveGains.kV;
+    driveConfig.Slot0.kA = driveGains.kA;
     m_driveMotor.getConfigurator().apply(driveConfig);
 
     // Configure steer motor
     var steerConfig = new TalonFXConfiguration();
     steerConfig.MotorOutput.Inverted =
-        steerInverted
+        moduleConfig.invertSteer
             ? InvertedValue.Clockwise_Positive
             : InvertedValue.CounterClockwise_Positive;
     steerConfig.MotorOutput.NeutralMode = NeutralModeValue.Brake;
-    steerConfig.Feedback.FeedbackRemoteSensorID = encoderId;
+    steerConfig.Feedback.FeedbackRemoteSensorID = moduleConfig.encoderId;
     steerConfig.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder;
-    steerConfig.Feedback.RotorToSensorRatio = kSteerGearRatio;
+    steerConfig.Feedback.RotorToSensorRatio = steerGearRatio;
     steerConfig.ClosedLoopGeneral.ContinuousWrap = true;
-    // PID gains - tune these for your robot!
-    steerConfig.Slot0.kP = 100.0;
-    steerConfig.Slot0.kI = 0.0;
-    steerConfig.Slot0.kD = 0.5;
+    if (steerStatorLimit > 0) {
+      steerConfig.CurrentLimits.StatorCurrentLimit = steerStatorLimit;
+      steerConfig.CurrentLimits.StatorCurrentLimitEnable = true;
+    }
+    steerConfig.Slot0.kP = steerGains.kP;
+    steerConfig.Slot0.kI = steerGains.kI;
+    steerConfig.Slot0.kD = steerGains.kD;
+    steerConfig.Slot0.kS = steerGains.kS;
+    steerConfig.Slot0.kV = steerGains.kV;
+    steerConfig.Slot0.kA = steerGains.kA;
     m_steerMotor.getConfigurator().apply(steerConfig);
   }
 
-  /**
-   * Returns the current state of the module.
-   *
-   * @return The current state of the module.
-   */
+  private void applyCurrentLimitsToConfig(
+      TalonFXConfiguration config, double statorLimit, double supplyLimit) {
+    if (statorLimit > 0) {
+      config.CurrentLimits.StatorCurrentLimit = statorLimit;
+      config.CurrentLimits.StatorCurrentLimitEnable = true;
+    }
+    if (supplyLimit > 0) {
+      config.CurrentLimits.SupplyCurrentLimit = supplyLimit;
+      config.CurrentLimits.SupplyCurrentLimitEnable = true;
+    }
+  }
+
+  public void applyCurrentLimits(double driveStator, double driveSupply, double steerStator) {
+    var driveConfig = new TalonFXConfiguration();
+    // Re-read current config and update current limits
+    m_driveMotor.getConfigurator().refresh(driveConfig);
+    applyCurrentLimitsToConfig(driveConfig, driveStator, driveSupply);
+    if (driveStator <= 0) {
+      driveConfig.CurrentLimits.StatorCurrentLimitEnable = false;
+    }
+    if (driveSupply <= 0) {
+      driveConfig.CurrentLimits.SupplyCurrentLimitEnable = false;
+    }
+    m_driveMotor.getConfigurator().apply(driveConfig.CurrentLimits);
+
+    var steerConfig = new TalonFXConfiguration();
+    m_steerMotor.getConfigurator().refresh(steerConfig);
+    if (steerStator > 0) {
+      steerConfig.CurrentLimits.StatorCurrentLimit = steerStator;
+      steerConfig.CurrentLimits.StatorCurrentLimitEnable = true;
+    } else {
+      steerConfig.CurrentLimits.StatorCurrentLimitEnable = false;
+    }
+    m_steerMotor.getConfigurator().apply(steerConfig.CurrentLimits);
+  }
+
+  public void applySteerPID(PIDGains gains) {
+    var config = new TalonFXConfiguration();
+    m_steerMotor.getConfigurator().refresh(config);
+    config.Slot0.kP = gains.kP;
+    config.Slot0.kI = gains.kI;
+    config.Slot0.kD = gains.kD;
+    config.Slot0.kS = gains.kS;
+    config.Slot0.kV = gains.kV;
+    config.Slot0.kA = gains.kA;
+    m_steerMotor.getConfigurator().apply(config.Slot0);
+  }
+
+  public double getDriveCurrent() {
+    return m_driveMotor.getStatorCurrent().getValueAsDouble();
+  }
+
+  public double getSteerCurrent() {
+    return m_steerMotor.getStatorCurrent().getValueAsDouble();
+  }
+
+  public double getAngle() {
+    return m_steerMotor.getPosition().getValueAsDouble() * 360.0;
+  }
+
   public SwerveModuleState getState() {
     double driveVelocityMps =
-        m_driveMotor.getVelocity().getValueAsDouble() * kWheelCircumferenceMeters;
+        m_driveMotor.getVelocity().getValueAsDouble() * m_wheelCircumferenceMeters;
     Rotation2d steerAngle =
         Rotation2d.fromRotations(m_steerMotor.getPosition().getValueAsDouble());
     return new SwerveModuleState(driveVelocityMps, steerAngle);
   }
 
-  /**
-   * Returns the current position of the module.
-   *
-   * @return The current position of the module.
-   */
   public SwerveModulePosition getPosition() {
     double drivePositionMeters =
-        m_driveMotor.getPosition().getValueAsDouble() * kWheelCircumferenceMeters;
+        m_driveMotor.getPosition().getValueAsDouble() * m_wheelCircumferenceMeters;
     Rotation2d steerAngle =
         Rotation2d.fromRotations(m_steerMotor.getPosition().getValueAsDouble());
     return new SwerveModulePosition(drivePositionMeters, steerAngle);
   }
 
-  /**
-   * Sets the desired state for the module.
-   *
-   * @param desiredState Desired state with speed and angle.
-   */
   public void setDesiredState(SwerveModuleState desiredState) {
     var steerAngle = Rotation2d.fromRotations(m_steerMotor.getPosition().getValueAsDouble());
 
@@ -144,7 +190,7 @@ public class SwerveModule {
     desiredState.cosineScale(steerAngle);
 
     // Convert m/s to wheel rotations per second
-    double driveRps = desiredState.speedMetersPerSecond / kWheelCircumferenceMeters;
+    double driveRps = desiredState.speedMetersPerSecond / m_wheelCircumferenceMeters;
     m_driveMotor.setControl(m_driveRequest.withVelocity(driveRps));
 
     // Command steer position in rotations
