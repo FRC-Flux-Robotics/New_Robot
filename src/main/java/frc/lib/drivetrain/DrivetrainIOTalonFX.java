@@ -49,7 +49,7 @@ public class DrivetrainIOTalonFX implements DrivetrainIO {
   }
 
   @Override
-  public void updateInputs(Inputs inputs) {
+  public void updateInputs(DrivetrainIOInputsAutoLogged inputs) {
     BaseStatusSignal.refreshAll(m_allSignals);
 
     inputs.gyroYawDeg = m_gyroYaw.getValueAsDouble();

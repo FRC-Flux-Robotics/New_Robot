@@ -4,9 +4,16 @@
 
 package frc.robot;
 
+import org.littletonrobotics.junction.LogFileUtil;
+import org.littletonrobotics.junction.LoggedRobot;
+import org.littletonrobotics.junction.Logger;
+import org.littletonrobotics.junction.networktables.NT4Publisher;
+import org.littletonrobotics.junction.wpilog.WPILOGReader;
+import org.littletonrobotics.junction.wpilog.WPILOGWriter;
+
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
-import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
@@ -14,22 +21,44 @@ import frc.lib.drivetrain.DriveInterface;
 import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.SwerveDrive;
 
-public class Robot extends TimedRobot {
+public class Robot extends LoggedRobot {
   private final XboxController m_controller = new XboxController(0);
   private final DrivetrainConfig m_config = Robots.CORAL;
-  private final SwerveDrive m_swerveDrive = new SwerveDrive(m_config);
-  private final DriveInterface m_drive = m_swerveDrive;
-  private final TunableDashboard m_dashboard = new TunableDashboard(m_swerveDrive, m_config);
+  private final SwerveDrive m_swerveDrive;
+  private final DriveInterface m_drive;
+  private final TunableDashboard m_dashboard;
 
   // Slew rate limiters to make joystick inputs more gentle; 1/3 sec from 0 to 1.
   private final SlewRateLimiter m_xspeedLimiter = new SlewRateLimiter(3);
   private final SlewRateLimiter m_yspeedLimiter = new SlewRateLimiter(3);
   private final SlewRateLimiter m_rotLimiter = new SlewRateLimiter(3);
 
+  public Robot() {
+    Logger.recordMetadata("ProjectName", "FRC10413-2026");
+
+    if (isReal()) {
+      Logger.addDataReceiver(new WPILOGWriter());
+      Logger.addDataReceiver(new NT4Publisher());
+    } else {
+      setUseTiming(false);
+      String logPath = LogFileUtil.findReplayLog();
+      Logger.setReplaySource(new WPILOGReader(logPath));
+      Logger.addDataReceiver(new WPILOGWriter(LogFileUtil.addPathSuffix(logPath, "_sim")));
+    }
+
+    Logger.start();
+
+    m_swerveDrive = new SwerveDrive(m_config);
+    m_drive = m_swerveDrive;
+    m_dashboard = new TunableDashboard(m_swerveDrive, m_config);
+  }
+
   @Override
   public void robotPeriodic() {
+    double loopStart = Timer.getFPGATimestamp();
     CommandScheduler.getInstance().run();
     m_dashboard.periodic();
+    Logger.recordOutput("LoopTimeMs", (Timer.getFPGATimestamp() - loopStart) * 1000.0);
   }
 
   @Override

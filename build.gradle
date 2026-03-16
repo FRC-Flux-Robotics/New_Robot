@@ -50,10 +50,19 @@ wpi.java.debugJni = false
 // Set this to true to enable desktop support.
 def includeDesktopSupport = false
 
+// AdvantageKit Maven repository for annotation processor
+repositories {
+    maven { url = uri("https://frcmaven.wpi.edu/artifactory/littletonrobotics-mvn-release") }
+}
+
+// AdvantageKit annotation processor
+def akitJson = new groovy.json.JsonSlurper().parseText(new File(projectDir.getAbsolutePath() + "/vendordeps/AdvantageKit.json").text)
+
 // Defining my dependencies. In this case, WPILib (+ friends), and vendor libraries.
 // Also defines JUnit 5.
 dependencies {
     annotationProcessor wpi.java.deps.wpilibAnnotations()
+    annotationProcessor "org.littletonrobotics.akit:akit-autolog:$akitJson.version"
     implementation wpi.java.deps.wpilib()
     implementation wpi.java.vendor.java()
 

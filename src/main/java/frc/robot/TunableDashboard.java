@@ -4,7 +4,7 @@ import edu.wpi.first.networktables.DoubleEntry;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import frc.lib.drivetrain.DrivetrainConfig;
-import frc.lib.drivetrain.DrivetrainIO;
+import frc.lib.drivetrain.DrivetrainIOInputsAutoLogged;
 import frc.lib.drivetrain.PIDGains;
 import frc.lib.drivetrain.SwerveDrive;
 
@@ -135,7 +135,7 @@ public class TunableDashboard {
     m_currentMaxSpeedScale = maxSpeedScale;
 
     // Update telemetry from batch-refreshed IO inputs
-    DrivetrainIO.Inputs inputs = m_drivetrain.getIOInputs();
+    DrivetrainIOInputsAutoLogged inputs = m_drivetrain.getIOInputs();
     m_batteryVoltage.set(inputs.batteryVoltage);
 
     for (int i = 0; i < 4; i++) {

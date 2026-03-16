@@ -26,6 +26,8 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 
+import org.littletonrobotics.junction.Logger;
+
 /** Swerve drivetrain implementation backed by CTRE SwerveDrivetrain. */
 public class SwerveDrive
     extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
@@ -44,7 +46,7 @@ public class SwerveDrive
           .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
   private final DrivetrainIO m_io;
-  private final DrivetrainIO.Inputs m_ioInputs = new DrivetrainIO.Inputs();
+  private final DrivetrainIOInputsAutoLogged m_ioInputs = new DrivetrainIOInputsAutoLogged();
 
   public SwerveDrive(DrivetrainConfig config) {
     super(
@@ -233,10 +235,11 @@ public class SwerveDrive
   @Override
   public void periodic() {
     m_io.updateInputs(m_ioInputs);
+    Logger.processInputs("Drive", m_ioInputs);
   }
 
   /** Returns the latest batch-refreshed IO inputs. */
-  public DrivetrainIO.Inputs getIOInputs() {
+  public DrivetrainIOInputsAutoLogged getIOInputs() {
     return m_ioInputs;
   }
 
