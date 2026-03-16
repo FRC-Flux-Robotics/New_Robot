@@ -21,9 +21,12 @@ import com.ctre.phoenix6.swerve.SwerveModuleConstants.SteerMotorArrangement;
 import com.ctre.phoenix6.swerve.SwerveModuleConstantsFactory;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
+import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.numbers.N1;
+import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 
 import org.littletonrobotics.junction.Logger;
@@ -215,6 +218,11 @@ public class SwerveDrive
   @Override
   public void resetHeading() {
     seedFieldCentric();
+  }
+
+  @Override
+  public void addVisionMeasurement(Pose2d visionPose, double timestampSeconds, Matrix<N3, N1> stdDevs) {
+    super.addVisionMeasurement(visionPose, timestampSeconds, stdDevs);
   }
 
   @Override

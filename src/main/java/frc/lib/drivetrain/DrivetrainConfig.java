@@ -38,6 +38,9 @@ public class DrivetrainConfig {
   public final double trackWidthInches;
   public final double trackLengthInches;
 
+  // Vision (nullable — vision is optional)
+  public final CameraConfig camera;
+
   private DrivetrainConfig(Builder builder) {
     this.canBusName = builder.canBusName;
     this.pigeonId = builder.pigeonId;
@@ -60,6 +63,7 @@ public class DrivetrainConfig {
     this.rotationDeadband = builder.rotationDeadband;
     this.trackWidthInches = builder.trackWidthInches;
     this.trackLengthInches = builder.trackLengthInches;
+    this.camera = builder.camera;
   }
 
   public static class Builder {
@@ -84,6 +88,7 @@ public class DrivetrainConfig {
     private double rotationDeadband;
     private double trackWidthInches;
     private double trackLengthInches;
+    private CameraConfig camera;
 
     public Builder canBusName(String canBusName) {
       this.canBusName = canBusName;
@@ -187,6 +192,11 @@ public class DrivetrainConfig {
 
     public Builder trackLengthInches(double length) {
       this.trackLengthInches = length;
+      return this;
+    }
+
+    public Builder camera(CameraConfig camera) {
+      this.camera = camera;
       return this;
     }
 

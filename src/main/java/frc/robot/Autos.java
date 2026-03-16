@@ -16,6 +16,11 @@ public final class Autos {
     return Commands.none();
   }
 
+  /** Drive to nearest AprilTag using vision, with 10s timeout. */
+  public static Command driveToNearestTag(Vision vision, SwerveDrive swerveDrive, DriveInterface drive) {
+    return new DriveToTag(vision, swerveDrive, drive).withTimeout(10.0);
+  }
+
   /** Drive forward at 1 m/s for 2 seconds, then stop. */
   public static Command driveForward(SwerveDrive swerveDrive, DriveInterface drive) {
     return Commands.run(

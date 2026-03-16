@@ -1,9 +1,13 @@
 package frc.robot;
 
+import frc.lib.drivetrain.CameraConfig;
 import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.ModuleConfig;
 import frc.lib.drivetrain.PIDGains;
 
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 
 public final class Robots {
@@ -56,6 +60,9 @@ public final class Robots {
           // Track
           .trackWidthInches(23.5)
           .trackLengthInches(23.5)
+          // Vision — OV9281 front camera
+          .camera(new CameraConfig("OV9281", new Transform3d(
+              new Translation3d(0.3, 0, 0.25), new Rotation3d(0, 0, 0))))
           .build();
 
   private Robots() {}

@@ -7,6 +7,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 
+import frc.lib.drivetrain.CameraConfig;
 import frc.lib.drivetrain.DriveInterface;
 import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.SwerveDrive;
@@ -17,6 +18,7 @@ public class RobotContainer {
   private final SwerveDrive m_swerveDrive;
   private final DriveInterface m_drive;
   private final TunableDashboard m_dashboard;
+  private final Vision m_vision; // null if no camera configured
 
   private final CommandXboxController m_controller = new CommandXboxController(0);
 
@@ -30,6 +32,12 @@ public class RobotContainer {
     m_swerveDrive = swerveDrive;
     m_drive = swerveDrive;
     m_dashboard = new TunableDashboard(swerveDrive, config);
+
+    if (config.camera != null) {
+      m_vision = new Vision(config.camera, m_drive);
+    } else {
+      m_vision = null;
+    }
 
     DriverPreferences.init();
 
@@ -96,12 +104,21 @@ public class RobotContainer {
     // Right bumper: reset heading
     m_controller.rightBumper().onTrue(
         Commands.runOnce(() -> m_drive.resetHeading(), m_swerveDrive));
+
+    // Y button: drive to nearest AprilTag (only if vision available)
+    if (m_vision != null) {
+      m_controller.y().whileTrue(new DriveToTag(m_vision, m_swerveDrive, m_drive));
+    }
   }
 
   private void configureAutoChooser() {
     m_autoChooser.setDefaultOption("None", Autos.none());
     m_autoChooser.addOption("Drive Forward", Autos.driveForward(m_swerveDrive, m_drive));
     m_autoChooser.addOption("Forward-Turn-Back", Autos.forwardTurnBack(m_swerveDrive, m_drive));
+    if (m_vision != null) {
+      m_autoChooser.addOption("Drive to Nearest Tag",
+          Autos.driveToNearestTag(m_vision, m_swerveDrive, m_drive));
+    }
     SmartDashboard.putData("Auto Chooser", m_autoChooser);
   }
 
