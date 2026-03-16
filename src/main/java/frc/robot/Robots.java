@@ -47,10 +47,10 @@ public final class Robots {
           // Speed
           .maxSpeedMps(kMaxSpeedMps)
           .maxAngularRateRadPerSec(Math.PI)
-          // PID - working values from tag 0.1
+          // PID - tuned values
           .driveGains(new PIDGains(0.1, 0, 0, 0, 0.12, 0))
           .steerGains(new PIDGains(100, 0, 0.5, 0, 0, 0))
-          // Current limits - working values from tag 0.1
+          // Current limits - tuned values
           .driveStatorCurrentLimit(60)
           .driveSupplyCurrentLimit(120)
           .steerStatorCurrentLimit(0) // disabled

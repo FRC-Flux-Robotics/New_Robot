@@ -17,7 +17,6 @@ public class RobotContainer {
 
   private final SwerveDrive m_swerveDrive;
   private final DriveInterface m_drive;
-  private final TunableDashboard m_dashboard;
   private final Vision m_vision; // null if no camera configured
 
   private final CommandXboxController m_controller = new CommandXboxController(0);
@@ -31,7 +30,6 @@ public class RobotContainer {
   public RobotContainer(SwerveDrive swerveDrive, DrivetrainConfig config) {
     m_swerveDrive = swerveDrive;
     m_drive = swerveDrive;
-    m_dashboard = new TunableDashboard(swerveDrive, config);
 
     if (config.camera != null) {
       m_vision = new Vision(config.camera, m_drive);
@@ -127,6 +125,5 @@ public class RobotContainer {
   }
 
   public void periodic() {
-    m_dashboard.periodic();
   }
 }

@@ -4,14 +4,12 @@ import static edu.wpi.first.units.Units.*;
 
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
 import com.ctre.phoenix6.swerve.SwerveDrivetrain;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
-import com.ctre.phoenix6.swerve.SwerveModule;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants.ClosedLoopOutputType;
@@ -244,60 +242,6 @@ public class SwerveDrive
   public void periodic() {
     m_io.updateInputs(m_ioInputs);
     Logger.processInputs("Drive", m_ioInputs);
-  }
-
-  /** Returns the latest batch-refreshed IO inputs. */
-  public DrivetrainIOInputsAutoLogged getIOInputs() {
-    return m_ioInputs;
-  }
-
-  // --- Implementation-specific methods for TunableDashboard ---
-
-  public void applyCurrentLimits(double driveStator, double driveSupply, double steerStator) {
-    for (int i = 0; i < 4; i++) {
-      SwerveModule<TalonFX, TalonFX, CANcoder> module = getModule(i);
-
-      var driveConfig = new CurrentLimitsConfigs();
-      module.getDriveMotor().getConfigurator().refresh(driveConfig);
-      if (driveStator > 0) {
-        driveConfig.StatorCurrentLimit = driveStator;
-        driveConfig.StatorCurrentLimitEnable = true;
-      } else {
-        driveConfig.StatorCurrentLimitEnable = false;
-      }
-      if (driveSupply > 0) {
-        driveConfig.SupplyCurrentLimit = driveSupply;
-        driveConfig.SupplyCurrentLimitEnable = true;
-      } else {
-        driveConfig.SupplyCurrentLimitEnable = false;
-      }
-      module.getDriveMotor().getConfigurator().apply(driveConfig);
-
-      var steerConfig = new CurrentLimitsConfigs();
-      module.getSteerMotor().getConfigurator().refresh(steerConfig);
-      if (steerStator > 0) {
-        steerConfig.StatorCurrentLimit = steerStator;
-        steerConfig.StatorCurrentLimitEnable = true;
-      } else {
-        steerConfig.StatorCurrentLimitEnable = false;
-      }
-      module.getSteerMotor().getConfigurator().apply(steerConfig);
-    }
-  }
-
-  public void applySteerPID(PIDGains gains) {
-    for (int i = 0; i < 4; i++) {
-      SwerveModule<TalonFX, TalonFX, CANcoder> module = getModule(i);
-      var config = new Slot0Configs();
-      module.getSteerMotor().getConfigurator().refresh(config);
-      config.kP = gains.kP;
-      config.kI = gains.kI;
-      config.kD = gains.kD;
-      config.kS = gains.kS;
-      config.kV = gains.kV;
-      config.kA = gains.kA;
-      module.getSteerMotor().getConfigurator().apply(config);
-    }
   }
 
 }
