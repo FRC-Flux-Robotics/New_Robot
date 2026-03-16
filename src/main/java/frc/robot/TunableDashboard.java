@@ -138,11 +138,10 @@ public class TunableDashboard {
     // Update telemetry
     m_batteryVoltage.set(RobotController.getBatteryVoltage());
 
-    SwerveModule[] modules = m_drivetrain.getModules();
     for (int i = 0; i < 4; i++) {
-      m_driveCurrent[i].set(modules[i].getDriveCurrent());
-      m_steerCurrent[i].set(modules[i].getSteerCurrent());
-      m_moduleAngle[i].set(modules[i].getAngle());
+      m_driveCurrent[i].set(m_drivetrain.getModuleDriveCurrent(i));
+      m_steerCurrent[i].set(m_drivetrain.getModuleSteerCurrent(i));
+      m_moduleAngle[i].set(m_drivetrain.getModuleAngle(i));
     }
   }
 }

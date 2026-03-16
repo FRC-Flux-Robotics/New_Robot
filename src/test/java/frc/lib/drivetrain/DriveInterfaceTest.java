@@ -43,7 +43,7 @@ class DriveInterfaceTest {
     }
 
     @Override
-    public DriveState getState() {
+    public DriveState getDriveState() {
       return new DriveState(getPose(), getVelocity(), getHeading());
     }
 
@@ -79,7 +79,7 @@ class DriveInterfaceTest {
     assertNotNull(drive.getPose());
     assertNotNull(drive.getVelocity());
     assertNotNull(drive.getHeading());
-    assertNotNull(drive.getState());
+    assertNotNull(drive.getDriveState());
     assertEquals(4.5, drive.getMaxSpeed());
     assertEquals(Math.PI, drive.getMaxAngularSpeed());
   }
@@ -105,7 +105,7 @@ class DriveInterfaceTest {
   @Test
   void getStateReturnsConsistentSnapshot() {
     DriveInterface drive = new StubDrive();
-    DriveState state = drive.getState();
+    DriveState state = drive.getDriveState();
 
     assertEquals(drive.getPose(), state.pose);
     assertEquals(drive.getVelocity(), state.velocity);

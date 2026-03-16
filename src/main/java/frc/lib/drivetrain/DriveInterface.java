@@ -15,7 +15,7 @@ public interface DriveInterface {
   Pose2d getPose();
   ChassisSpeeds getVelocity();
   Rotation2d getHeading();
-  DriveState getState();
+  DriveState getDriveState();
 
   // Pose management
   void resetHeading();
