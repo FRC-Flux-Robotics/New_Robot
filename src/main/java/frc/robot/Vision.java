@@ -14,6 +14,7 @@ import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -37,6 +38,8 @@ public class Vision extends SubsystemBase {
 
   private PhotonPipelineResult m_latestResult = new PhotonPipelineResult();
   private Matrix<N3, N1> m_curStdDevs = kSingleTagStdDevs;
+  private Pose2d m_lastVisionPose = new Pose2d();
+  private boolean m_enabled = true;
   private boolean m_connected = true;
   private int m_disconnectCount = 0;
 
@@ -74,8 +77,11 @@ public class Vision extends SubsystemBase {
       updateStdDevs(visionEst, result.getTargets());
 
       visionEst.ifPresent(est -> {
-        m_drive.addVisionMeasurement(
-            est.estimatedPose.toPose2d(), est.timestampSeconds, m_curStdDevs);
+        m_lastVisionPose = est.estimatedPose.toPose2d();
+        if (m_enabled) {
+          m_drive.addVisionMeasurement(
+              m_lastVisionPose, est.timestampSeconds, m_curStdDevs);
+        }
       });
     }
 
@@ -84,10 +90,24 @@ public class Vision extends SubsystemBase {
     Logger.recordOutput("Vision/HasTargets", hasTargets());
     Logger.recordOutput("Vision/TagCount", m_latestResult.hasTargets() ? m_latestResult.getTargets().size() : 0);
     Logger.recordOutput("Vision/BestTagId", getTargetID());
+    Logger.recordOutput("Vision/Enabled", m_enabled);
+    Logger.recordOutput("Vision/EstimatedPose", m_lastVisionPose);
+  }
+
+  public void setEnabled(boolean enabled) {
+    m_enabled = enabled;
+  }
+
+  public boolean isEnabled() {
+    return m_enabled;
   }
 
   public boolean isConnected() {
     return m_connected;
+  }
+
+  public Pose2d getLastVisionPose() {
+    return m_lastVisionPose;
   }
 
   public boolean hasTargets() {

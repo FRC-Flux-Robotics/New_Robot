@@ -5,6 +5,7 @@ import com.pathplanner.lib.path.PathConstraints;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 
@@ -42,6 +43,32 @@ public final class Autos {
         AutoBuilder.pathfindToPose(new Pose2d(2, 2, Rotation2d.fromDegrees(90)), constraints),
         Commands.waitSeconds(1.0),
         AutoBuilder.pathfindToPose(new Pose2d(0, 0, Rotation2d.kZero), constraints));
+  }
+
+  /** Precision test: drive a 2m square and return to origin. Logs position error. */
+  public static Command precisionSquare(DriveInterface drive) {
+    PathConstraints constraints = new PathConstraints(2.0, 1.5, Math.PI, Math.PI, 12.0);
+    return Commands.sequence(
+        Commands.runOnce(() -> {
+          SmartDashboard.putNumber("PrecisionTest/ErrorMeters", 0.0);
+          SmartDashboard.putNumber("PrecisionTest/ErrorDegrees", 0.0);
+          SmartDashboard.putString("PrecisionTest/Status", "Running");
+        }),
+        AutoBuilder.pathfindToPose(new Pose2d(2, 0, Rotation2d.kZero), constraints),
+        Commands.waitSeconds(1.0),
+        AutoBuilder.pathfindToPose(new Pose2d(2, 2, Rotation2d.fromDegrees(90)), constraints),
+        Commands.waitSeconds(1.0),
+        AutoBuilder.pathfindToPose(new Pose2d(0, 2, Rotation2d.fromDegrees(180)), constraints),
+        Commands.waitSeconds(1.0),
+        AutoBuilder.pathfindToPose(new Pose2d(0, 0, Rotation2d.kZero), constraints),
+        Commands.runOnce(() -> {
+          Pose2d endPose = drive.getPose();
+          double errorMeters = endPose.getTranslation().getNorm();
+          double errorDegrees = Math.abs(endPose.getRotation().getDegrees());
+          SmartDashboard.putNumber("PrecisionTest/ErrorMeters", errorMeters);
+          SmartDashboard.putNumber("PrecisionTest/ErrorDegrees", errorDegrees);
+          SmartDashboard.putString("PrecisionTest/Status", "Done");
+        }));
   }
 
   /** Drive forward 2s, rotate 90 deg for 1s, drive forward 1s, stop. */

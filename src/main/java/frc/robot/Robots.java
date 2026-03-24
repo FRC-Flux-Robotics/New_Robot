@@ -61,6 +61,7 @@ public final class Robots {
           .trackWidthInches(23.5)
           .trackLengthInches(23.5)
           // Vision — OV9281 front camera
+          // TODO: Measure actual camera offset on robot (X=forward, Y=left, Z=up from center)
           .camera(new CameraConfig("OV9281", new Transform3d(
               new Translation3d(0.3, 0, 0.25), new Rotation3d(0, 0, 0))))
           .build();
