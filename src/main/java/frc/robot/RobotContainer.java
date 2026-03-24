@@ -7,15 +7,12 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 
-import frc.lib.drivetrain.CameraConfig;
 import frc.lib.drivetrain.DriveInterface;
 import frc.lib.drivetrain.DrivetrainConfig;
-import frc.lib.drivetrain.SwerveDrive;
 
 /** Owns subsystems, default commands, button bindings, and auto chooser. */
 public class RobotContainer {
 
-  private final SwerveDrive m_swerveDrive;
   private final DriveInterface m_drive;
   private final Vision m_vision; // null if no camera configured
 
@@ -27,9 +24,8 @@ public class RobotContainer {
 
   private final SendableChooser<Command> m_autoChooser = new SendableChooser<>();
 
-  public RobotContainer(SwerveDrive swerveDrive, DrivetrainConfig config) {
-    m_swerveDrive = swerveDrive;
-    m_drive = swerveDrive;
+  public RobotContainer(DriveInterface drive, DrivetrainConfig config) {
+    m_drive = drive;
 
     if (config.camera != null) {
       m_vision = new Vision(config.camera, m_drive);
@@ -49,7 +45,7 @@ public class RobotContainer {
   }
 
   private void configureDefaultCommand() {
-    m_swerveDrive.setDefaultCommand(
+    m_drive.setDefaultCommand(
         Commands.run(
             () -> {
               double deadband = DriverPreferences.deadband();
@@ -91,31 +87,31 @@ public class RobotContainer {
 
               m_drive.drive(xSpeed, ySpeed, rot, true, 0.02);
             },
-            m_swerveDrive));
+            m_drive));
   }
 
   private void configureButtonBindings() {
     // X button: brake (stop all motors)
     m_controller.x().whileTrue(
-        Commands.run(() -> m_drive.drive(0, 0, 0, true, 0.02), m_swerveDrive));
+        Commands.run(() -> m_drive.drive(0, 0, 0, true, 0.02), m_drive));
 
     // Right bumper: reset heading
     m_controller.rightBumper().onTrue(
-        Commands.runOnce(() -> m_drive.resetHeading(), m_swerveDrive));
+        Commands.runOnce(() -> m_drive.resetHeading(), m_drive));
 
     // Y button: drive to nearest AprilTag (only if vision available)
     if (m_vision != null) {
-      m_controller.y().whileTrue(new DriveToTag(m_vision, m_swerveDrive, m_drive));
+      m_controller.y().whileTrue(new DriveToTag(m_vision, m_drive));
     }
   }
 
   private void configureAutoChooser() {
     m_autoChooser.setDefaultOption("None", Autos.none());
-    m_autoChooser.addOption("Drive Forward", Autos.driveForward(m_swerveDrive, m_drive));
-    m_autoChooser.addOption("Forward-Turn-Back", Autos.forwardTurnBack(m_swerveDrive, m_drive));
+    m_autoChooser.addOption("Drive Forward", Autos.driveForward(m_drive));
+    m_autoChooser.addOption("Forward-Turn-Back", Autos.forwardTurnBack(m_drive));
     if (m_vision != null) {
       m_autoChooser.addOption("Drive to Nearest Tag",
-          Autos.driveToNearestTag(m_vision, m_swerveDrive, m_drive));
+          Autos.driveToNearestTag(m_vision, m_drive));
     }
     SmartDashboard.putData("Auto Chooser", m_autoChooser);
   }

@@ -3,7 +3,6 @@ package frc.robot;
 import edu.wpi.first.wpilibj2.command.Command;
 
 import frc.lib.drivetrain.DriveInterface;
-import frc.lib.drivetrain.SwerveDrive;
 
 /** Simple P-controller command: rotate to align yaw, drive forward by area. */
 public class DriveToTag extends Command {
@@ -17,7 +16,7 @@ public class DriveToTag extends Command {
   private final double m_targetArea;
 
   public DriveToTag(
-      Vision vision, SwerveDrive swerveDrive, DriveInterface drive,
+      Vision vision, DriveInterface drive,
       double rotationP, double driveP, double angleTolerance, double targetArea) {
     m_vision = vision;
     m_drive = drive;
@@ -25,11 +24,11 @@ public class DriveToTag extends Command {
     m_driveP = driveP;
     m_angleTolerance = angleTolerance;
     m_targetArea = targetArea;
-    addRequirements(vision, swerveDrive);
+    addRequirements(vision, drive);
   }
 
-  public DriveToTag(Vision vision, SwerveDrive swerveDrive, DriveInterface drive) {
-    this(vision, swerveDrive, drive, 0.07, 0.15, 2.0, 5.0);
+  public DriveToTag(Vision vision, DriveInterface drive) {
+    this(vision, drive, 0.07, 0.15, 2.0, 5.0);
   }
 
   @Override

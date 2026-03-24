@@ -25,14 +25,12 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
-import edu.wpi.first.wpilibj2.command.Subsystem;
-
 import org.littletonrobotics.junction.Logger;
 
 /** Swerve drivetrain implementation backed by CTRE SwerveDrivetrain. */
 public class SwerveDrive
     extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
-    implements Subsystem, DriveInterface {
+    implements DriveInterface {
 
   private final DrivetrainConfig m_config;
   private final double m_maxSpeed;
@@ -49,7 +47,13 @@ public class SwerveDrive
   private final DrivetrainIO m_io;
   private final DrivetrainIOInputsAutoLogged m_ioInputs = new DrivetrainIOInputsAutoLogged();
 
+  /** Creates a SwerveDrive with real hardware IO. */
   public SwerveDrive(DrivetrainConfig config) {
+    this(config, null);
+  }
+
+  /** Creates a SwerveDrive with the given IO (pass DrivetrainIOReplay for replay mode). */
+  public SwerveDrive(DrivetrainConfig config, DrivetrainIO io) {
     super(
         TalonFX::new,
         TalonFX::new,
@@ -69,7 +73,7 @@ public class SwerveDrive
         .withDeadband(m_maxSpeed * config.translationDeadband)
         .withRotationalDeadband(m_maxAngularSpeed * config.rotationDeadband);
 
-    m_io = new DrivetrainIOTalonFX(this);
+    m_io = (io != null) ? io : new DrivetrainIOTalonFX(this);
   }
 
   private static SwerveDrivetrainConstants buildDrivetrainConstants(DrivetrainConfig config) {
@@ -216,6 +220,11 @@ public class SwerveDrive
   @Override
   public void resetHeading() {
     seedFieldCentric();
+  }
+
+  @Override
+  public void resetPose(Pose2d pose) {
+    super.resetPose(pose);
   }
 
   @Override

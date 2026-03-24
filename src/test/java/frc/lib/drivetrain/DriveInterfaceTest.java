@@ -56,6 +56,11 @@ class DriveInterfaceTest {
     }
 
     @Override
+    public void resetPose(Pose2d pose) {
+      // no-op stub
+    }
+
+    @Override
     public void addVisionMeasurement(Pose2d visionPose, double timestampSeconds, Matrix<N3, N1> stdDevs) {
       // no-op stub
     }
