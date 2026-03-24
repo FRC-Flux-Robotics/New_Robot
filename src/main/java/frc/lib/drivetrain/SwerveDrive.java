@@ -18,13 +18,22 @@ import com.ctre.phoenix6.swerve.SwerveModuleConstants.SteerFeedbackType;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants.SteerMotorArrangement;
 import com.ctre.phoenix6.swerve.SwerveModuleConstantsFactory;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.config.PIDConstants;
+import com.pathplanner.lib.config.RobotConfig;
+import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import org.littletonrobotics.junction.Logger;
 
 /** Swerve drivetrain implementation backed by CTRE SwerveDrivetrain. */
@@ -74,6 +83,8 @@ public class SwerveDrive
         .withRotationalDeadband(m_maxAngularSpeed * config.rotationDeadband);
 
     m_io = (io != null) ? io : new DrivetrainIOTalonFX(this);
+
+    configurePathPlanner();
   }
 
   private static SwerveDrivetrainConstants buildDrivetrainConstants(DrivetrainConfig config) {
@@ -170,6 +181,48 @@ public class SwerveDrive
         module.invertDrive,
         module.invertSteer,
         false);
+  }
+
+  private void configurePathPlanner() {
+    AutoBuilder.configure(
+        this::getPose,
+        this::resetPose,
+        this::getVelocity,
+        (speeds) -> drive(
+            speeds.vxMetersPerSecond,
+            speeds.vyMetersPerSecond,
+            speeds.omegaRadiansPerSecond,
+            false, 0.02),
+        new PPHolonomicDriveController(
+            new PIDConstants(5.0, 0.0, 0.0),
+            new PIDConstants(3.0, 0.0, 0.0)),
+        buildPathPlannerConfig(m_config),
+        () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
+        this);
+  }
+
+  private static RobotConfig buildPathPlannerConfig(DrivetrainConfig config) {
+    double wheelRadiusMeters = Units.inchesToMeters(config.wheelRadiusInches);
+    double halfTrackMeters = Units.inchesToMeters(config.trackWidthInches / 2.0);
+    double halfLengthMeters = Units.inchesToMeters(config.trackLengthInches / 2.0);
+
+    com.pathplanner.lib.config.ModuleConfig moduleConfig =
+        new com.pathplanner.lib.config.ModuleConfig(
+            wheelRadiusMeters,
+            config.maxSpeedMps,
+            1.0,
+            DCMotor.getKrakenX60(1),
+            config.driveGearRatio,
+            config.driveStatorCurrentLimit,
+            1);
+
+    return new RobotConfig(
+        60.0, 6.0,
+        moduleConfig,
+        new Translation2d(halfLengthMeters, halfTrackMeters),
+        new Translation2d(halfLengthMeters, -halfTrackMeters),
+        new Translation2d(-halfLengthMeters, halfTrackMeters),
+        new Translation2d(-halfLengthMeters, -halfTrackMeters));
   }
 
   // --- DriveInterface methods ---

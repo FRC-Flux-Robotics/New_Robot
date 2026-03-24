@@ -8,7 +8,6 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 
 import frc.lib.drivetrain.DriveInterface;
-import frc.lib.drivetrain.DrivetrainConfig;
 
 /** Owns subsystems, default commands, button bindings, and auto chooser. */
 public class RobotContainer {
@@ -24,11 +23,11 @@ public class RobotContainer {
 
   private final SendableChooser<Command> m_autoChooser = new SendableChooser<>();
 
-  public RobotContainer(DriveInterface drive, DrivetrainConfig config) {
+  public RobotContainer(DriveInterface drive) {
     m_drive = drive;
 
-    if (config.camera != null) {
-      m_vision = new Vision(config.camera, m_drive);
+    if (drive.getConfig().camera != null) {
+      m_vision = new Vision(drive.getConfig().camera, m_drive);
     } else {
       m_vision = null;
     }
@@ -109,6 +108,7 @@ public class RobotContainer {
     m_autoChooser.setDefaultOption("None", Autos.none());
     m_autoChooser.addOption("Drive Forward", Autos.driveForward(m_drive));
     m_autoChooser.addOption("Forward-Turn-Back", Autos.forwardTurnBack(m_drive));
+    m_autoChooser.addOption("PathPlanner Test", Autos.pathPlannerTest(m_drive));
     if (m_vision != null) {
       m_autoChooser.addOption("Drive to Nearest Tag",
           Autos.driveToNearestTag(m_vision, m_drive));
