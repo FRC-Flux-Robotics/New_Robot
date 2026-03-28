@@ -11,36 +11,88 @@ import org.littletonrobotics.junction.networktables.NT4Publisher;
 import org.littletonrobotics.junction.wpilog.WPILOGReader;
 import org.littletonrobotics.junction.wpilog.WPILOGWriter;
 
+import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
+import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.DrivetrainIOReplay;
 import frc.lib.drivetrain.SwerveDrive;
+import frc.lib.vision.VisionIO;
+import frc.lib.vision.VisionIOPhotonVision;
+import frc.lib.vision.VisionIOReplay;
+import frc.robot.util.Elastic;
+
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.apriltag.AprilTagFields;
 
 public class Robot extends LoggedRobot {
+  /** Robot operating mode. Change to REPLAY to replay log files. */
+  private enum Mode { REAL, SIM, REPLAY }
+
+  private static final Mode mode = Robot.isReal() ? Mode.REAL : Mode.SIM;
+
   private final RobotContainer m_robotContainer;
   private Command m_autoCommand;
 
-  public Robot() {
-    Logger.recordMetadata("ProjectName", "FRC10413-2026");
+  /** Select robot config from RoboRIO comments string. Default: FUEL. */
+  private static DrivetrainConfig selectRobot() {
+    String comments = RobotController.getComments();
+    if (comments.contains("CORAL")) {
+      return Robots.CORAL;
+    }
+    return Robots.FUEL;
+  }
 
-    if (isReal()) {
-      Logger.addDataReceiver(new WPILOGWriter());
-      Logger.addDataReceiver(new NT4Publisher());
-    } else {
-      setUseTiming(false);
-      String logPath = LogFileUtil.findReplayLog();
-      Logger.setReplaySource(new WPILOGReader(logPath));
-      Logger.addDataReceiver(new WPILOGWriter(LogFileUtil.addPathSuffix(logPath, "_sim")));
+  public Robot() {
+    DrivetrainConfig config = selectRobot();
+
+    Logger.recordMetadata("ProjectName", "FRC10413-2026");
+    Logger.recordMetadata("RobotName", config == Robots.CORAL ? "CORAL" : "FUEL");
+
+    switch (mode) {
+      case REAL:
+        Logger.addDataReceiver(new WPILOGWriter());
+        Logger.addDataReceiver(new NT4Publisher());
+        break;
+      case SIM:
+        Logger.addDataReceiver(new WPILOGWriter());
+        Logger.addDataReceiver(new NT4Publisher());
+        break;
+      case REPLAY:
+        setUseTiming(false);
+        String logPath = LogFileUtil.findReplayLog();
+        Logger.setReplaySource(new WPILOGReader(logPath));
+        Logger.addDataReceiver(new WPILOGWriter(LogFileUtil.addPathSuffix(logPath, "_sim")));
+        break;
     }
 
     Logger.start();
 
-    SwerveDrive swerveDrive = isReal()
-        ? new SwerveDrive(Robots.CORAL)
-        : new SwerveDrive(Robots.CORAL, new DrivetrainIOReplay());
-    m_robotContainer = new RobotContainer(swerveDrive);
+    SwerveDrive swerveDrive = (mode != Mode.REPLAY)
+        ? new SwerveDrive(config)
+        : new SwerveDrive(config, new DrivetrainIOReplay());
+
+    VisionIO[] visionIOs;
+    if (mode != Mode.REPLAY) {
+      AprilTagFieldLayout fieldLayout =
+          AprilTagFieldLayout.loadField(AprilTagFields.k2026RebuiltWelded);
+      visionIOs = config.cameras.stream()
+          .map(cfg -> (VisionIO) new VisionIOPhotonVision(cfg, fieldLayout))
+          .toArray(VisionIO[]::new);
+    } else {
+      visionIOs = config.cameras.stream()
+          .map(cfg -> (VisionIO) new VisionIOReplay())
+          .toArray(VisionIO[]::new);
+    }
+
+    m_robotContainer = new RobotContainer(swerveDrive, visionIOs);
+
+    String robotName = config == Robots.CORAL ? "CORAL" : "FUEL";
+    Elastic.sendNotification(
+        new Elastic.Notification(Elastic.NotificationLevel.INFO, "Robot Ready",
+            robotName + " initialized with " + config.cameras.size() + " camera(s)"));
   }
 
   @Override

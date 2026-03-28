@@ -2,6 +2,10 @@ package frc.lib.drivetrain;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation3d;
+
 import org.junit.jupiter.api.Test;
 
 class DrivetrainConfigTest {
@@ -126,6 +130,105 @@ class DrivetrainConfigTest {
     assertEquals(0.0, gains.kS);
     assertEquals(0.0, gains.kV);
     assertEquals(0.0, gains.kA);
+  }
+
+  @Test
+  void speedCoefficientDefaultsToOne() {
+    DrivetrainConfig config = validBuilder().build();
+    assertEquals(1.0, config.speedCoefficient, 0.001);
+  }
+
+  @Test
+  void speedCoefficientStoresCustomValue() {
+    DrivetrainConfig config = validBuilder().speedCoefficient(0.5).build();
+    assertEquals(0.5, config.speedCoefficient, 0.001);
+  }
+
+  @Test
+  void speedCoefficientThrowsOnZero() {
+    var builder = validBuilder().speedCoefficient(0);
+    assertThrows(IllegalStateException.class, builder::build);
+  }
+
+  @Test
+  void speedCoefficientThrowsOnGreaterThanOne() {
+    var builder = validBuilder().speedCoefficient(1.5);
+    assertThrows(IllegalStateException.class, builder::build);
+  }
+
+  @Test
+  void noCamerasDefaultsToEmptyList() {
+    DrivetrainConfig config = validBuilder().build();
+    assertNotNull(config.cameras);
+    assertTrue(config.cameras.isEmpty());
+  }
+
+  @Test
+  void singleCameraInList() {
+    var transform = new Transform3d(new Translation3d(0.3, 0, 0.25), new Rotation3d());
+    DrivetrainConfig config = validBuilder()
+        .camera(new CameraConfig("Cam1", transform))
+        .build();
+    assertEquals(1, config.cameras.size());
+    assertEquals("Cam1", config.cameras.get(0).name());
+  }
+
+  @Test
+  void multipleCamerasInList() {
+    var transform = new Transform3d(new Translation3d(0.3, 0, 0.25), new Rotation3d());
+    DrivetrainConfig config = validBuilder()
+        .camera(new CameraConfig("Cam1", transform))
+        .camera(new CameraConfig("Cam2", transform))
+        .build();
+    assertEquals(2, config.cameras.size());
+    assertEquals("Cam1", config.cameras.get(0).name());
+    assertEquals("Cam2", config.cameras.get(1).name());
+  }
+
+  @Test
+  void camerasListIsUnmodifiable() {
+    var transform = new Transform3d(new Translation3d(0.3, 0, 0.25), new Rotation3d());
+    DrivetrainConfig config = validBuilder()
+        .camera(new CameraConfig("Cam1", transform))
+        .build();
+    assertThrows(UnsupportedOperationException.class,
+        () -> config.cameras.add(new CameraConfig("Cam2", transform)));
+  }
+
+  @Test
+  void motionMagicExpoDefaultValues() {
+    DrivetrainConfig config = validBuilder().build();
+    assertEquals(0.12, config.steerMotionMagicExpoKv, 0.001);
+    assertEquals(0.1, config.steerMotionMagicExpoKa, 0.001);
+  }
+
+  @Test
+  void motionMagicExpoCustomValues() {
+    DrivetrainConfig config = validBuilder()
+        .steerMotionMagicExpoKv(0.2)
+        .steerMotionMagicExpoKa(0.05)
+        .build();
+    assertEquals(0.2, config.steerMotionMagicExpoKv, 0.001);
+    assertEquals(0.05, config.steerMotionMagicExpoKa, 0.001);
+  }
+
+  @Test
+  void headingGainsDefaultValues() {
+    DrivetrainConfig config = validBuilder().build();
+    assertNotNull(config.headingGains);
+    assertEquals(5.0, config.headingGains.kP, 0.001);
+    assertEquals(0.0, config.headingGains.kI, 0.001);
+    assertEquals(0.0, config.headingGains.kD, 0.001);
+  }
+
+  @Test
+  void headingGainsCustomValues() {
+    DrivetrainConfig config = validBuilder()
+        .headingGains(new PIDGains(8.0, 0.1, 0.5))
+        .build();
+    assertEquals(8.0, config.headingGains.kP, 0.001);
+    assertEquals(0.1, config.headingGains.kI, 0.001);
+    assertEquals(0.5, config.headingGains.kD, 0.001);
   }
 
   @Test

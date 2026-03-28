@@ -1,5 +1,9 @@
 package frc.lib.drivetrain;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 public class DrivetrainConfig {
   // CAN
   public final String canBusName;
@@ -20,6 +24,7 @@ public class DrivetrainConfig {
   // Speed
   public final double maxSpeedMps;
   public final double maxAngularRateRadPerSec;
+  public final double speedCoefficient;
 
   // PID
   public final PIDGains steerGains;
@@ -30,6 +35,13 @@ public class DrivetrainConfig {
   public final double driveSupplyCurrentLimit;
   public final double steerStatorCurrentLimit;
 
+  // MotionMagicExpo steer parameters
+  public final double steerMotionMagicExpoKv;
+  public final double steerMotionMagicExpoKa;
+
+  // Heading control (FieldCentricFacingAngle)
+  public final PIDGains headingGains;
+
   // Deadband
   public final double translationDeadband;
   public final double rotationDeadband;
@@ -38,8 +50,8 @@ public class DrivetrainConfig {
   public final double trackWidthInches;
   public final double trackLengthInches;
 
-  // Vision (nullable — vision is optional)
-  public final CameraConfig camera;
+  // Vision (empty list = no vision)
+  public final List<CameraConfig> cameras;
 
   private DrivetrainConfig(Builder builder) {
     this.canBusName = builder.canBusName;
@@ -54,16 +66,20 @@ public class DrivetrainConfig {
     this.wheelRadiusInches = builder.wheelRadiusInches;
     this.maxSpeedMps = builder.maxSpeedMps;
     this.maxAngularRateRadPerSec = builder.maxAngularRateRadPerSec;
+    this.speedCoefficient = builder.speedCoefficient;
     this.steerGains = builder.steerGains;
     this.driveGains = builder.driveGains;
     this.driveStatorCurrentLimit = builder.driveStatorCurrentLimit;
     this.driveSupplyCurrentLimit = builder.driveSupplyCurrentLimit;
     this.steerStatorCurrentLimit = builder.steerStatorCurrentLimit;
+    this.steerMotionMagicExpoKv = builder.steerMotionMagicExpoKv;
+    this.steerMotionMagicExpoKa = builder.steerMotionMagicExpoKa;
+    this.headingGains = builder.headingGains;
     this.translationDeadband = builder.translationDeadband;
     this.rotationDeadband = builder.rotationDeadband;
     this.trackWidthInches = builder.trackWidthInches;
     this.trackLengthInches = builder.trackLengthInches;
-    this.camera = builder.camera;
+    this.cameras = Collections.unmodifiableList(new ArrayList<>(builder.cameras));
   }
 
   public static class Builder {
@@ -79,16 +95,20 @@ public class DrivetrainConfig {
     private double wheelRadiusInches;
     private double maxSpeedMps;
     private double maxAngularRateRadPerSec;
+    private double speedCoefficient = 1.0;
     private PIDGains steerGains;
     private PIDGains driveGains;
     private double driveStatorCurrentLimit;
     private double driveSupplyCurrentLimit;
     private double steerStatorCurrentLimit;
+    private double steerMotionMagicExpoKv = 0.12;
+    private double steerMotionMagicExpoKa = 0.1;
+    private PIDGains headingGains = new PIDGains(5.0, 0.0, 0.0);
     private double translationDeadband;
     private double rotationDeadband;
     private double trackWidthInches;
     private double trackLengthInches;
-    private CameraConfig camera;
+    private final List<CameraConfig> cameras = new ArrayList<>();
 
     public Builder canBusName(String canBusName) {
       this.canBusName = canBusName;
@@ -150,6 +170,11 @@ public class DrivetrainConfig {
       return this;
     }
 
+    public Builder speedCoefficient(double coeff) {
+      this.speedCoefficient = coeff;
+      return this;
+    }
+
     public Builder steerGains(PIDGains gains) {
       this.steerGains = gains;
       return this;
@@ -175,6 +200,21 @@ public class DrivetrainConfig {
       return this;
     }
 
+    public Builder steerMotionMagicExpoKv(double kv) {
+      this.steerMotionMagicExpoKv = kv;
+      return this;
+    }
+
+    public Builder steerMotionMagicExpoKa(double ka) {
+      this.steerMotionMagicExpoKa = ka;
+      return this;
+    }
+
+    public Builder headingGains(PIDGains gains) {
+      this.headingGains = gains;
+      return this;
+    }
+
     public Builder translationDeadband(double deadband) {
       this.translationDeadband = deadband;
       return this;
@@ -196,7 +236,14 @@ public class DrivetrainConfig {
     }
 
     public Builder camera(CameraConfig camera) {
-      this.camera = camera;
+      this.cameras.add(camera);
+      return this;
+    }
+
+    public Builder cameras(CameraConfig... cameras) {
+      for (CameraConfig cam : cameras) {
+        this.cameras.add(cam);
+      }
       return this;
     }
 
@@ -224,6 +271,9 @@ public class DrivetrainConfig {
       }
       if (maxAngularRateRadPerSec <= 0) {
         throw new IllegalStateException("maxAngularRateRadPerSec must be positive");
+      }
+      if (speedCoefficient <= 0 || speedCoefficient > 1.0) {
+        throw new IllegalStateException("speedCoefficient must be > 0 and <= 1.0");
       }
       if (steerGains == null) {
         throw new IllegalStateException("steerGains is required");

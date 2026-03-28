@@ -1,96 +1,101 @@
 package frc.robot;
 
-import java.util.List;
-import java.util.Optional;
-
-import org.photonvision.EstimatedRobotPose;
-import org.photonvision.PhotonCamera;
-import org.photonvision.PhotonPoseEstimator;
-import org.photonvision.PhotonPoseEstimator.PoseStrategy;
-import org.photonvision.targeting.PhotonPipelineResult;
-import org.photonvision.targeting.PhotonTrackedTarget;
-
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
-import frc.lib.drivetrain.CameraConfig;
 import frc.lib.drivetrain.DriveInterface;
+import frc.lib.vision.VisionIO;
+import frc.lib.vision.VisionIOInputsAutoLogged;
 
 import org.littletonrobotics.junction.Logger;
 
-/** Vision subsystem: PhotonVision pose estimation with dynamic std devs. */
+/** Vision subsystem: processes VisionIO inputs for pose estimation with dynamic std devs. */
 public class Vision extends SubsystemBase {
 
   private static final Matrix<N3, N1> kSingleTagStdDevs = VecBuilder.fill(4, 4, 8);
   private static final Matrix<N3, N1> kMultiTagStdDevs = VecBuilder.fill(0.5, 0.5, 1);
-  private static final int DISCONNECT_THRESHOLD = 50;
 
-  private final PhotonCamera m_camera;
-  private final PhotonPoseEstimator m_poseEstimator;
+  // Vision rejection thresholds
+  static final double MAX_AMBIGUITY = 0.3;
+  static final double FIELD_LENGTH_METERS = 16.54;
+  static final double FIELD_WIDTH_METERS = 8.21;
+  static final double FIELD_MARGIN_METERS = 0.5;
+  static final double MAX_Z_ERROR_METERS = 0.75;
+  static final double MAX_ANGULAR_SPEED_RAD_PER_SEC = Math.toRadians(120);
+  static final double MAX_LINEAR_SPEED_MPS = 3.0;
+
+  private final VisionIO[] m_ios;
+  private final VisionIOInputsAutoLogged[] m_inputs;
+  private final AprilTagFieldLayout m_fieldLayout;
   private final DriveInterface m_drive;
 
-  private PhotonPipelineResult m_latestResult = new PhotonPipelineResult();
   private Matrix<N3, N1> m_curStdDevs = kSingleTagStdDevs;
   private Pose2d m_lastVisionPose = new Pose2d();
   private boolean m_enabled = true;
-  private boolean m_connected = true;
-  private int m_disconnectCount = 0;
 
-  public Vision(CameraConfig cameraConfig, DriveInterface drive) {
+  public Vision(VisionIO[] ios, DriveInterface drive) {
+    m_ios = ios;
     m_drive = drive;
-    m_camera = new PhotonCamera(cameraConfig.name());
+    m_fieldLayout = AprilTagFieldLayout.loadField(AprilTagFields.k2026RebuiltWelded);
 
-    AprilTagFieldLayout fieldLayout = AprilTagFieldLayout.loadField(AprilTagFields.k2026RebuiltWelded);
-
-    m_poseEstimator = new PhotonPoseEstimator(
-        fieldLayout, PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, cameraConfig.robotToCamera());
-    m_poseEstimator.setMultiTagFallbackStrategy(PoseStrategy.LOWEST_AMBIGUITY);
+    m_inputs = new VisionIOInputsAutoLogged[ios.length];
+    for (int i = 0; i < ios.length; i++) {
+      m_inputs[i] = new VisionIOInputsAutoLogged();
+    }
   }
 
   @Override
   public void periodic() {
-    var results = m_camera.getAllUnreadResults();
+    for (int i = 0; i < m_ios.length; i++) {
+      m_ios[i].updateInputs(m_inputs[i]);
+      Logger.processInputs("Vision/Camera" + i, m_inputs[i]);
 
-    if (!results.isEmpty()) {
-      m_latestResult = results.get(results.size() - 1);
-      m_connected = true;
-      m_disconnectCount = 0;
-    } else {
-      m_disconnectCount++;
-      if (m_disconnectCount > DISCONNECT_THRESHOLD) {
-        if (m_connected) {
-          DriverStation.reportWarning("Vision camera disconnected — no frames for 1s", false);
+      var inputs = m_inputs[i];
+      String prefix = "Vision/Camera" + i + "/";
+
+      if (inputs.posePresent) {
+        Pose3d estimatedPose3d = new Pose3d(
+            inputs.poseX, inputs.poseY, inputs.poseZ,
+            new Rotation3d(0, 0, inputs.poseRotRadians));
+        Pose2d estimatedPose2d = estimatedPose3d.toPose2d();
+
+        updateStdDevs(inputs);
+        m_lastVisionPose = estimatedPose2d;
+
+        var speeds = m_drive.getVelocity();
+        double linearSpeed = Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
+        double angularSpeed = Math.abs(speeds.omegaRadiansPerSecond);
+
+        String rejection = checkRejection(estimatedPose3d, inputs, linearSpeed, angularSpeed);
+        Logger.recordOutput(prefix + "Rejected", rejection != null);
+        Logger.recordOutput(prefix + "RejectionReason", rejection != null ? rejection : "");
+
+        if (m_enabled && rejection == null) {
+          m_drive.addVisionMeasurement(estimatedPose2d, inputs.poseTimestamp, m_curStdDevs);
         }
-        m_connected = false;
       }
+
+      Logger.recordOutput(prefix + "Connected", inputs.connected);
+      Logger.recordOutput(prefix + "HasTargets", inputs.hasTargets);
+      Logger.recordOutput(prefix + "TagCount", inputs.targetCount);
     }
 
-    for (var result : results) {
-      Optional<EstimatedRobotPose> visionEst = m_poseEstimator.update(result);
-      updateStdDevs(visionEst, result.getTargets());
-
-      visionEst.ifPresent(est -> {
-        m_lastVisionPose = est.estimatedPose.toPose2d();
-        if (m_enabled) {
-          m_drive.addVisionMeasurement(
-              m_lastVisionPose, est.timestampSeconds, m_curStdDevs);
-        }
-      });
-    }
-
-    // Telemetry
-    Logger.recordOutput("Vision/Connected", m_connected);
+    // Aggregate telemetry
+    Logger.recordOutput("Vision/Connected", isConnected());
     Logger.recordOutput("Vision/HasTargets", hasTargets());
-    Logger.recordOutput("Vision/TagCount", m_latestResult.hasTargets() ? m_latestResult.getTargets().size() : 0);
     Logger.recordOutput("Vision/BestTagId", getTargetID());
     Logger.recordOutput("Vision/Enabled", m_enabled);
+    Logger.recordOutput("Vision/AutoHeadingDisabled", DriverStation.isAutonomous());
     Logger.recordOutput("Vision/EstimatedPose", m_lastVisionPose);
   }
 
@@ -103,7 +108,10 @@ public class Vision extends SubsystemBase {
   }
 
   public boolean isConnected() {
-    return m_connected;
+    for (var inputs : m_inputs) {
+      if (inputs.connected) return true;
+    }
+    return false;
   }
 
   public Pose2d getLastVisionPose() {
@@ -111,44 +119,93 @@ public class Vision extends SubsystemBase {
   }
 
   public boolean hasTargets() {
-    return m_latestResult.hasTargets();
-  }
-
-  public Optional<PhotonTrackedTarget> getBestTarget() {
-    if (!hasTargets() || !m_connected) {
-      return Optional.empty();
+    for (var inputs : m_inputs) {
+      if (inputs.connected && inputs.hasTargets) return true;
     }
-    return Optional.ofNullable(m_latestResult.getBestTarget());
+    return false;
   }
 
   public double getTargetYaw() {
-    return getBestTarget().map(PhotonTrackedTarget::getYaw).orElse(0.0);
+    double bestArea = 0;
+    double bestYaw = 0;
+    for (var inputs : m_inputs) {
+      if (inputs.connected && inputs.hasTargets && inputs.bestTargetArea > bestArea) {
+        bestArea = inputs.bestTargetArea;
+        bestYaw = inputs.bestTargetYaw;
+      }
+    }
+    return bestYaw;
   }
 
   public double getTargetArea() {
-    return getBestTarget().map(PhotonTrackedTarget::getArea).orElse(0.0);
+    double bestArea = 0;
+    for (var inputs : m_inputs) {
+      if (inputs.connected && inputs.hasTargets && inputs.bestTargetArea > bestArea) {
+        bestArea = inputs.bestTargetArea;
+      }
+    }
+    return bestArea;
   }
 
   public int getTargetID() {
-    return getBestTarget().map(PhotonTrackedTarget::getFiducialId).orElse(-1);
+    double bestArea = 0;
+    int bestId = -1;
+    for (var inputs : m_inputs) {
+      if (inputs.connected && inputs.hasTargets && inputs.bestTargetArea > bestArea) {
+        bestArea = inputs.bestTargetArea;
+        bestId = inputs.bestTargetId;
+      }
+    }
+    return bestId;
   }
 
-  private void updateStdDevs(Optional<EstimatedRobotPose> estimatedPose, List<PhotonTrackedTarget> targets) {
-    if (estimatedPose.isEmpty()) {
+  /** Returns null if measurement is acceptable, or a rejection reason string. */
+  static String checkRejection(Pose3d estimatedPose, VisionIO.VisionIOInputs inputs,
+                                double linearSpeedMps, double angularSpeedRadPerSec) {
+    // Single-tag ambiguity check
+    if (inputs.targetCount == 1 && inputs.targetPoseAmbiguities[0] > MAX_AMBIGUITY) {
+      return "ambiguity";
+    }
+    // Pose outside field bounds
+    double x = estimatedPose.getX();
+    double y = estimatedPose.getY();
+    if (x < -FIELD_MARGIN_METERS || x > FIELD_LENGTH_METERS + FIELD_MARGIN_METERS
+        || y < -FIELD_MARGIN_METERS || y > FIELD_WIDTH_METERS + FIELD_MARGIN_METERS) {
+      return "out_of_field";
+    }
+    // Z-error too large
+    if (Math.abs(estimatedPose.getZ()) > MAX_Z_ERROR_METERS) {
+      return "z_error";
+    }
+    // Robot spinning too fast
+    if (angularSpeedRadPerSec > MAX_ANGULAR_SPEED_RAD_PER_SEC) {
+      return "spinning";
+    }
+    // Robot moving too fast
+    if (linearSpeedMps > MAX_LINEAR_SPEED_MPS) {
+      return "too_fast";
+    }
+    return null;
+  }
+
+  private void updateStdDevs(VisionIO.VisionIOInputs inputs) {
+    if (!inputs.posePresent) {
       m_curStdDevs = kSingleTagStdDevs;
       return;
     }
 
     var estStdDevs = kSingleTagStdDevs;
+    Pose2d estimatedPose2d = new Pose2d(inputs.poseX, inputs.poseY,
+        new Rotation2d(inputs.poseRotRadians));
     int numTags = 0;
     double avgDist = 0;
 
-    for (var tgt : targets) {
-      var tagPose = m_poseEstimator.getFieldTags().getTagPose(tgt.getFiducialId());
+    for (int i = 0; i < inputs.targetCount; i++) {
+      var tagPose = m_fieldLayout.getTagPose(inputs.targetFiducialIds[i]);
       if (tagPose.isEmpty()) continue;
       numTags++;
       avgDist += tagPose.get().toPose2d().getTranslation()
-          .getDistance(estimatedPose.get().estimatedPose.toPose2d().getTranslation());
+          .getDistance(estimatedPose2d.getTranslation());
     }
 
     if (numTags == 0) {
@@ -162,6 +219,12 @@ public class Vision extends SubsystemBase {
         estStdDevs = estStdDevs.times(1 + (avgDist * avgDist / 30));
       }
       m_curStdDevs = estStdDevs;
+    }
+
+    // During autonomous, disable heading correction so PathPlanner owns heading
+    if (DriverStation.isAutonomous()) {
+      m_curStdDevs = m_curStdDevs.copy();
+      m_curStdDevs.set(2, 0, Double.MAX_VALUE);
     }
   }
 }

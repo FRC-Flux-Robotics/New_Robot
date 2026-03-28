@@ -61,6 +61,11 @@ class DriveInterfaceTest {
     }
 
     @Override
+    public void setOperatorForward(Rotation2d forward) {
+      // no-op stub
+    }
+
+    @Override
     public void addVisionMeasurement(Pose2d visionPose, double timestampSeconds, Matrix<N3, N1> stdDevs) {
       // no-op stub
     }
@@ -113,6 +118,20 @@ class DriveInterfaceTest {
     assertFalse(stub.headingReset);
     stub.resetHeading();
     assertTrue(stub.headingReset);
+  }
+
+  @Test
+  void facingAngleThrowsOnStub() {
+    StubDrive stub = new StubDrive();
+    assertThrows(UnsupportedOperationException.class,
+        () -> stub.driveFieldCentricFacingAngle(0, 0, new Rotation2d(), 0.02));
+  }
+
+  @Test
+  void followPathCommandThrowsOnStub() {
+    StubDrive stub = new StubDrive();
+    assertThrows(UnsupportedOperationException.class,
+        () -> stub.followPathCommand("TestPath"));
   }
 
   @Test

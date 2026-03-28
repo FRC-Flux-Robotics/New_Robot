@@ -3,14 +3,22 @@ package frc.robot;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
+
+import com.pathplanner.lib.commands.PathfindingCommand;
+
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 
 import frc.lib.drivetrain.DriveInterface;
+import frc.lib.drivetrain.SwerveDrive;
+import frc.lib.vision.VisionIO;
 
 /** Owns subsystems, default commands, button bindings, and auto chooser. */
 public class RobotContainer {
@@ -19,25 +27,32 @@ public class RobotContainer {
   private final Vision m_vision; // null if no camera configured
 
   private final CommandXboxController m_controller = new CommandXboxController(0);
+  private final CommandXboxController m_sysIdController = new CommandXboxController(1);
 
   private SlewRateLimiter m_xLimiter;
   private SlewRateLimiter m_yLimiter;
   private SlewRateLimiter m_rotLimiter;
 
+  private final SensitivityTuner m_driveSensitivity =
+      new SensitivityTuner("Drive_", 0.09, 0.6, 0.1, 0.3, 0.8);
+  private final SensitivityTuner m_rotSensitivity =
+      new SensitivityTuner("Rot_", 0.09, 0.6, 0.1, 0.5, 1.0);
+
   private final SendableChooser<Command> m_autoChooser = new SendableChooser<>();
-  private final SendableChooser<Pose2d> m_posePresetChooser = new SendableChooser<>();
+  private final SendableChooser<String> m_posePresetChooser = new SendableChooser<>();
   private final Field2d m_field = new Field2d();
 
-  public RobotContainer(DriveInterface drive) {
+  public RobotContainer(DriveInterface drive, VisionIO[] visionIOs) {
     m_drive = drive;
 
-    if (drive.getConfig().camera != null) {
-      m_vision = new Vision(drive.getConfig().camera, m_drive);
+    if (visionIOs.length > 0) {
+      m_vision = new Vision(visionIOs, m_drive);
     } else {
       m_vision = null;
     }
 
     DriverPreferences.init();
+    FieldPositions.init();
 
     m_xLimiter = new SlewRateLimiter(DriverPreferences.accelLimit());
     m_yLimiter = new SlewRateLimiter(DriverPreferences.accelLimit());
@@ -45,25 +60,22 @@ public class RobotContainer {
 
     configureDefaultCommand();
     configureButtonBindings();
+    configureSysIdBindings();
     configureAutoChooser();
     configurePoseReset();
+
+    // Warmup PathPlanner to avoid latency spike on first pathfinding command
+    PathfindingCommand.warmupCommand().schedule();
   }
 
   private void configureDefaultCommand() {
     m_drive.setDefaultCommand(
         Commands.run(
             () -> {
-              double deadband = DriverPreferences.deadband();
-              double driveExpo = DriverPreferences.driveExpo();
-              double rotExpo = DriverPreferences.rotationExpo();
-
-              // Apply expo curve with deadband
-              double xInput = InputProcessing.applyInputCurve(
-                  -m_controller.getLeftY(), deadband, driveExpo);
-              double yInput = InputProcessing.applyInputCurve(
-                  -m_controller.getLeftX(), deadband, driveExpo);
-              double rotInput = InputProcessing.applyInputCurve(
-                  -m_controller.getRightX(), deadband, rotExpo);
+              // Apply piecewise sensitivity curves (deadzone + two-segment linear)
+              double xInput = m_driveSensitivity.transfer(-m_controller.getLeftY());
+              double yInput = m_driveSensitivity.transfer(-m_controller.getLeftX());
+              double rotInput = m_rotSensitivity.transfer(-m_controller.getRightX());
 
               // Clamp stick magnitude to unit circle
               double[] clamped = InputProcessing.clampStickMagnitude(xInput, yInput);
@@ -96,9 +108,13 @@ public class RobotContainer {
   }
 
   private void configureButtonBindings() {
-    // X button: brake (stop all motors)
+    // Idle motors when robot is disabled
+    RobotModeTriggers.disabled().whileTrue(
+        Commands.run(() -> m_drive.setIdle(), m_drive));
+
+    // X button: X-pattern brake (hold position)
     m_controller.x().whileTrue(
-        Commands.run(() -> m_drive.drive(0, 0, 0, true, 0.02), m_drive));
+        Commands.run(() -> m_drive.setBrake(), m_drive));
 
     // Right bumper: reset heading
     m_controller.rightBumper().onTrue(
@@ -112,6 +128,29 @@ public class RobotContainer {
     if (m_vision != null) {
       m_controller.y().whileTrue(new DriveToTag(m_vision, m_drive));
     }
+
+    // D-pad snap-to-angle: hold D-pad to face cardinal heading
+    m_controller.povUp().whileTrue(
+        Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(0)), m_drive));
+    m_controller.povRight().whileTrue(
+        Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(270)), m_drive));
+    m_controller.povDown().whileTrue(
+        Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(180)), m_drive));
+    m_controller.povLeft().whileTrue(
+        Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(90)), m_drive));
+  }
+
+  private void configureSysIdBindings() {
+    if (!(m_drive instanceof SwerveDrive swerve)) return;
+
+    // SysId controller (port 1): A/B = dynamic, X/Y = quasistatic
+    m_sysIdController.a().whileTrue(swerve.sysIdDynamic(SysIdRoutine.Direction.kForward));
+    m_sysIdController.b().whileTrue(swerve.sysIdDynamic(SysIdRoutine.Direction.kReverse));
+    m_sysIdController.x().whileTrue(swerve.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
+    m_sysIdController.y().whileTrue(swerve.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
+
+    // Left bumper: wheel radius characterization (spin in place, measure radius)
+    m_sysIdController.leftBumper().whileTrue(swerve.wheelRadiusCharacterization());
   }
 
   private void configureAutoChooser() {
@@ -128,22 +167,20 @@ public class RobotContainer {
   }
 
   private void configurePoseReset() {
-    // Preset positions
-    m_posePresetChooser.setDefaultOption("Origin", new Pose2d(0, 0, new Rotation2d()));
-    m_posePresetChooser.addOption("Blue Left", new Pose2d(1.0, 7.0, new Rotation2d()));
-    m_posePresetChooser.addOption("Blue Right", new Pose2d(1.0, 1.0, new Rotation2d()));
-    m_posePresetChooser.addOption("Red Left", new Pose2d(15.5, 7.0, Rotation2d.fromDegrees(180)));
-    m_posePresetChooser.addOption("Red Right", new Pose2d(15.5, 1.0, Rotation2d.fromDegrees(180)));
-    m_posePresetChooser.addOption("Blue HUB", new Pose2d(3.5, 4.1, new Rotation2d()));
-    m_posePresetChooser.addOption("Red HUB", new Pose2d(13.0, 4.1, Rotation2d.fromDegrees(180)));
+    // Alliance-neutral preset positions — resolved for current alliance at apply time
+    m_posePresetChooser.setDefaultOption("Origin", "Origin");
+    m_posePresetChooser.addOption("Left", "Left");
+    m_posePresetChooser.addOption("Right", "Right");
+    m_posePresetChooser.addOption("HUB", "HUB");
 
     SmartDashboard.putData("Pose/Preset", m_posePresetChooser);
     SmartDashboard.putBoolean("Pose/ApplyPreset", false);
 
-    // Manual X/Y/heading entry
+    // Manual X/Y/heading entry (alliance-relative by default)
     SmartDashboard.putNumber("Pose/ResetX", 0.0);
     SmartDashboard.putNumber("Pose/ResetY", 0.0);
     SmartDashboard.putNumber("Pose/ResetHeading", 0.0);
+    SmartDashboard.putBoolean("Pose/AllianceRelative", true);
     SmartDashboard.putBoolean("Pose/ResetTrigger", false);
 
     // Vision enable/disable toggle
@@ -153,17 +190,39 @@ public class RobotContainer {
     SmartDashboard.putData("Field", m_field);
   }
 
+  private void snapToAngle(Rotation2d targetAngle) {
+    double xInput = m_driveSensitivity.transfer(-m_controller.getLeftY());
+    double yInput = m_driveSensitivity.transfer(-m_controller.getLeftX());
+    double[] clamped = InputProcessing.clampStickMagnitude(xInput, yInput);
+    xInput = m_xLimiter.calculate(clamped[0]);
+    yInput = m_yLimiter.calculate(clamped[1]);
+
+    double speedScale = DriverPreferences.maxSpeedScale();
+    if (m_controller.getRightTriggerAxis() > 0.5) {
+      speedScale *= DriverPreferences.slowModeScale();
+    }
+
+    m_drive.driveFieldCentricFacingAngle(
+        xInput * m_drive.getMaxSpeed() * speedScale,
+        yInput * m_drive.getMaxSpeed() * speedScale,
+        targetAngle, 0.02);
+  }
+
   public Command getAutonomousCommand() {
     return m_autoChooser.getSelected();
   }
 
   public void periodic() {
+    // Update operator perspective from alliance (FMS or dashboard)
+    m_drive.setOperatorForward(FieldPositions.operatorForward());
+
     // Publish current pose
     Pose2d pose = m_drive.getPose();
     m_field.setRobotPose(pose);
     SmartDashboard.putNumber("Pose/X", pose.getX());
     SmartDashboard.putNumber("Pose/Y", pose.getY());
     SmartDashboard.putNumber("Pose/Heading", pose.getRotation().getDegrees());
+    SmartDashboard.putNumber("Battery", RobotController.getBatteryVoltage());
 
     // Vision enable/disable from dashboard
     if (m_vision != null) {
@@ -175,21 +234,28 @@ public class RobotContainer {
       }
     }
 
-    // Dashboard preset reset
+    // Dashboard preset reset — resolves alliance-neutral name to correct pose
     if (SmartDashboard.getBoolean("Pose/ApplyPreset", false)) {
-      Pose2d preset = m_posePresetChooser.getSelected();
-      if (preset != null) {
-        m_drive.resetPose(preset);
+      String selected = m_posePresetChooser.getSelected();
+      if (selected != null) {
+        Pose2d preset = FieldPositions.resolve(selected);
+        if (preset != null) {
+          m_drive.resetPose(preset);
+        }
       }
       SmartDashboard.putBoolean("Pose/ApplyPreset", false);
     }
 
-    // Dashboard manual reset
+    // Dashboard manual reset — optionally alliance-relative
     if (SmartDashboard.getBoolean("Pose/ResetTrigger", false)) {
       double x = SmartDashboard.getNumber("Pose/ResetX", 0.0);
       double y = SmartDashboard.getNumber("Pose/ResetY", 0.0);
       double heading = SmartDashboard.getNumber("Pose/ResetHeading", 0.0);
-      m_drive.resetPose(new Pose2d(x, y, Rotation2d.fromDegrees(heading)));
+      Pose2d resetPose = new Pose2d(x, y, Rotation2d.fromDegrees(heading));
+      if (SmartDashboard.getBoolean("Pose/AllianceRelative", true)) {
+        resetPose = FieldPositions.forAlliance(resetPose);
+      }
+      m_drive.resetPose(resetPose);
       SmartDashboard.putBoolean("Pose/ResetTrigger", false);
     }
   }

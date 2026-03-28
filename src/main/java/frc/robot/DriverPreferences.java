@@ -7,9 +7,6 @@ public final class DriverPreferences {
 
   private static final String KEY_MAX_SPEED_SCALE = "driver/maxSpeedScale";
   private static final String KEY_MAX_ROTATION_SCALE = "driver/maxRotationScale";
-  private static final String KEY_DRIVE_EXPO = "driver/driveExpo";
-  private static final String KEY_ROTATION_EXPO = "driver/rotationExpo";
-  private static final String KEY_DEADBAND = "driver/deadband";
   private static final String KEY_ACCEL_LIMIT = "driver/accelLimit";
   private static final String KEY_ROT_ACCEL_LIMIT = "driver/rotAccelLimit";
   private static final String KEY_SLOW_MODE_SCALE = "driver/slowModeScale";
@@ -21,9 +18,6 @@ public final class DriverPreferences {
   public static void init() {
     initIfMissing(KEY_MAX_SPEED_SCALE, 1.0);
     initIfMissing(KEY_MAX_ROTATION_SCALE, 1.0);
-    initIfMissing(KEY_DRIVE_EXPO, 0.5);
-    initIfMissing(KEY_ROTATION_EXPO, 0.5);
-    initIfMissing(KEY_DEADBAND, 0.05);
     initIfMissing(KEY_ACCEL_LIMIT, 3.0);
     initIfMissing(KEY_ROT_ACCEL_LIMIT, 3.0);
     initIfMissing(KEY_SLOW_MODE_SCALE, 0.3);
@@ -42,18 +36,6 @@ public final class DriverPreferences {
 
   public static double maxRotationScale() {
     return clamp(Preferences.getDouble(KEY_MAX_ROTATION_SCALE, 1.0), 0.0, 1.0);
-  }
-
-  public static double driveExpo() {
-    return clamp(Preferences.getDouble(KEY_DRIVE_EXPO, 0.5), 0.0, 1.0);
-  }
-
-  public static double rotationExpo() {
-    return clamp(Preferences.getDouble(KEY_ROTATION_EXPO, 0.5), 0.0, 1.0);
-  }
-
-  public static double deadband() {
-    return clamp(Preferences.getDouble(KEY_DEADBAND, 0.05), 0.01, 0.3);
   }
 
   public static double accelLimit() {
