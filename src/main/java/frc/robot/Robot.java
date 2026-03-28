@@ -7,12 +7,12 @@ package frc.robot;
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.wpilibj.RobotController;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.DrivetrainIOReplay;
 import frc.lib.drivetrain.SwerveDrive;
+import frc.lib.util.LoggedTracer;
 import frc.lib.vision.VisionIO;
 import frc.lib.vision.VisionIOPhotonVision;
 import frc.lib.vision.VisionIOReplay;
@@ -107,10 +107,11 @@ public class Robot extends LoggedRobot {
 
   @Override
   public void robotPeriodic() {
-    double loopStart = Timer.getFPGATimestamp();
+    LoggedTracer.reset();
     CommandScheduler.getInstance().run();
+    LoggedTracer.trace("Commands");
     m_robotContainer.periodic();
-    Logger.recordOutput("LoopTimeMs", (Timer.getFPGATimestamp() - loopStart) * 1000.0);
+    LoggedTracer.trace("Periodic");
   }
 
   @Override
