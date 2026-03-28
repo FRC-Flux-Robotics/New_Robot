@@ -22,13 +22,20 @@ public class RangeTable
 // 4.25 in = 20 => k = 4.7
     private final double hoodCoef = (9.0 - 0.0) / 2.0;  // Position/inch
 
+    // BUG FIX (S5-4): FuelConstants.RobotLengthMeters is already in meters, but was being
+    // added to inch values before the inchesToMeters() conversion — mixing units in the sum.
+    // Original (broken) code:
+    //   new Range(Units.inchesToMeters(47.75 / 2 + FuelConstants.RobotLengthMeters / 2 - 1 + 8), ...)
+    // Fix: use RobotLengthInches so the entire expression is in inches before conversion.
+    private static final double kRobotLengthInches = 27 + 2 * 3.5; // frame + bumpers (same as FuelConstants)
+
     private Range[] ranges =
     {
-        new Range(Units.inchesToMeters(47.75 / 2 + FuelConstants.RobotLengthMeters / 2 - 1 + 8), 2000.0 / 60.0, 0), // 0
-        new Range(Units.inchesToMeters(47.75 / 2 + FuelConstants.RobotLengthMeters / 2 - 1 + 36), 2000.0 / 60.0, 2.8), // 7/16
-        new Range(Units.inchesToMeters(47.75 / 2 + FuelConstants.RobotLengthMeters / 2 - 1 + 72), 2200.0 / 60.0, 3.9), // 1.25
-        new Range(Units.inchesToMeters(47.75 / 2 + FuelConstants.RobotLengthMeters / 2 - 1 + 108), 2300.0 / 60.0, 6.7), // 1.25
-        new Range(Units.inchesToMeters(1.4142 * 47.75 / 2 + FuelConstants.RobotLengthMeters / 2 - 1 + 134), 2400.0 / 60.0, 8.85) // 1.5
+        new Range(Units.inchesToMeters(47.75 / 2 + kRobotLengthInches / 2 - 1 + 8), 2000.0 / 60.0, 0), // 0
+        new Range(Units.inchesToMeters(47.75 / 2 + kRobotLengthInches / 2 - 1 + 36), 2000.0 / 60.0, 2.8), // 7/16
+        new Range(Units.inchesToMeters(47.75 / 2 + kRobotLengthInches / 2 - 1 + 72), 2200.0 / 60.0, 3.9), // 1.25
+        new Range(Units.inchesToMeters(47.75 / 2 + kRobotLengthInches / 2 - 1 + 108), 2300.0 / 60.0, 6.7), // 1.25
+        new Range(Units.inchesToMeters(1.4142 * 47.75 / 2 + kRobotLengthInches / 2 - 1 + 134), 2400.0 / 60.0, 8.85) // 1.5
     };
 
     public RangeTable()
