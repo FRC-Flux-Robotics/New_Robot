@@ -4,7 +4,6 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-
 import frc.lib.drivetrain.DriveInterface;
 import frc.lib.mechanism.MechanismConfig;
 import frc.lib.mechanism.MechanismIO;
@@ -20,8 +19,8 @@ import frc.robot.MechanismConfigs.ShooterConstants;
 import frc.robot.commands.*;
 
 /**
- * FUEL robot container — adds mechanism subsystems and operator controller bindings
- * on top of the base RobotContainer drivetrain setup.
+ * FUEL robot container — adds mechanism subsystems and operator controller bindings on top of the
+ * base RobotContainer drivetrain setup.
  */
 public class FuelRobotContainer extends RobotContainer {
   private static final double TRIGGER_THRESHOLD = 0.5;
@@ -54,87 +53,111 @@ public class FuelRobotContainer extends RobotContainer {
   }
 
   // --- Override base class driver bindings (no-ops, replaced by configureFuelDriverBindings) ---
-  @Override protected void configureDriverYButton() {}
-  @Override protected void configureDriverBumpers() {}
-  @Override protected void configureDriverStartButton() {}
-  @Override protected void configureDriverDPad() {}
+  @Override
+  protected void configureDriverYButton() {}
+
+  @Override
+  protected void configureDriverBumpers() {}
+
+  @Override
+  protected void configureDriverStartButton() {}
+
+  @Override
+  protected void configureDriverDPad() {}
 
   /** Driver controller bindings matching legacy FuelRobotContainer (two-controller mode). */
   private void configureFuelDriverBindings() {
     // Y: reset heading
-    m_controller.y().onTrue(
-        Commands.runOnce(() -> getDrive().resetHeading(), getDrive()));
+    m_controller.y().onTrue(Commands.runOnce(() -> getDrive().resetHeading(), getDrive()));
 
     // Right Trigger: intake IN
-    m_controller.rightTrigger(DRIVER_TRIGGER_THRESHOLD).whileTrue(
-        new VelocityCmd(intake, () -> IntakeConstants.InSpeed));
+    m_controller
+        .rightTrigger(DRIVER_TRIGGER_THRESHOLD)
+        .whileTrue(new VelocityCmd(intake, () -> IntakeConstants.InSpeed));
 
     // Right Bumper: intake OUT
-    m_controller.rightBumper().whileTrue(
-        new VelocityCmd(intake, () -> -IntakeConstants.OutSpeed));
+    m_controller.rightBumper().whileTrue(new VelocityCmd(intake, () -> -IntakeConstants.OutSpeed));
 
     // A: deploy intake (4 sequential tilt jogs)
-    Command jogIntakeOut = Commands.sequence(
-        new RunCommand(() -> tilter.jogDown(), tilter),
-        Commands.waitSeconds(0.2));
-    m_controller.a().onTrue(Commands.sequence(
-        jogIntakeOut.asProxy(),
-        jogIntakeOut.asProxy(),
-        jogIntakeOut.asProxy(),
-        jogIntakeOut.asProxy()));
+    Command jogIntakeOut =
+        Commands.sequence(
+            new RunCommand(() -> tilter.jogDown(), tilter), Commands.waitSeconds(0.2));
+    m_controller
+        .a()
+        .onTrue(
+            Commands.sequence(
+                jogIntakeOut.asProxy(),
+                jogIntakeOut.asProxy(),
+                jogIntakeOut.asProxy(),
+                jogIntakeOut.asProxy()));
 
     // POV Left/Right: manual intake tilt
-    m_controller.povLeft().whileTrue(
-        new RunCommand(() -> tilter.jogDown(), tilter));
-    m_controller.povRight().whileTrue(
-        new RunCommand(() -> tilter.jogUp(), tilter));
+    m_controller.povLeft().whileTrue(new RunCommand(() -> tilter.jogDown(), tilter));
+    m_controller.povRight().whileTrue(new RunCommand(() -> tilter.jogUp(), tilter));
 
     // Left Bumper: seed field-centric heading
-    m_controller.leftBumper().whileTrue(
-        Commands.runOnce(() -> getDrive().resetHeading(), getDrive()));
+    m_controller
+        .leftBumper()
+        .whileTrue(Commands.runOnce(() -> getDrive().resetHeading(), getDrive()));
 
     // Back: reset encoders
-    m_controller.back().onTrue(
-        Commands.runOnce(() -> resetEncoders()));
+    m_controller.back().onTrue(Commands.runOnce(() -> resetEncoders()));
   }
 
   private void configureFuelBindings() {
     CommandXboxController controller = m_operatorController;
 
     // Feeder: Right Trigger (backward = negative speed)
-    controller.rightTrigger(TRIGGER_THRESHOLD).whileTrue(
-        new VelocityCmd(feeder, () -> -IndexerConstants.FeederSpeed));
+    controller
+        .rightTrigger(TRIGGER_THRESHOLD)
+        .whileTrue(new VelocityCmd(feeder, () -> -IndexerConstants.FeederSpeed));
 
     // Indexer: Right Bumper
-    controller.rightBumper().whileTrue(
-        new VelocityCmd(indexer, () -> IndexerConstants.Speed));
+    controller.rightBumper().whileTrue(new VelocityCmd(indexer, () -> IndexerConstants.Speed));
 
     // Range shoot: Left Bumper (15s timeout)
-    controller.leftBumper().whileTrue(
-        new RangeShootCmd(shooter, hood, feeder, indexer, rangeTable, getDrive()::getPose, 15.0));
+    controller
+        .leftBumper()
+        .whileTrue(
+            new RangeShootCmd(
+                shooter, hood, feeder, indexer, rangeTable, getDrive()::getPose, 15.0));
 
     // Shooter range presets: A/B/Y
-    controller.a().onTrue(new SetShooterRangeCmd(shooter, hood, rangeTable, ShooterConstants.ShortRange));
-    controller.b().onTrue(new SetShooterRangeCmd(shooter, hood, rangeTable, ShooterConstants.MidRange));
-    controller.y().onTrue(new SetShooterRangeCmd(shooter, hood, rangeTable, ShooterConstants.LongRange));
+    controller
+        .a()
+        .onTrue(new SetShooterRangeCmd(shooter, hood, rangeTable, ShooterConstants.ShortRange));
+    controller
+        .b()
+        .onTrue(new SetShooterRangeCmd(shooter, hood, rangeTable, ShooterConstants.MidRange));
+    controller
+        .y()
+        .onTrue(new SetShooterRangeCmd(shooter, hood, rangeTable, ShooterConstants.LongRange));
 
     // Shooter toggle: Start
-    controller.start().toggleOnTrue(
-        new ShootCommand(shooter, () -> ShooterConstants.Speed));
+    controller.start().toggleOnTrue(new ShootCommand(shooter, () -> ShooterConstants.Speed));
 
     // Shooter speed adjust: D-pad left/right + left bumper
-    controller.povRight().and(controller.leftBumper()).whileTrue(
-        Commands.runOnce(() -> shooter.setVelocity(
-            shooter.getTargetVelocity() + ShooterConstants.SpeedStep), shooter));
-    controller.povLeft().and(controller.leftBumper()).whileTrue(
-        Commands.runOnce(() -> {
-          double newSpeed = shooter.getTargetVelocity() - ShooterConstants.SpeedStep;
-          if (newSpeed <= 0) {
-            shooter.stop();
-          } else {
-            shooter.setVelocity(newSpeed);
-          }
-        }, shooter));
+    controller
+        .povRight()
+        .and(controller.leftBumper())
+        .whileTrue(
+            Commands.runOnce(
+                () -> shooter.setVelocity(shooter.getTargetVelocity() + ShooterConstants.SpeedStep),
+                shooter));
+    controller
+        .povLeft()
+        .and(controller.leftBumper())
+        .whileTrue(
+            Commands.runOnce(
+                () -> {
+                  double newSpeed = shooter.getTargetVelocity() - ShooterConstants.SpeedStep;
+                  if (newSpeed <= 0) {
+                    shooter.stop();
+                  } else {
+                    shooter.setVelocity(newSpeed);
+                  }
+                },
+                shooter));
 
     // Hood jog: D-pad up/down
     controller.povUp().whileTrue(new RunCommand(() -> hood.jogUp(), hood));

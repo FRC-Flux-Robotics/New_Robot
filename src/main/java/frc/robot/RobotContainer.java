@@ -1,5 +1,6 @@
 package frc.robot;
 
+import com.pathplanner.lib.commands.PathfindingCommand;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -11,11 +12,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
-
-import com.pathplanner.lib.commands.PathfindingCommand;
-
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
-
 import frc.lib.drivetrain.DriveInterface;
 import frc.lib.drivetrain.SwerveDrive;
 import frc.lib.vision.VisionIO;
@@ -105,7 +102,8 @@ public class RobotContainer {
               boolean slewEnabled = SmartDashboard.getBoolean("Drive/SlewRate", false);
               boolean slowMode = SmartDashboard.getBoolean("Drive/SlowMode", false);
               boolean stickClamp = SmartDashboard.getBoolean("Drive/StickClamp", false);
-              double maxRotRate = SmartDashboard.getNumber("Drive/MaxRotRate", LEGACY_MAX_ANGULAR_RATE);
+              double maxRotRate =
+                  SmartDashboard.getNumber("Drive/MaxRotRate", LEGACY_MAX_ANGULAR_RATE);
 
               // 1. Sensitivity curves
               double xInput, yInput, rotInput;
@@ -160,12 +158,10 @@ public class RobotContainer {
 
   private void configureButtonBindings() {
     // Idle motors when robot is disabled (universal)
-    RobotModeTriggers.disabled().whileTrue(
-        Commands.run(() -> m_drive.setIdle(), m_drive));
+    RobotModeTriggers.disabled().whileTrue(Commands.run(() -> m_drive.setIdle(), m_drive));
 
     // X button: X-pattern brake (universal)
-    m_controller.x().whileTrue(
-        Commands.run(() -> m_drive.setBrake(), m_drive));
+    m_controller.x().whileTrue(Commands.run(() -> m_drive.setBrake(), m_drive));
 
     // Overridable per-button groups (FuelRobotContainer replaces these)
     configureDriverYButton();
@@ -179,37 +175,37 @@ public class RobotContainer {
     if (m_vision != null) {
       m_controller.y().whileTrue(new DriveToTag(m_vision, m_drive));
     } else {
-      m_controller.y().onTrue(
-          Commands.runOnce(() -> m_drive.resetHeading(), m_drive));
+      m_controller.y().onTrue(Commands.runOnce(() -> m_drive.resetHeading(), m_drive));
     }
   }
 
   /** Bumpers — default: both reset heading. */
   protected void configureDriverBumpers() {
-    m_controller.rightBumper().onTrue(
-        Commands.runOnce(() -> m_drive.resetHeading(), m_drive));
-    m_controller.leftBumper().onTrue(
-        Commands.runOnce(() -> m_drive.resetHeading(), m_drive));
+    m_controller.rightBumper().onTrue(Commands.runOnce(() -> m_drive.resetHeading(), m_drive));
+    m_controller.leftBumper().onTrue(Commands.runOnce(() -> m_drive.resetHeading(), m_drive));
   }
 
   /** Start button — default: reset pose to origin. */
   protected void configureDriverStartButton() {
-    m_controller.start().onTrue(
-        Commands.runOnce(() -> m_drive.resetPose(new Pose2d()), m_drive));
+    m_controller.start().onTrue(Commands.runOnce(() -> m_drive.resetPose(new Pose2d()), m_drive));
   }
 
   /** D-pad — default: snap-to-angle (gated by Drive/SnapToAngle toggle). */
   protected void configureDriverDPad() {
-    m_controller.povUp()
+    m_controller
+        .povUp()
         .and(() -> SmartDashboard.getBoolean("Drive/SnapToAngle", false))
         .whileTrue(Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(0)), m_drive));
-    m_controller.povRight()
+    m_controller
+        .povRight()
         .and(() -> SmartDashboard.getBoolean("Drive/SnapToAngle", false))
         .whileTrue(Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(270)), m_drive));
-    m_controller.povDown()
+    m_controller
+        .povDown()
         .and(() -> SmartDashboard.getBoolean("Drive/SnapToAngle", false))
         .whileTrue(Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(180)), m_drive));
-    m_controller.povLeft()
+    m_controller
+        .povLeft()
         .and(() -> SmartDashboard.getBoolean("Drive/SnapToAngle", false))
         .whileTrue(Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(90)), m_drive));
   }
@@ -234,8 +230,7 @@ public class RobotContainer {
     m_autoChooser.addOption("PathPlanner Test", Autos.pathPlannerTest(m_drive));
     m_autoChooser.addOption("Precision Square", Autos.precisionSquare(m_drive));
     if (m_vision != null) {
-      m_autoChooser.addOption("Drive to Nearest Tag",
-          Autos.driveToNearestTag(m_vision, m_drive));
+      m_autoChooser.addOption("Drive to Nearest Tag", Autos.driveToNearestTag(m_vision, m_drive));
     }
     SmartDashboard.putData("Auto Chooser", m_autoChooser);
   }
@@ -295,7 +290,8 @@ public class RobotContainer {
     m_drive.driveFieldCentricFacingAngle(
         xInput * m_drive.getMaxSpeed() * speedScale,
         yInput * m_drive.getMaxSpeed() * speedScale,
-        targetAngle, 0.02);
+        targetAngle,
+        0.02);
   }
 
   public Command getAutonomousCommand() {

@@ -2,7 +2,6 @@ package frc.robot;
 
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-
 import frc.lib.drivetrain.DriveInterface;
 
 /** Simple P-controller command: rotate to align yaw, drive forward by area. */
@@ -24,9 +23,13 @@ public class DriveToTag extends Command {
   private double m_areaTolerance;
 
   public DriveToTag(
-      Vision vision, DriveInterface drive,
-      double rotationP, double driveP, double angleTolerance,
-      double targetArea, double areaTolerance) {
+      Vision vision,
+      DriveInterface drive,
+      double rotationP,
+      double driveP,
+      double angleTolerance,
+      double targetArea,
+      double areaTolerance) {
     m_vision = vision;
     m_drive = drive;
     m_rotationP = rotationP;
@@ -89,8 +92,8 @@ public class DriveToTag extends Command {
   }
 
   /**
-   * Clamp speed with dead zone: if |value| < min, return 0;
-   * otherwise clamp magnitude to [min, max] preserving sign.
+   * Clamp speed with dead zone: if |value| < min, return 0; otherwise clamp magnitude to [min, max]
+   * preserving sign.
    */
   static double clampSpeed(double value, double min, double max) {
     double abs = Math.abs(value);

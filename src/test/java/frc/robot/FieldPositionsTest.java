@@ -75,8 +75,8 @@ class FieldPositionsTest {
     // Since we can't easily set alliance in unit tests, test the mirror logic directly
     Translation2d blue = new Translation2d(1.0, 3.0);
     // Simulate red alliance mirror: flip X only
-    Translation2d red = new Translation2d(
-        FieldPositions.FIELD_LENGTH_METERS - blue.getX(), blue.getY());
+    Translation2d red =
+        new Translation2d(FieldPositions.FIELD_LENGTH_METERS - blue.getX(), blue.getY());
 
     assertEquals(16.54 - 1.0, red.getX(), 0.001);
     assertEquals(3.0, red.getY(), 0.001);

@@ -1,6 +1,7 @@
 plugins {
     id "java"
     id "edu.wpi.first.GradleRIO" version "2026.2.1"
+    id "com.diffplug.spotless" version "7.0.4"
 }
 
 java {
@@ -109,6 +110,17 @@ jar {
 deployArtifact.jarTask = jar
 wpi.java.configureExecutableTasks(jar)
 wpi.java.configureTestTasks(test)
+
+// Code formatting
+spotless {
+    ratchetFrom 'origin/main'
+    java {
+        target 'src/*/java/**/*.java'
+        googleJavaFormat()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
 
 // Configure string concat to always inline compile
 tasks.withType(JavaCompile) {

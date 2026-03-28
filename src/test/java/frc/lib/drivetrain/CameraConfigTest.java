@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
-
 import org.junit.jupiter.api.Test;
 
 class CameraConfigTest {

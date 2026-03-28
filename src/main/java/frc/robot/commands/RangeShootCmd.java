@@ -1,24 +1,20 @@
 package frc.robot.commands;
 
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj2.command.Command;
 import frc.lib.mechanism.PositionMechanism;
 import frc.lib.mechanism.VelocityMechanism;
 import frc.robot.FieldPositions;
 import frc.robot.MechanismConfigs.IndexerConstants;
 import frc.robot.RangeTable;
-
 import java.util.function.Supplier;
-
 import org.littletonrobotics.junction.Logger;
 
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj2.command.Command;
-
 /**
- * Automatic range-based shooting. Continuously calculates distance to hub,
- * sets shooter speed and hood angle from range table, and feeds when shooter
- * reaches target speed.
+ * Automatic range-based shooting. Continuously calculates distance to hub, sets shooter speed and
+ * hood angle from range table, and feeds when shooter reaches target speed.
  */
 public class RangeShootCmd extends Command {
   private final VelocityMechanism m_shooter;

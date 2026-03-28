@@ -2,9 +2,8 @@ package frc.robot.commands;
 
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
-import java.util.function.DoubleSupplier;
-
 import frc.lib.mechanism.VelocityMechanism;
+import java.util.function.DoubleSupplier;
 
 /**
  * Runs a velocity mechanism at a supplied speed (RPS). Sign of the speed determines direction.

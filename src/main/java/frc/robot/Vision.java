@@ -12,11 +12,9 @@ import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-
 import frc.lib.drivetrain.DriveInterface;
 import frc.lib.vision.VisionIO;
 import frc.lib.vision.VisionIOInputsAutoLogged;
-
 import org.littletonrobotics.junction.Logger;
 
 /** Vision subsystem: processes VisionIO inputs for pose estimation with dynamic std devs. */
@@ -64,9 +62,12 @@ public class Vision extends SubsystemBase {
       String prefix = "Vision/Camera" + i + "/";
 
       if (inputs.posePresent) {
-        Pose3d estimatedPose3d = new Pose3d(
-            inputs.poseX, inputs.poseY, inputs.poseZ,
-            new Rotation3d(0, 0, inputs.poseRotRadians));
+        Pose3d estimatedPose3d =
+            new Pose3d(
+                inputs.poseX,
+                inputs.poseY,
+                inputs.poseZ,
+                new Rotation3d(0, 0, inputs.poseRotRadians));
         Pose2d estimatedPose2d = estimatedPose3d.toPose2d();
 
         updateStdDevs(inputs);
@@ -160,8 +161,11 @@ public class Vision extends SubsystemBase {
   }
 
   /** Returns null if measurement is acceptable, or a rejection reason string. */
-  static String checkRejection(Pose3d estimatedPose, VisionIO.VisionIOInputs inputs,
-                                double linearSpeedMps, double angularSpeedRadPerSec) {
+  static String checkRejection(
+      Pose3d estimatedPose,
+      VisionIO.VisionIOInputs inputs,
+      double linearSpeedMps,
+      double angularSpeedRadPerSec) {
     // Single-tag ambiguity check
     if (inputs.targetCount == 1 && inputs.targetPoseAmbiguities[0] > MAX_AMBIGUITY) {
       return "ambiguity";
@@ -169,8 +173,10 @@ public class Vision extends SubsystemBase {
     // Pose outside field bounds
     double x = estimatedPose.getX();
     double y = estimatedPose.getY();
-    if (x < -FIELD_MARGIN_METERS || x > FIELD_LENGTH_METERS + FIELD_MARGIN_METERS
-        || y < -FIELD_MARGIN_METERS || y > FIELD_WIDTH_METERS + FIELD_MARGIN_METERS) {
+    if (x < -FIELD_MARGIN_METERS
+        || x > FIELD_LENGTH_METERS + FIELD_MARGIN_METERS
+        || y < -FIELD_MARGIN_METERS
+        || y > FIELD_WIDTH_METERS + FIELD_MARGIN_METERS) {
       return "out_of_field";
     }
     // Z-error too large
@@ -195,8 +201,8 @@ public class Vision extends SubsystemBase {
     }
 
     var estStdDevs = kSingleTagStdDevs;
-    Pose2d estimatedPose2d = new Pose2d(inputs.poseX, inputs.poseY,
-        new Rotation2d(inputs.poseRotRadians));
+    Pose2d estimatedPose2d =
+        new Pose2d(inputs.poseX, inputs.poseY, new Rotation2d(inputs.poseRotRadians));
     int numTags = 0;
     double avgDist = 0;
 
@@ -204,8 +210,8 @@ public class Vision extends SubsystemBase {
       var tagPose = m_fieldLayout.getTagPose(inputs.targetFiducialIds[i]);
       if (tagPose.isEmpty()) continue;
       numTags++;
-      avgDist += tagPose.get().toPose2d().getTranslation()
-          .getDistance(estimatedPose2d.getTranslation());
+      avgDist +=
+          tagPose.get().toPose2d().getTranslation().getDistance(estimatedPose2d.getTranslation());
     }
 
     if (numTags == 0) {

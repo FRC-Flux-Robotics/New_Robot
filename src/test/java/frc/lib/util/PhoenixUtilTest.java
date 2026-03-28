@@ -17,12 +17,15 @@ class PhoenixUtilTest {
   @Test
   void retriesUntilSuccess() {
     AtomicInteger count = new AtomicInteger(0);
-    StatusCode result = PhoenixUtil.tryUntilOk(() -> {
-      if (count.incrementAndGet() < 3) {
-        return StatusCode.GeneralError;
-      }
-      return StatusCode.OK;
-    }, 5);
+    StatusCode result =
+        PhoenixUtil.tryUntilOk(
+            () -> {
+              if (count.incrementAndGet() < 3) {
+                return StatusCode.GeneralError;
+              }
+              return StatusCode.OK;
+            },
+            5);
     assertTrue(result.isOK());
     assertEquals(3, count.get());
   }
@@ -30,10 +33,13 @@ class PhoenixUtilTest {
   @Test
   void returnsLastErrorAfterMaxAttempts() {
     AtomicInteger count = new AtomicInteger(0);
-    StatusCode result = PhoenixUtil.tryUntilOk(() -> {
-      count.incrementAndGet();
-      return StatusCode.GeneralError;
-    }, 5);
+    StatusCode result =
+        PhoenixUtil.tryUntilOk(
+            () -> {
+              count.incrementAndGet();
+              return StatusCode.GeneralError;
+            },
+            5);
     assertFalse(result.isOK());
     assertEquals(5, count.get());
   }

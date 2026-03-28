@@ -4,18 +4,12 @@
 
 package frc.robot;
 
-import org.littletonrobotics.junction.LogFileUtil;
-import org.littletonrobotics.junction.LoggedRobot;
-import org.littletonrobotics.junction.Logger;
-import org.littletonrobotics.junction.networktables.NT4Publisher;
-import org.littletonrobotics.junction.wpilog.WPILOGReader;
-import org.littletonrobotics.junction.wpilog.WPILOGWriter;
-
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
-
 import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.DrivetrainIOReplay;
 import frc.lib.drivetrain.SwerveDrive;
@@ -23,13 +17,20 @@ import frc.lib.vision.VisionIO;
 import frc.lib.vision.VisionIOPhotonVision;
 import frc.lib.vision.VisionIOReplay;
 import frc.robot.util.Elastic;
-
-import edu.wpi.first.apriltag.AprilTagFieldLayout;
-import edu.wpi.first.apriltag.AprilTagFields;
+import org.littletonrobotics.junction.LogFileUtil;
+import org.littletonrobotics.junction.LoggedRobot;
+import org.littletonrobotics.junction.Logger;
+import org.littletonrobotics.junction.networktables.NT4Publisher;
+import org.littletonrobotics.junction.wpilog.WPILOGReader;
+import org.littletonrobotics.junction.wpilog.WPILOGWriter;
 
 public class Robot extends LoggedRobot {
   /** Robot operating mode. Change to REPLAY to replay log files. */
-  enum Mode { REAL, SIM, REPLAY }
+  enum Mode {
+    REAL,
+    SIM,
+    REPLAY
+  }
 
   static final Mode mode = Robot.isReal() ? Mode.REAL : Mode.SIM;
 
@@ -70,21 +71,24 @@ public class Robot extends LoggedRobot {
 
     Logger.start();
 
-    SwerveDrive swerveDrive = (mode != Mode.REPLAY)
-        ? new SwerveDrive(config)
-        : new SwerveDrive(config, new DrivetrainIOReplay());
+    SwerveDrive swerveDrive =
+        (mode != Mode.REPLAY)
+            ? new SwerveDrive(config)
+            : new SwerveDrive(config, new DrivetrainIOReplay());
 
     VisionIO[] visionIOs;
     if (mode != Mode.REPLAY) {
       AprilTagFieldLayout fieldLayout =
           AprilTagFieldLayout.loadField(AprilTagFields.k2026RebuiltWelded);
-      visionIOs = config.cameras.stream()
-          .map(cfg -> (VisionIO) new VisionIOPhotonVision(cfg, fieldLayout))
-          .toArray(VisionIO[]::new);
+      visionIOs =
+          config.cameras.stream()
+              .map(cfg -> (VisionIO) new VisionIOPhotonVision(cfg, fieldLayout))
+              .toArray(VisionIO[]::new);
     } else {
-      visionIOs = config.cameras.stream()
-          .map(cfg -> (VisionIO) new VisionIOReplay())
-          .toArray(VisionIO[]::new);
+      visionIOs =
+          config.cameras.stream()
+              .map(cfg -> (VisionIO) new VisionIOReplay())
+              .toArray(VisionIO[]::new);
     }
 
     if (config == Robots.FUEL) {
@@ -95,7 +99,9 @@ public class Robot extends LoggedRobot {
 
     String robotName = config == Robots.CORAL ? "CORAL" : "FUEL";
     Elastic.sendNotification(
-        new Elastic.Notification(Elastic.NotificationLevel.INFO, "Robot Ready",
+        new Elastic.Notification(
+            Elastic.NotificationLevel.INFO,
+            "Robot Ready",
             robotName + " initialized with " + config.cameras.size() + " camera(s)"));
   }
 

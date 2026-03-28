@@ -8,7 +8,6 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
-
 import org.junit.jupiter.api.Test;
 
 class DriveInterfaceTest {
@@ -20,8 +19,8 @@ class DriveInterfaceTest {
     boolean headingReset = false;
 
     @Override
-    public void drive(double xSpeed, double ySpeed, double rot,
-                      boolean fieldRelative, double periodSeconds) {
+    public void drive(
+        double xSpeed, double ySpeed, double rot, boolean fieldRelative, double periodSeconds) {
       driveCalled = true;
     }
 
@@ -66,7 +65,8 @@ class DriveInterfaceTest {
     }
 
     @Override
-    public void addVisionMeasurement(Pose2d visionPose, double timestampSeconds, Matrix<N3, N1> stdDevs) {
+    public void addVisionMeasurement(
+        Pose2d visionPose, double timestampSeconds, Matrix<N3, N1> stdDevs) {
       // no-op stub
     }
 
@@ -123,15 +123,15 @@ class DriveInterfaceTest {
   @Test
   void facingAngleThrowsOnStub() {
     StubDrive stub = new StubDrive();
-    assertThrows(UnsupportedOperationException.class,
+    assertThrows(
+        UnsupportedOperationException.class,
         () -> stub.driveFieldCentricFacingAngle(0, 0, new Rotation2d(), 0.02));
   }
 
   @Test
   void followPathCommandThrowsOnStub() {
     StubDrive stub = new StubDrive();
-    assertThrows(UnsupportedOperationException.class,
-        () -> stub.followPathCommand("TestPath"));
+    assertThrows(UnsupportedOperationException.class, () -> stub.followPathCommand("TestPath"));
   }
 
   @Test

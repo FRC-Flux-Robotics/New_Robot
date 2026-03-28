@@ -2,11 +2,11 @@ package frc.lib.drivetrain;
 
 import static edu.wpi.first.units.Units.*;
 
-import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.SignalLogger;
+import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
-import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.configs.Slot0Configs;
+import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.NeutralModeValue;
@@ -28,8 +28,6 @@ import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import com.pathplanner.lib.path.PathPlannerPath;
-import com.pathplanner.lib.util.DriveFeedforwards;
-
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -41,17 +39,16 @@ import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import org.littletonrobotics.junction.Logger;
 
 /** Swerve drivetrain implementation backed by CTRE SwerveDrivetrain. */
-public class SwerveDrive
-    extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
+public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     implements DriveInterface {
 
   private final DrivetrainConfig m_config;
@@ -92,39 +89,42 @@ public class SwerveDrive
       new SwerveRequest.SysIdSwerveRotation();
 
   /* SysId routine for characterizing drive motors (translation) */
-  private final SysIdRoutine m_sysIdRoutineTranslation = new SysIdRoutine(
-      new SysIdRoutine.Config(
-          null,        // Default ramp rate (1 V/s)
-          Volts.of(4), // 4V dynamic step to prevent brownout
-          null,        // Default timeout (10 s)
-          state -> SignalLogger.writeString("SysIdTranslation_State", state.toString())),
-      new SysIdRoutine.Mechanism(
-          output -> setControl(m_translationCharacterization.withVolts(output)), null, this));
+  private final SysIdRoutine m_sysIdRoutineTranslation =
+      new SysIdRoutine(
+          new SysIdRoutine.Config(
+              null, // Default ramp rate (1 V/s)
+              Volts.of(4), // 4V dynamic step to prevent brownout
+              null, // Default timeout (10 s)
+              state -> SignalLogger.writeString("SysIdTranslation_State", state.toString())),
+          new SysIdRoutine.Mechanism(
+              output -> setControl(m_translationCharacterization.withVolts(output)), null, this));
 
   /* SysId routine for characterizing steer motors */
-  private final SysIdRoutine m_sysIdRoutineSteer = new SysIdRoutine(
-      new SysIdRoutine.Config(
-          null,        // Default ramp rate (1 V/s)
-          Volts.of(7), // 7V dynamic step
-          null,        // Default timeout (10 s)
-          state -> SignalLogger.writeString("SysIdSteer_State", state.toString())),
-      new SysIdRoutine.Mechanism(
-          output -> setControl(m_steerCharacterization.withVolts(output)), null, this));
+  private final SysIdRoutine m_sysIdRoutineSteer =
+      new SysIdRoutine(
+          new SysIdRoutine.Config(
+              null, // Default ramp rate (1 V/s)
+              Volts.of(7), // 7V dynamic step
+              null, // Default timeout (10 s)
+              state -> SignalLogger.writeString("SysIdSteer_State", state.toString())),
+          new SysIdRoutine.Mechanism(
+              output -> setControl(m_steerCharacterization.withVolts(output)), null, this));
 
   /* SysId routine for characterizing rotation (heading controller gains) */
-  private final SysIdRoutine m_sysIdRoutineRotation = new SysIdRoutine(
-      new SysIdRoutine.Config(
-          Volts.of(Math.PI / 6).per(Second), // rad/s² (SysId only supports "volts per second")
-          Volts.of(Math.PI),                  // rad/s (SysId only supports "volts")
-          null,                               // Default timeout (10 s)
-          state -> SignalLogger.writeString("SysIdRotation_State", state.toString())),
-      new SysIdRoutine.Mechanism(
-          output -> {
-            setControl(m_rotationCharacterization.withRotationalRate(output.in(Volts)));
-            SignalLogger.writeDouble("Rotational_Rate", output.in(Volts));
-          },
-          null,
-          this));
+  private final SysIdRoutine m_sysIdRoutineRotation =
+      new SysIdRoutine(
+          new SysIdRoutine.Config(
+              Volts.of(Math.PI / 6).per(Second), // rad/s² (SysId only supports "volts per second")
+              Volts.of(Math.PI), // rad/s (SysId only supports "volts")
+              null, // Default timeout (10 s)
+              state -> SignalLogger.writeString("SysIdRotation_State", state.toString())),
+          new SysIdRoutine.Mechanism(
+              output -> {
+                setControl(m_rotationCharacterization.withRotationalRate(output.in(Volts)));
+                SignalLogger.writeDouble("Rotational_Rate", output.in(Volts));
+              },
+              null,
+              this));
 
   private SysIdRoutine m_sysIdRoutineToApply = m_sysIdRoutineTranslation;
 
@@ -178,12 +178,14 @@ public class SwerveDrive
 
   private void startSimThread() {
     m_lastSimTime = Utils.getCurrentTimeSeconds();
-    var simNotifier = new Notifier(() -> {
-      final double currentTime = Utils.getCurrentTimeSeconds();
-      double deltaTime = currentTime - m_lastSimTime;
-      m_lastSimTime = currentTime;
-      updateSimState(deltaTime, RobotController.getBatteryVoltage());
-    });
+    var simNotifier =
+        new Notifier(
+            () -> {
+              final double currentTime = Utils.getCurrentTimeSeconds();
+              double deltaTime = currentTime - m_lastSimTime;
+              m_lastSimTime = currentTime;
+              updateSimState(deltaTime, RobotController.getBatteryVoltage());
+            });
     simNotifier.setName("SwerveSim");
     simNotifier.startPeriodic(0.005);
   }
@@ -195,25 +197,29 @@ public class SwerveDrive
   }
 
   @SuppressWarnings("unchecked")
-  private static SwerveModuleConstants<TalonFXConfiguration, TalonFXConfiguration, CANcoderConfiguration>[]
+  private static SwerveModuleConstants<
+          TalonFXConfiguration, TalonFXConfiguration, CANcoderConfiguration>
+      []
       buildModuleConstants(DrivetrainConfig config) {
 
-    Slot0Configs steerGains = new Slot0Configs()
-        .withKP(config.steerGains.kP)
-        .withKI(config.steerGains.kI)
-        .withKD(config.steerGains.kD)
-        .withKS(config.steerGains.kS)
-        .withKV(config.steerGains.kV)
-        .withKA(config.steerGains.kA)
-        .withStaticFeedforwardSign(StaticFeedforwardSignValue.UseClosedLoopSign);
+    Slot0Configs steerGains =
+        new Slot0Configs()
+            .withKP(config.steerGains.kP)
+            .withKI(config.steerGains.kI)
+            .withKD(config.steerGains.kD)
+            .withKS(config.steerGains.kS)
+            .withKV(config.steerGains.kV)
+            .withKA(config.steerGains.kA)
+            .withStaticFeedforwardSign(StaticFeedforwardSignValue.UseClosedLoopSign);
 
-    Slot0Configs driveGains = new Slot0Configs()
-        .withKP(config.driveGains.kP)
-        .withKI(config.driveGains.kI)
-        .withKD(config.driveGains.kD)
-        .withKS(config.driveGains.kS)
-        .withKV(config.driveGains.kV)
-        .withKA(config.driveGains.kA);
+    Slot0Configs driveGains =
+        new Slot0Configs()
+            .withKP(config.driveGains.kP)
+            .withKI(config.driveGains.kI)
+            .withKD(config.driveGains.kD)
+            .withKS(config.driveGains.kS)
+            .withKV(config.driveGains.kV)
+            .withKA(config.driveGains.kA);
 
     // Drive motor initial configs: current limits + brake mode
     TalonFXConfiguration driveInitialConfigs = new TalonFXConfiguration();
@@ -271,9 +277,12 @@ public class SwerveDrive
     };
   }
 
-  private static SwerveModuleConstants<TalonFXConfiguration, TalonFXConfiguration, CANcoderConfiguration>
+  private static SwerveModuleConstants<
+          TalonFXConfiguration, TalonFXConfiguration, CANcoderConfiguration>
       createModule(
-          SwerveModuleConstantsFactory<TalonFXConfiguration, TalonFXConfiguration, CANcoderConfiguration> factory,
+          SwerveModuleConstantsFactory<
+                  TalonFXConfiguration, TalonFXConfiguration, CANcoderConfiguration>
+              factory,
           ModuleConfig module) {
     return factory.createModuleConstants(
         module.steerMotorId,
@@ -301,8 +310,7 @@ public class SwerveDrive
                   .withWheelForceFeedforwardsY(feedforwards.robotRelativeForcesYNewtons()));
         },
         new PPHolonomicDriveController(
-            new PIDConstants(10.0, 0.0, 0.0),
-            new PIDConstants(7.0, 0.0, 0.0)),
+            new PIDConstants(10.0, 0.0, 0.0), new PIDConstants(7.0, 0.0, 0.0)),
         buildPathPlannerConfig(m_config),
         () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
         this);
@@ -340,7 +348,8 @@ public class SwerveDrive
             1);
 
     return new RobotConfig(
-        60.0, 6.0,
+        60.0,
+        6.0,
         moduleConfig,
         new Translation2d(halfLengthMeters, halfTrackMeters),
         new Translation2d(halfLengthMeters, -halfTrackMeters),
@@ -375,10 +384,7 @@ public class SwerveDrive
   public void driveFieldCentricFacingAngle(
       double xSpeed, double ySpeed, Rotation2d targetAngle, double periodSeconds) {
     this.setControl(
-        m_facingAngle
-            .withVelocityX(xSpeed)
-            .withVelocityY(ySpeed)
-            .withTargetDirection(targetAngle));
+        m_facingAngle.withVelocityX(xSpeed).withVelocityY(ySpeed).withTargetDirection(targetAngle));
   }
 
   @Override
@@ -441,7 +447,8 @@ public class SwerveDrive
   }
 
   @Override
-  public void addVisionMeasurement(Pose2d visionPose, double timestampSeconds, Matrix<N3, N1> stdDevs) {
+  public void addVisionMeasurement(
+      Pose2d visionPose, double timestampSeconds, Matrix<N3, N1> stdDevs) {
     super.addVisionMeasurement(visionPose, timestampSeconds, stdDevs);
   }
 
@@ -473,8 +480,8 @@ public class SwerveDrive
   private static final double kWheelRadiusCharacterizationSpeed = 1.0; // rad/s
 
   /**
-   * Returns a command that spins the robot in place to measure effective wheel radius.
-   * Hold the button to spin; release to stop and read the result from SmartDashboard
+   * Returns a command that spins the robot in place to measure effective wheel radius. Hold the
+   * button to spin; release to stop and read the result from SmartDashboard
    * ("WheelRadius/RadiusInches") or the Driver Station console.
    */
   public Command wheelRadiusCharacterization() {
@@ -487,69 +494,79 @@ public class SwerveDrive
     };
 
     return Commands.sequence(
-        // Record initial gyro yaw and drive motor positions
-        runOnce(() -> {
-          initialYawRotations[0] = getPigeon2().getYaw().getValueAsDouble();
-          var modules = getModules();
-          for (int i = 0; i < 4; i++) {
-            initialDrivePositions[i] = modules[i].getDriveMotor().getPosition().getValueAsDouble();
-          }
-        }),
-        // Spin and continuously measure wheel radius
-        run(() -> {
-          setControl(m_rotationCharacterization
-              .withRotationalRate(kWheelRadiusCharacterizationSpeed));
+            // Record initial gyro yaw and drive motor positions
+            runOnce(
+                () -> {
+                  initialYawRotations[0] = getPigeon2().getYaw().getValueAsDouble();
+                  var modules = getModules();
+                  for (int i = 0; i < 4; i++) {
+                    initialDrivePositions[i] =
+                        modules[i].getDriveMotor().getPosition().getValueAsDouble();
+                  }
+                }),
+            // Spin and continuously measure wheel radius
+            run(
+                () -> {
+                  setControl(
+                      m_rotationCharacterization.withRotationalRate(
+                          kWheelRadiusCharacterizationSpeed));
 
-          double gyroYawRotations = getPigeon2().getYaw().getValueAsDouble();
-          double gyroDeltaRadians = (gyroYawRotations - initialYawRotations[0]) * 2.0 * Math.PI;
+                  double gyroYawRotations = getPigeon2().getYaw().getValueAsDouble();
+                  double gyroDeltaRadians =
+                      (gyroYawRotations - initialYawRotations[0]) * 2.0 * Math.PI;
 
-          if (Math.abs(gyroDeltaRadians) < 0.1) {
-            return; // Not enough rotation yet
-          }
+                  if (Math.abs(gyroDeltaRadians) < 0.1) {
+                    return; // Not enough rotation yet
+                  }
 
-          double radiusSum = 0;
-          int validModules = 0;
-          var modules = getModules();
+                  double radiusSum = 0;
+                  int validModules = 0;
+                  var modules = getModules();
 
-          for (int i = 0; i < 4; i++) {
-            double motorDelta = modules[i].getDriveMotor().getPosition().getValueAsDouble()
-                - initialDrivePositions[i];
-            double wheelRotations = Math.abs(motorDelta) / m_config.driveGearRatio;
+                  for (int i = 0; i < 4; i++) {
+                    double motorDelta =
+                        modules[i].getDriveMotor().getPosition().getValueAsDouble()
+                            - initialDrivePositions[i];
+                    double wheelRotations = Math.abs(motorDelta) / m_config.driveGearRatio;
 
-            if (wheelRotations < 0.01) {
-              continue; // Skip modules with negligible rotation
-            }
+                    if (wheelRotations < 0.01) {
+                      continue; // Skip modules with negligible rotation
+                    }
 
-            double moduleRadiusMeters = Math.hypot(
-                Units.inchesToMeters(moduleConfigs[i].xPositionInches),
-                Units.inchesToMeters(moduleConfigs[i].yPositionInches));
+                    double moduleRadiusMeters =
+                        Math.hypot(
+                            Units.inchesToMeters(moduleConfigs[i].xPositionInches),
+                            Units.inchesToMeters(moduleConfigs[i].yPositionInches));
 
-            double wheelRadiusMeters =
-                (moduleRadiusMeters * Math.abs(gyroDeltaRadians)) / (wheelRotations * 2.0 * Math.PI);
-            radiusSum += wheelRadiusMeters;
-            validModules++;
-          }
+                    double wheelRadiusMeters =
+                        (moduleRadiusMeters * Math.abs(gyroDeltaRadians))
+                            / (wheelRotations * 2.0 * Math.PI);
+                    radiusSum += wheelRadiusMeters;
+                    validModules++;
+                  }
 
-          if (validModules > 0) {
-            double avgRadiusMeters = radiusSum / validModules;
-            lastRadiusInches[0] = Units.metersToInches(avgRadiusMeters);
+                  if (validModules > 0) {
+                    double avgRadiusMeters = radiusSum / validModules;
+                    lastRadiusInches[0] = Units.metersToInches(avgRadiusMeters);
 
-            SmartDashboard.putNumber("WheelRadius/RadiusInches", lastRadiusInches[0]);
-            SmartDashboard.putNumber("WheelRadius/RadiusMeters", avgRadiusMeters);
-            SmartDashboard.putNumber("WheelRadius/GyroRotationsDeg",
-                Math.toDegrees(gyroDeltaRadians));
-            Logger.recordOutput("Drive/WheelRadiusCharacterization", lastRadiusInches[0]);
-          }
-        })
-    ).finallyDo(() -> {
-      setControl(m_idle);
-      if (lastRadiusInches[0] > 0) {
-        DriverStation.reportWarning(
-            String.format("Measured wheel radius: %.4f inches (%.4f meters)",
-                lastRadiusInches[0], Units.inchesToMeters(lastRadiusInches[0])),
-            false);
-      }
-    });
+                    SmartDashboard.putNumber("WheelRadius/RadiusInches", lastRadiusInches[0]);
+                    SmartDashboard.putNumber("WheelRadius/RadiusMeters", avgRadiusMeters);
+                    SmartDashboard.putNumber(
+                        "WheelRadius/GyroRotationsDeg", Math.toDegrees(gyroDeltaRadians));
+                    Logger.recordOutput("Drive/WheelRadiusCharacterization", lastRadiusInches[0]);
+                  }
+                }))
+        .finallyDo(
+            () -> {
+              setControl(m_idle);
+              if (lastRadiusInches[0] > 0) {
+                DriverStation.reportWarning(
+                    String.format(
+                        "Measured wheel radius: %.4f inches (%.4f meters)",
+                        lastRadiusInches[0], Units.inchesToMeters(lastRadiusInches[0])),
+                    false);
+              }
+            });
   }
 
   private void logTelemetry(SwerveDrivetrain.SwerveDriveState state) {
@@ -557,17 +574,16 @@ public class SwerveDrive
     Logger.recordOutput("Drive/Speeds", state.Speeds);
 
     for (int i = 0; i < state.ModuleStates.length; i++) {
-      Logger.recordOutput("Drive/Module" + i + "/Angle",
-          state.ModuleStates[i].angle.getDegrees());
-      Logger.recordOutput("Drive/Module" + i + "/Speed",
-          state.ModuleStates[i].speedMetersPerSecond);
+      Logger.recordOutput("Drive/Module" + i + "/Angle", state.ModuleStates[i].angle.getDegrees());
+      Logger.recordOutput(
+          "Drive/Module" + i + "/Speed", state.ModuleStates[i].speedMetersPerSecond);
     }
 
     for (int i = 0; i < state.ModuleTargets.length; i++) {
-      Logger.recordOutput("Drive/Module" + i + "/TargetAngle",
-          state.ModuleTargets[i].angle.getDegrees());
-      Logger.recordOutput("Drive/Module" + i + "/TargetSpeed",
-          state.ModuleTargets[i].speedMetersPerSecond);
+      Logger.recordOutput(
+          "Drive/Module" + i + "/TargetAngle", state.ModuleTargets[i].angle.getDegrees());
+      Logger.recordOutput(
+          "Drive/Module" + i + "/TargetSpeed", state.ModuleTargets[i].speedMetersPerSecond);
     }
 
     Logger.recordOutput("Drive/OdometryPeriod", state.OdometryPeriod);
@@ -578,5 +594,4 @@ public class SwerveDrive
     m_io.updateInputs(m_ioInputs);
     Logger.processInputs("Drive", m_ioInputs);
   }
-
 }

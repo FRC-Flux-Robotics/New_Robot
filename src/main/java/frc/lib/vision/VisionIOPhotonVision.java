@@ -1,18 +1,15 @@
 package frc.lib.vision;
 
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.wpilibj.DriverStation;
+import frc.lib.drivetrain.CameraConfig;
 import java.util.Comparator;
 import java.util.List;
-
 import org.photonvision.PhotonCamera;
 import org.photonvision.PhotonPoseEstimator;
 import org.photonvision.PhotonPoseEstimator.PoseStrategy;
 import org.photonvision.targeting.PhotonPipelineResult;
 import org.photonvision.targeting.PhotonTrackedTarget;
-
-import edu.wpi.first.apriltag.AprilTagFieldLayout;
-import edu.wpi.first.wpilibj.DriverStation;
-
-import frc.lib.drivetrain.CameraConfig;
 
 /** Real PhotonVision hardware IO. One instance per camera. */
 public class VisionIOPhotonVision implements VisionIO {
@@ -26,8 +23,9 @@ public class VisionIOPhotonVision implements VisionIO {
 
   public VisionIOPhotonVision(CameraConfig config, AprilTagFieldLayout fieldLayout) {
     m_camera = new PhotonCamera(config.name());
-    m_poseEstimator = new PhotonPoseEstimator(
-        fieldLayout, PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, config.robotToCamera());
+    m_poseEstimator =
+        new PhotonPoseEstimator(
+            fieldLayout, PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, config.robotToCamera());
     m_poseEstimator.setMultiTagFallbackStrategy(PoseStrategy.LOWEST_AMBIGUITY);
   }
 
@@ -79,8 +77,7 @@ public class VisionIOPhotonVision implements VisionIO {
 
     // Best target (largest area)
     if (inputs.hasTargets) {
-      var best = targets.stream()
-          .max(Comparator.comparingDouble(PhotonTrackedTarget::getArea));
+      var best = targets.stream().max(Comparator.comparingDouble(PhotonTrackedTarget::getArea));
       if (best.isPresent()) {
         inputs.bestTargetId = best.get().getFiducialId();
         inputs.bestTargetYaw = best.get().getYaw();

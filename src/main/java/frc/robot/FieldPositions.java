@@ -7,14 +7,13 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-
 import java.util.Map;
 
 /**
- * Alliance-neutral field positions. All positions defined from blue alliance perspective
- * and automatically mirrored for red alliance at runtime.
+ * Alliance-neutral field positions. All positions defined from blue alliance perspective and
+ * automatically mirrored for red alliance at runtime.
  *
- * Alliance source priority: FMS game data > dashboard override > blue default.
+ * <p>Alliance source priority: FMS game data > dashboard override > blue default.
  */
 public final class FieldPositions {
 
@@ -26,11 +25,12 @@ public final class FieldPositions {
   private static final Pose2d RIGHT = new Pose2d(1.0, 1.0, new Rotation2d());
   private static final Pose2d HUB = new Pose2d(3.5, 4.1, new Rotation2d());
 
-  private static final Map<String, Pose2d> POSITIONS = Map.of(
-      "Origin", ORIGIN,
-      "Left", LEFT,
-      "Right", RIGHT,
-      "HUB", HUB);
+  private static final Map<String, Pose2d> POSITIONS =
+      Map.of(
+          "Origin", ORIGIN,
+          "Left", LEFT,
+          "Right", RIGHT,
+          "HUB", HUB);
 
   private static final SendableChooser<Alliance> s_allianceChooser = new SendableChooser<>();
 
@@ -44,8 +44,8 @@ public final class FieldPositions {
   }
 
   /**
-   * Returns true if currently on red alliance.
-   * Uses FMS data when connected, otherwise falls back to dashboard chooser.
+   * Returns true if currently on red alliance. Uses FMS data when connected, otherwise falls back
+   * to dashboard chooser.
    */
   public static boolean isRedAlliance() {
     // FMS data takes priority when available

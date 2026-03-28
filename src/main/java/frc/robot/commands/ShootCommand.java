@@ -1,14 +1,12 @@
 package frc.robot.commands;
 
+import edu.wpi.first.wpilibj2.command.Command;
 import frc.lib.mechanism.VelocityMechanism;
-
 import java.util.function.DoubleSupplier;
 
-import edu.wpi.first.wpilibj2.command.Command;
-
 /**
- * Toggles the shooter on/off. If spinning, stops it. If stopped, starts at supplied speed.
- * Finishes immediately after toggling.
+ * Toggles the shooter on/off. If spinning, stops it. If stopped, starts at supplied speed. Finishes
+ * immediately after toggling.
  */
 public class ShootCommand extends Command {
   private final VelocityMechanism m_shooter;

@@ -98,33 +98,100 @@ public final class Elastic {
       this(level, title, description, 3000, width, height);
     }
 
-    public NotificationLevel getLevel() { return level; }
-    public void setLevel(NotificationLevel level) { this.level = level; }
+    public NotificationLevel getLevel() {
+      return level;
+    }
 
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+    public void setLevel(NotificationLevel level) {
+      this.level = level;
+    }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    public String getTitle() {
+      return title;
+    }
 
-    public int getDisplayTimeMillis() { return displayTimeMillis; }
-    public void setDisplayTimeMillis(int displayTimeMillis) { this.displayTimeMillis = displayTimeMillis; }
-    public void setDisplayTimeSeconds(double seconds) { setDisplayTimeMillis((int) Math.round(seconds * 1000)); }
+    public void setTitle(String title) {
+      this.title = title;
+    }
 
-    public double getWidth() { return width; }
-    public void setWidth(double width) { this.width = width; }
+    public String getDescription() {
+      return description;
+    }
 
-    public double getHeight() { return height; }
-    public void setHeight(double height) { this.height = height; }
+    public void setDescription(String description) {
+      this.description = description;
+    }
 
-    public Notification withLevel(NotificationLevel level) { this.level = level; return this; }
-    public Notification withTitle(String title) { setTitle(title); return this; }
-    public Notification withDescription(String description) { setDescription(description); return this; }
-    public Notification withDisplaySeconds(double seconds) { return withDisplayMilliseconds((int) Math.round(seconds * 1000)); }
-    public Notification withDisplayMilliseconds(int displayTimeMillis) { setDisplayTimeMillis(displayTimeMillis); return this; }
-    public Notification withWidth(double width) { setWidth(width); return this; }
-    public Notification withHeight(double height) { setHeight(height); return this; }
-    public Notification withAutomaticHeight() { setHeight(-1); return this; }
-    public Notification withNoAutoDismiss() { setDisplayTimeMillis(0); return this; }
+    public int getDisplayTimeMillis() {
+      return displayTimeMillis;
+    }
+
+    public void setDisplayTimeMillis(int displayTimeMillis) {
+      this.displayTimeMillis = displayTimeMillis;
+    }
+
+    public void setDisplayTimeSeconds(double seconds) {
+      setDisplayTimeMillis((int) Math.round(seconds * 1000));
+    }
+
+    public double getWidth() {
+      return width;
+    }
+
+    public void setWidth(double width) {
+      this.width = width;
+    }
+
+    public double getHeight() {
+      return height;
+    }
+
+    public void setHeight(double height) {
+      this.height = height;
+    }
+
+    public Notification withLevel(NotificationLevel level) {
+      this.level = level;
+      return this;
+    }
+
+    public Notification withTitle(String title) {
+      setTitle(title);
+      return this;
+    }
+
+    public Notification withDescription(String description) {
+      setDescription(description);
+      return this;
+    }
+
+    public Notification withDisplaySeconds(double seconds) {
+      return withDisplayMilliseconds((int) Math.round(seconds * 1000));
+    }
+
+    public Notification withDisplayMilliseconds(int displayTimeMillis) {
+      setDisplayTimeMillis(displayTimeMillis);
+      return this;
+    }
+
+    public Notification withWidth(double width) {
+      setWidth(width);
+      return this;
+    }
+
+    public Notification withHeight(double height) {
+      setHeight(height);
+      return this;
+    }
+
+    public Notification withAutomaticHeight() {
+      setHeight(-1);
+      return this;
+    }
+
+    public Notification withNoAutoDismiss() {
+      setDisplayTimeMillis(0);
+      return this;
+    }
   }
 }

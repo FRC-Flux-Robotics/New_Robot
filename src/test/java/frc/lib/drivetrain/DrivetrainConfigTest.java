@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
-
 import org.junit.jupiter.api.Test;
 
 class DrivetrainConfigTest {
@@ -67,22 +66,23 @@ class DrivetrainConfigTest {
 
   @Test
   void builderThrowsOnMissingPigeonId() {
-    var builder = new DrivetrainConfig.Builder()
-        .canBusName("test")
-        // pigeonId not set (defaults to -1)
-        .frontLeft(testModule(1, 1))
-        .frontRight(testModule(1, -1))
-        .backLeft(testModule(-1, 1))
-        .backRight(testModule(-1, -1))
-        .driveGearRatio(6.39)
-        .steerGearRatio(12.1)
-        .wheelRadiusInches(2.0)
-        .maxSpeedMps(4.5)
-        .maxAngularRateRadPerSec(Math.PI)
-        .steerGains(new PIDGains(100, 0, 0.5))
-        .driveGains(new PIDGains(0.1, 0, 0))
-        .trackWidthInches(23.5)
-        .trackLengthInches(23.5);
+    var builder =
+        new DrivetrainConfig.Builder()
+            .canBusName("test")
+            // pigeonId not set (defaults to -1)
+            .frontLeft(testModule(1, 1))
+            .frontRight(testModule(1, -1))
+            .backLeft(testModule(-1, 1))
+            .backRight(testModule(-1, -1))
+            .driveGearRatio(6.39)
+            .steerGearRatio(12.1)
+            .wheelRadiusInches(2.0)
+            .maxSpeedMps(4.5)
+            .maxAngularRateRadPerSec(Math.PI)
+            .steerGains(new PIDGains(100, 0, 0.5))
+            .driveGains(new PIDGains(0.1, 0, 0))
+            .trackWidthInches(23.5)
+            .trackLengthInches(23.5);
     assertThrows(IllegalStateException.class, builder::build);
   }
 
@@ -166,9 +166,7 @@ class DrivetrainConfigTest {
   @Test
   void singleCameraInList() {
     var transform = new Transform3d(new Translation3d(0.3, 0, 0.25), new Rotation3d());
-    DrivetrainConfig config = validBuilder()
-        .camera(new CameraConfig("Cam1", transform))
-        .build();
+    DrivetrainConfig config = validBuilder().camera(new CameraConfig("Cam1", transform)).build();
     assertEquals(1, config.cameras.size());
     assertEquals("Cam1", config.cameras.get(0).name());
   }
@@ -176,10 +174,11 @@ class DrivetrainConfigTest {
   @Test
   void multipleCamerasInList() {
     var transform = new Transform3d(new Translation3d(0.3, 0, 0.25), new Rotation3d());
-    DrivetrainConfig config = validBuilder()
-        .camera(new CameraConfig("Cam1", transform))
-        .camera(new CameraConfig("Cam2", transform))
-        .build();
+    DrivetrainConfig config =
+        validBuilder()
+            .camera(new CameraConfig("Cam1", transform))
+            .camera(new CameraConfig("Cam2", transform))
+            .build();
     assertEquals(2, config.cameras.size());
     assertEquals("Cam1", config.cameras.get(0).name());
     assertEquals("Cam2", config.cameras.get(1).name());
@@ -188,10 +187,9 @@ class DrivetrainConfigTest {
   @Test
   void camerasListIsUnmodifiable() {
     var transform = new Transform3d(new Translation3d(0.3, 0, 0.25), new Rotation3d());
-    DrivetrainConfig config = validBuilder()
-        .camera(new CameraConfig("Cam1", transform))
-        .build();
-    assertThrows(UnsupportedOperationException.class,
+    DrivetrainConfig config = validBuilder().camera(new CameraConfig("Cam1", transform)).build();
+    assertThrows(
+        UnsupportedOperationException.class,
         () -> config.cameras.add(new CameraConfig("Cam2", transform)));
   }
 
@@ -204,10 +202,8 @@ class DrivetrainConfigTest {
 
   @Test
   void motionMagicExpoCustomValues() {
-    DrivetrainConfig config = validBuilder()
-        .steerMotionMagicExpoKv(0.2)
-        .steerMotionMagicExpoKa(0.05)
-        .build();
+    DrivetrainConfig config =
+        validBuilder().steerMotionMagicExpoKv(0.2).steerMotionMagicExpoKa(0.05).build();
     assertEquals(0.2, config.steerMotionMagicExpoKv, 0.001);
     assertEquals(0.05, config.steerMotionMagicExpoKa, 0.001);
   }
@@ -223,9 +219,7 @@ class DrivetrainConfigTest {
 
   @Test
   void headingGainsCustomValues() {
-    DrivetrainConfig config = validBuilder()
-        .headingGains(new PIDGains(8.0, 0.1, 0.5))
-        .build();
+    DrivetrainConfig config = validBuilder().headingGains(new PIDGains(8.0, 0.1, 0.5)).build();
     assertEquals(8.0, config.headingGains.kP, 0.001);
     assertEquals(0.1, config.headingGains.kI, 0.001);
     assertEquals(0.5, config.headingGains.kD, 0.001);
