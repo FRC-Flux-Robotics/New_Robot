@@ -5,17 +5,14 @@ import static edu.wpi.first.units.Units.*;
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
-import com.ctre.phoenix6.configs.FeedbackConfigs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.NeutralOut;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 
-import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.FuelConstants;
-import frc.robot.PIDCtrl;
 
 public class VelocityMech extends SubsystemBase {
     private final String name;
@@ -32,11 +29,6 @@ public class VelocityMech extends SubsystemBase {
     private double velocityRPM = 0;
     private double targetVelocity = DefaultVelocityRPS;
     private double velocity = 0;
-
-    private final PIDCtrl pidCtrl;
-    private final PIDController pidController;
-
-    private double timeDelta = FuelConstants.TimePeriod;
 
     public static final double DefaultVelocityRPS = 50.0;
     public static final double MaxMotorRPM = 6000;
@@ -61,10 +53,6 @@ public class VelocityMech extends SubsystemBase {
 
     public double rpmDelta = DeltaRPM;
 
-    private int execCounter = 0;
-    private double time = 0;
-    private double controlValueUp = 0;
-    private double controlValueDown = 0;
     private boolean atSpeed = false;
 
     public VelocityMech(CANBus canBus, String name, int motorId) {
@@ -72,12 +60,7 @@ public class VelocityMech extends SubsystemBase {
         motor = new TalonFX(motorId, canBus);
         config = new TalonFXConfiguration();
 
-        FeedbackConfigs feedback = config.Feedback;
-
         setConfig();
-
-        pidController = new PIDController(kP, kI, kD);
-        pidCtrl = new PIDCtrl(kP, kD, kI, timeDelta);
     }
 
     public void setTargetSpeed(double speed)
@@ -105,7 +88,6 @@ public class VelocityMech extends SubsystemBase {
         {
             double vel = direction == FuelConstants.Backward ? -targetVelocity : targetVelocity;
             motor.setControl(velocityVoltage.withVelocity(vel));
-            System.out.println("setControl-periodic " + vel);
         }
 
         double vel = 60 * getVelocity();
@@ -119,26 +101,8 @@ public class VelocityMech extends SubsystemBase {
         atSpeed = Math.abs(vel - target) <= rpmDelta;
     }
 
-    public void init(double rpm) {
-        getParams();
-
-        velocityRPM = rpm;
-        execCounter = 0;
-
-        time = 0;
-        controlValueUp = 0;
-        controlValueDown = 0;
-        running = false;
-        targetVelocityChanged = false;
-        atSpeed = false;
-    }
-
     public void reset()
     {
-        execCounter = 0;
-        time = 0;
-        controlValueUp = 0;
-        controlValueDown = 0;
         running = false;
         targetVelocityChanged = false;
         atSpeed = false;
@@ -171,11 +135,6 @@ public class VelocityMech extends SubsystemBase {
     public void stop() {
         motor.setControl(brake);
         reset();
-    }
-
-    protected double validateVelocity(double v)
-    {
-        return v;
     }
 
     public void setConfig()
@@ -249,9 +208,6 @@ public class VelocityMech extends SubsystemBase {
 
         double vel = SmartDashboard.getNumber(prefix + "Set RPM", DefaultVelocityRPS);
         vel /= 60.0;
-        vel = validateVelocity(vel);
         setTargetSpeed(vel);
-
-        pidCtrl.pid(kP, kD, kI);
     }
 }

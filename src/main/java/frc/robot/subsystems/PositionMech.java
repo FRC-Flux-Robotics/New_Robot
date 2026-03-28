@@ -5,18 +5,15 @@ import static edu.wpi.first.units.Units.*;
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
-import com.ctre.phoenix6.configs.FeedbackConfigs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.NeutralOut;
 import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 
-import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.FuelConstants;
-import frc.robot.PIDCtrl;
 
 public class PositionMech extends SubsystemBase {
     private final String name;
@@ -32,15 +29,7 @@ public class PositionMech extends SubsystemBase {
     private double targetPosition = DefaultPosition;
     private double position = 0;
     private boolean running = false;
-    private boolean atTarget = false;
     private boolean targetPositionChanged = false;
-    private double velocityRPM = 0;
-    private double velocity = 0;
-
-    private final PIDCtrl pidCtrl;
-    private final PIDController pidController;
-
-    private double timeDelta = FuelConstants.TimePeriod;
 
     public static final double DefaultPosition = 100.0;
     public static final double MaxMotorRPM = 6000;
@@ -68,10 +57,6 @@ public class PositionMech extends SubsystemBase {
     public double posDelta = DeltaPos;
     private int jogStep = JogStep;
 
-    private int execCounter = 0;
-    private double time = 0;
-    private double controlValueUp = 0;
-    private double controlValueDown = 0;
     private boolean atPosition = false;
 
     public PositionMech(CANBus canBus, String name, int motorId) {
@@ -80,9 +65,6 @@ public class PositionMech extends SubsystemBase {
 
         config = new TalonFXConfiguration();
         setConfig();
-
-        pidController = new PIDController(kP, kI, kD);
-        pidCtrl = new PIDCtrl(kP, kD, kI, timeDelta);
     }
 
     public void setTargetPosition(double pos)
@@ -102,7 +84,6 @@ public class PositionMech extends SubsystemBase {
 
     public void resetEncoders()
     {
-        System.out.println("resetEncoders");
         motor.setPosition(Rotations.of(0.0));
     }
 
@@ -124,27 +105,11 @@ public class PositionMech extends SubsystemBase {
         atPosition = Math.abs(pos - targetPosition) <= posDelta;
     }
 
-    public void init(double rpm) {
-        getParams();
-
-        execCounter = 0;
-        time = 0;
-        controlValueUp = 0;
-        controlValueDown = 0;
-        running = false;
-        targetPositionChanged = false;
-        atTarget = false;
-    }
-
     public void reset()
     {
-        execCounter = 0;
-        time = 0;
-        controlValueUp = 0;
-        controlValueDown = 0;
         running = false;
         targetPositionChanged = false;
-        atTarget = false;
+        atPosition = false;
     }
 
     public void jogUp(double step)
@@ -162,15 +127,6 @@ public class PositionMech extends SubsystemBase {
         targetPosition = pos;
 
         motor.setControl(positionVoltage.withPosition(pos));
-    }
-
-    public void run() {
-        running = true;
-        if (targetPosition != position)
-        {
-            position = targetPosition;
-            motor.setControl(positionVoltage.withPosition(- position));
-        }
     }
 
     public void run(double pos) {
@@ -198,8 +154,6 @@ public class PositionMech extends SubsystemBase {
         config.Slot0.kD = kD;
         config.Voltage.withPeakForwardVoltage(Volts.of(FuelConstants.PositionPeakVoltage)).withPeakReverseVoltage(Volts.of(-FuelConstants.PositionPeakVoltage));
         config.withCurrentLimits(new CurrentLimitsConfigs().withSupplyCurrentLimit(Amps.of(FuelConstants.PositionCurrentLimit)).withSupplyCurrentLimitEnable(true));
-
-        FeedbackConfigs feedback = config.Feedback;
 
         /* Retry config apply up to 5 times, report if failure */
         StatusCode status = StatusCode.StatusCodeNotInitialized;
@@ -265,7 +219,5 @@ public class PositionMech extends SubsystemBase {
             targetPosition = pos;
             targetPositionChanged = true;
         }
-
-        pidCtrl.pid(kP, kD, kI);
     }
 }
