@@ -23,24 +23,38 @@ import frc.lib.vision.VisionIO;
 /** Owns subsystems, default commands, button bindings, and auto chooser. */
 public class RobotContainer {
 
+  // Legacy max angular rate: 0.75 rotations/sec = 4.712 rad/s
+  private static final double LEGACY_MAX_ANGULAR_RATE = 0.75 * 2 * Math.PI;
+
   private final DriveInterface m_drive;
   private final Vision m_vision; // null if no camera configured
 
   private final CommandXboxController m_controller = new CommandXboxController(0);
   private final CommandXboxController m_sysIdController = new CommandXboxController(1);
 
+  // Slew rate limiters (used when Drive/SlewRate is ON)
   private SlewRateLimiter m_xLimiter;
   private SlewRateLimiter m_yLimiter;
   private SlewRateLimiter m_rotLimiter;
+  private boolean m_prevSlewEnabled = false;
 
+  // Dashboard-tunable sensitivity (used when Drive/TunableSens is ON)
   private final SensitivityTuner m_driveSensitivity =
       new SensitivityTuner("Drive_", 0.09, 0.6, 0.1, 0.3, 0.8);
   private final SensitivityTuner m_rotSensitivity =
       new SensitivityTuner("Rot_", 0.09, 0.6, 0.1, 0.5, 1.0);
 
+  // Fixed sensitivity matching legacy (used when Drive/TunableSens is OFF)
+  private final PiecewiseSensitivity m_legacyDriveSens =
+      new PiecewiseSensitivity(0.09, 0.6, 0.1, 0.3, 0.8);
+  private final PiecewiseSensitivity m_legacyRotSens =
+      new PiecewiseSensitivity(0.09, 0.6, 0.1, 0.5, 1.0);
+
   private final SendableChooser<Command> m_autoChooser = new SendableChooser<>();
   private final SendableChooser<String> m_posePresetChooser = new SendableChooser<>();
   private final Field2d m_field = new Field2d();
+
+  private double m_lastDeadband = 0.1;
 
   public RobotContainer(DriveInterface drive, VisionIO[] visionIOs) {
     m_drive = drive;
@@ -58,49 +72,86 @@ public class RobotContainer {
     m_yLimiter = new SlewRateLimiter(DriverPreferences.accelLimit());
     m_rotLimiter = new SlewRateLimiter(DriverPreferences.rotAccelLimit());
 
+    configureDriveStyle();
     configureDefaultCommand();
     configureButtonBindings();
     configureSysIdBindings();
     configureAutoChooser();
     configurePoseReset();
 
+    // Apply initial deadband (legacy 10%)
+    m_drive.setDeadband(0.1, 0.1);
+
     // Warmup PathPlanner to avoid latency spike on first pathfinding command
     PathfindingCommand.warmupCommand().schedule();
+  }
+
+  private void configureDriveStyle() {
+    // All defaults match legacy behavior (OFF / legacy values)
+    SmartDashboard.putBoolean("Drive/SlewRate", false);
+    SmartDashboard.putBoolean("Drive/SlowMode", false);
+    SmartDashboard.putBoolean("Drive/StickClamp", false);
+    SmartDashboard.putBoolean("Drive/TunableSens", false);
+    SmartDashboard.putBoolean("Drive/SnapToAngle", false);
+    SmartDashboard.putNumber("Drive/Deadband", 0.1);
+    SmartDashboard.putNumber("Drive/MaxRotRate", LEGACY_MAX_ANGULAR_RATE);
   }
 
   private void configureDefaultCommand() {
     m_drive.setDefaultCommand(
         Commands.run(
             () -> {
-              // Apply piecewise sensitivity curves (deadzone + two-segment linear)
-              double xInput = m_driveSensitivity.transfer(-m_controller.getLeftY());
-              double yInput = m_driveSensitivity.transfer(-m_controller.getLeftX());
-              double rotInput = m_rotSensitivity.transfer(-m_controller.getRightX());
+              boolean tunableSens = SmartDashboard.getBoolean("Drive/TunableSens", false);
+              boolean slewEnabled = SmartDashboard.getBoolean("Drive/SlewRate", false);
+              boolean slowMode = SmartDashboard.getBoolean("Drive/SlowMode", false);
+              boolean stickClamp = SmartDashboard.getBoolean("Drive/StickClamp", false);
+              double maxRotRate = SmartDashboard.getNumber("Drive/MaxRotRate", LEGACY_MAX_ANGULAR_RATE);
 
-              // Clamp stick magnitude to unit circle
-              double[] clamped = InputProcessing.clampStickMagnitude(xInput, yInput);
-              xInput = clamped[0];
-              yInput = clamped[1];
-
-              // Slew rate limiting
-              xInput = m_xLimiter.calculate(xInput);
-              yInput = m_yLimiter.calculate(yInput);
-              rotInput = m_rotLimiter.calculate(rotInput);
-
-              // Scale by max speed and driver preferences
-              double speedScale = DriverPreferences.maxSpeedScale();
-              double rotScale = DriverPreferences.maxRotationScale();
-
-              // Slow mode: right trigger > 50%
-              if (m_controller.getRightTriggerAxis() > 0.5) {
-                double slowScale = DriverPreferences.slowModeScale();
-                speedScale *= slowScale;
-                rotScale *= slowScale;
+              // 1. Sensitivity curves
+              double xInput, yInput, rotInput;
+              if (tunableSens) {
+                xInput = m_driveSensitivity.transfer(-m_controller.getLeftY());
+                yInput = m_driveSensitivity.transfer(-m_controller.getLeftX());
+                rotInput = m_rotSensitivity.transfer(-m_controller.getRightX());
+              } else {
+                xInput = m_legacyDriveSens.transfer(-m_controller.getLeftY());
+                yInput = m_legacyDriveSens.transfer(-m_controller.getLeftX());
+                rotInput = m_legacyRotSens.transfer(-m_controller.getRightX());
               }
 
+              // 2. Stick clamping to unit circle (optional)
+              if (stickClamp) {
+                double[] clamped = InputProcessing.clampStickMagnitude(xInput, yInput);
+                xInput = clamped[0];
+                yInput = clamped[1];
+              }
+
+              // 3. Slew rate limiting (optional, reset on enable transition)
+              if (slewEnabled) {
+                if (!m_prevSlewEnabled) {
+                  m_xLimiter.reset(0);
+                  m_yLimiter.reset(0);
+                  m_rotLimiter.reset(0);
+                }
+                xInput = m_xLimiter.calculate(xInput);
+                yInput = m_yLimiter.calculate(yInput);
+                rotInput = m_rotLimiter.calculate(rotInput);
+              }
+              m_prevSlewEnabled = slewEnabled;
+
+              // 4. Speed scaling — slow mode via right trigger (optional)
+              double speedScale = 1.0;
+              double rotScale = 1.0;
+              if (slowMode && m_controller.getRightTriggerAxis() > 0.5) {
+                double slowScale = DriverPreferences.slowModeScale();
+                speedScale = slowScale;
+                rotScale = slowScale;
+              }
+
+              // 5. Final velocities
               double xSpeed = xInput * m_drive.getMaxSpeed() * speedScale;
               double ySpeed = yInput * m_drive.getMaxSpeed() * speedScale;
-              double rot = rotInput * m_drive.getMaxAngularSpeed() * rotScale;
+              double rot = rotInput * maxRotRate * rotScale;
 
               m_drive.drive(xSpeed, ySpeed, rot, true, 0.02);
             },
@@ -116,28 +167,39 @@ public class RobotContainer {
     m_controller.x().whileTrue(
         Commands.run(() -> m_drive.setBrake(), m_drive));
 
+    // Y button: drive to nearest AprilTag if vision available, else reset heading
+    if (m_vision != null) {
+      m_controller.y().whileTrue(new DriveToTag(m_vision, m_drive));
+    } else {
+      m_controller.y().onTrue(
+          Commands.runOnce(() -> m_drive.resetHeading(), m_drive));
+    }
+
     // Right bumper: reset heading
     m_controller.rightBumper().onTrue(
+        Commands.runOnce(() -> m_drive.resetHeading(), m_drive));
+
+    // Left bumper: reset heading (legacy compatibility)
+    m_controller.leftBumper().onTrue(
         Commands.runOnce(() -> m_drive.resetHeading(), m_drive));
 
     // Start button: reset pose to origin
     m_controller.start().onTrue(
         Commands.runOnce(() -> m_drive.resetPose(new Pose2d()), m_drive));
 
-    // Y button: drive to nearest AprilTag (only if vision available)
-    if (m_vision != null) {
-      m_controller.y().whileTrue(new DriveToTag(m_vision, m_drive));
-    }
-
-    // D-pad snap-to-angle: hold D-pad to face cardinal heading
-    m_controller.povUp().whileTrue(
-        Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(0)), m_drive));
-    m_controller.povRight().whileTrue(
-        Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(270)), m_drive));
-    m_controller.povDown().whileTrue(
-        Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(180)), m_drive));
-    m_controller.povLeft().whileTrue(
-        Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(90)), m_drive));
+    // D-pad snap-to-angle: gated by Drive/SnapToAngle toggle
+    m_controller.povUp()
+        .and(() -> SmartDashboard.getBoolean("Drive/SnapToAngle", false))
+        .whileTrue(Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(0)), m_drive));
+    m_controller.povRight()
+        .and(() -> SmartDashboard.getBoolean("Drive/SnapToAngle", false))
+        .whileTrue(Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(270)), m_drive));
+    m_controller.povDown()
+        .and(() -> SmartDashboard.getBoolean("Drive/SnapToAngle", false))
+        .whileTrue(Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(180)), m_drive));
+    m_controller.povLeft()
+        .and(() -> SmartDashboard.getBoolean("Drive/SnapToAngle", false))
+        .whileTrue(Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(90)), m_drive));
   }
 
   private void configureSysIdBindings() {
@@ -191,15 +253,31 @@ public class RobotContainer {
   }
 
   private void snapToAngle(Rotation2d targetAngle) {
-    double xInput = m_driveSensitivity.transfer(-m_controller.getLeftY());
-    double yInput = m_driveSensitivity.transfer(-m_controller.getLeftX());
-    double[] clamped = InputProcessing.clampStickMagnitude(xInput, yInput);
-    xInput = m_xLimiter.calculate(clamped[0]);
-    yInput = m_yLimiter.calculate(clamped[1]);
+    boolean tunableSens = SmartDashboard.getBoolean("Drive/TunableSens", false);
+    double xInput, yInput;
+    if (tunableSens) {
+      xInput = m_driveSensitivity.transfer(-m_controller.getLeftY());
+      yInput = m_driveSensitivity.transfer(-m_controller.getLeftX());
+    } else {
+      xInput = m_legacyDriveSens.transfer(-m_controller.getLeftY());
+      yInput = m_legacyDriveSens.transfer(-m_controller.getLeftX());
+    }
 
-    double speedScale = DriverPreferences.maxSpeedScale();
-    if (m_controller.getRightTriggerAxis() > 0.5) {
-      speedScale *= DriverPreferences.slowModeScale();
+    if (SmartDashboard.getBoolean("Drive/StickClamp", false)) {
+      double[] clamped = InputProcessing.clampStickMagnitude(xInput, yInput);
+      xInput = clamped[0];
+      yInput = clamped[1];
+    }
+
+    if (SmartDashboard.getBoolean("Drive/SlewRate", false)) {
+      xInput = m_xLimiter.calculate(xInput);
+      yInput = m_yLimiter.calculate(yInput);
+    }
+
+    double speedScale = 1.0;
+    if (SmartDashboard.getBoolean("Drive/SlowMode", false)
+        && m_controller.getRightTriggerAxis() > 0.5) {
+      speedScale = DriverPreferences.slowModeScale();
     }
 
     m_drive.driveFieldCentricFacingAngle(
@@ -223,6 +301,13 @@ public class RobotContainer {
     SmartDashboard.putNumber("Pose/Y", pose.getY());
     SmartDashboard.putNumber("Pose/Heading", pose.getRotation().getDegrees());
     SmartDashboard.putNumber("Battery", RobotController.getBatteryVoltage());
+
+    // Update deadband when dashboard value changes
+    double deadband = SmartDashboard.getNumber("Drive/Deadband", 0.1);
+    if (deadband != m_lastDeadband) {
+      m_drive.setDeadband(deadband, deadband);
+      m_lastDeadband = deadband;
+    }
 
     // Vision enable/disable from dashboard
     if (m_vision != null) {

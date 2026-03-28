@@ -344,6 +344,100 @@
           }
         ]
       }
+    },
+    {
+      "name": "Drive Style",
+      "grid_layout": {
+        "layouts": [],
+        "containers": [
+          {
+            "title": "Slew Rate Limiting",
+            "x": 0.0,
+            "y": 0.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Toggle Switch",
+            "properties": {
+              "topic": "/SmartDashboard/Drive/SlewRate",
+              "period": 0.033
+            }
+          },
+          {
+            "title": "Slow Mode (RT)",
+            "x": 256.0,
+            "y": 0.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Toggle Switch",
+            "properties": {
+              "topic": "/SmartDashboard/Drive/SlowMode",
+              "period": 0.033
+            }
+          },
+          {
+            "title": "Stick Clamping",
+            "x": 512.0,
+            "y": 0.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Toggle Switch",
+            "properties": {
+              "topic": "/SmartDashboard/Drive/StickClamp",
+              "period": 0.033
+            }
+          },
+          {
+            "title": "Tunable Sensitivity",
+            "x": 0.0,
+            "y": 128.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Toggle Switch",
+            "properties": {
+              "topic": "/SmartDashboard/Drive/TunableSens",
+              "period": 0.033
+            }
+          },
+          {
+            "title": "Snap-to-Angle (D-pad)",
+            "x": 256.0,
+            "y": 128.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Toggle Switch",
+            "properties": {
+              "topic": "/SmartDashboard/Drive/SnapToAngle",
+              "period": 0.033
+            }
+          },
+          {
+            "title": "Deadband",
+            "x": 0.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Drive/Deadband",
+              "period": 0.033,
+              "show_submit_button": true
+            }
+          },
+          {
+            "title": "Max Rotation Rate (rad/s)",
+            "x": 256.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Drive/MaxRotRate",
+              "period": 0.033,
+              "show_submit_button": true
+            }
+          }
+        ]
+      }
     }
   ]
 }

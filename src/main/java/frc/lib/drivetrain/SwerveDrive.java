@@ -417,6 +417,15 @@ public class SwerveDrive
   }
 
   @Override
+  public void setDeadband(double translationFraction, double rotationFraction) {
+    double transDb = m_maxSpeed * translationFraction;
+    double rotDb = m_maxAngularSpeed * rotationFraction;
+    m_fieldCentric.withDeadband(transDb).withRotationalDeadband(rotDb);
+    m_robotCentric.withDeadband(transDb).withRotationalDeadband(rotDb);
+    m_facingAngle.withDeadband(transDb).withRotationalDeadband(rotDb);
+  }
+
+  @Override
   public void setIdle() {
     this.setControl(m_idle);
   }

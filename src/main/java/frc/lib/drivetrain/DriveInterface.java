@@ -35,6 +35,9 @@ public interface DriveInterface extends Subsystem {
   }
 
   // Control
+  /** Reconfigure request deadbands as a fraction of max speed (e.g. 0.1 = 10%). */
+  default void setDeadband(double translationFraction, double rotationFraction) {}
+
   /** Sets motors to idle (no output). Use when robot is disabled. */
   default void setIdle() {}
 
