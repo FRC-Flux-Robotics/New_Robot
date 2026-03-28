@@ -33,7 +33,9 @@ class VisionRejectionTest {
 
   @Test
   void highAmbiguitySingleTagRejected() {
-    assertEquals("ambiguity", Vision.checkRejection(fieldCenter(), makeInputs(1, 0.5), 0.0, 0.0));
+    assertEquals(
+        VisionRejectReason.TOO_AMBIGUOUS,
+        Vision.checkRejection(fieldCenter(), makeInputs(1, 0.5), 0.0, 0.0));
   }
 
   @Test
@@ -45,25 +47,29 @@ class VisionRejectionTest {
   @Test
   void poseOutsideFieldRejectedNegativeX() {
     Pose3d pose = new Pose3d(-1.0, 4.0, 0.0, new Rotation3d());
-    assertEquals("out_of_field", Vision.checkRejection(pose, makeInputs(1, 0.1), 0.0, 0.0));
+    assertEquals(
+        VisionRejectReason.OUT_OF_FIELD, Vision.checkRejection(pose, makeInputs(1, 0.1), 0.0, 0.0));
   }
 
   @Test
   void poseOutsideFieldRejectedLargeX() {
     Pose3d pose = new Pose3d(18.0, 4.0, 0.0, new Rotation3d());
-    assertEquals("out_of_field", Vision.checkRejection(pose, makeInputs(1, 0.1), 0.0, 0.0));
+    assertEquals(
+        VisionRejectReason.OUT_OF_FIELD, Vision.checkRejection(pose, makeInputs(1, 0.1), 0.0, 0.0));
   }
 
   @Test
   void poseOutsideFieldRejectedNegativeY() {
     Pose3d pose = new Pose3d(8.0, -1.0, 0.0, new Rotation3d());
-    assertEquals("out_of_field", Vision.checkRejection(pose, makeInputs(1, 0.1), 0.0, 0.0));
+    assertEquals(
+        VisionRejectReason.OUT_OF_FIELD, Vision.checkRejection(pose, makeInputs(1, 0.1), 0.0, 0.0));
   }
 
   @Test
   void poseOutsideFieldRejectedLargeY() {
     Pose3d pose = new Pose3d(8.0, 9.0, 0.0, new Rotation3d());
-    assertEquals("out_of_field", Vision.checkRejection(pose, makeInputs(1, 0.1), 0.0, 0.0));
+    assertEquals(
+        VisionRejectReason.OUT_OF_FIELD, Vision.checkRejection(pose, makeInputs(1, 0.1), 0.0, 0.0));
   }
 
   @Test
@@ -76,29 +82,37 @@ class VisionRejectionTest {
   @Test
   void zErrorTooLargeRejected() {
     Pose3d pose = new Pose3d(8.0, 4.0, 1.0, new Rotation3d());
-    assertEquals("z_error", Vision.checkRejection(pose, makeInputs(1, 0.1), 0.0, 0.0));
+    assertEquals(
+        VisionRejectReason.Z_ERROR, Vision.checkRejection(pose, makeInputs(1, 0.1), 0.0, 0.0));
   }
 
   @Test
   void zErrorNegativeRejected() {
     Pose3d pose = new Pose3d(8.0, 4.0, -0.8, new Rotation3d());
-    assertEquals("z_error", Vision.checkRejection(pose, makeInputs(1, 0.1), 0.0, 0.0));
+    assertEquals(
+        VisionRejectReason.Z_ERROR, Vision.checkRejection(pose, makeInputs(1, 0.1), 0.0, 0.0));
   }
 
   @Test
   void spinningTooFastRejected() {
-    assertEquals("spinning", Vision.checkRejection(fieldCenter(), makeInputs(1, 0.1), 0.0, 2.5));
+    assertEquals(
+        VisionRejectReason.ANGULAR_VEL_TOO_HIGH,
+        Vision.checkRejection(fieldCenter(), makeInputs(1, 0.1), 0.0, 2.5));
   }
 
   @Test
   void movingTooFastRejected() {
-    assertEquals("too_fast", Vision.checkRejection(fieldCenter(), makeInputs(1, 0.1), 3.5, 0.0));
+    assertEquals(
+        VisionRejectReason.MOVING_TOO_FAST,
+        Vision.checkRejection(fieldCenter(), makeInputs(1, 0.1), 3.5, 0.0));
   }
 
   @Test
   void firstRejectReasonReturned() {
     // High ambiguity + out of field — ambiguity is checked first
     Pose3d pose = new Pose3d(-5.0, 4.0, 0.0, new Rotation3d());
-    assertEquals("ambiguity", Vision.checkRejection(pose, makeInputs(1, 0.5), 0.0, 0.0));
+    assertEquals(
+        VisionRejectReason.TOO_AMBIGUOUS,
+        Vision.checkRejection(pose, makeInputs(1, 0.5), 0.0, 0.0));
   }
 }

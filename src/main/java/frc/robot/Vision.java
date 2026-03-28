@@ -36,6 +36,7 @@ public class Vision extends SubsystemBase {
   private final VisionIOInputsAutoLogged[] m_inputs;
   private final AprilTagFieldLayout m_fieldLayout;
   private final DriveInterface m_drive;
+  private final int[][] m_rejectionCounts;
 
   private Matrix<N3, N1> m_curStdDevs = kSingleTagStdDevs;
   private Pose2d m_lastVisionPose = new Pose2d();
@@ -47,6 +48,7 @@ public class Vision extends SubsystemBase {
     m_fieldLayout = AprilTagFieldLayout.loadField(AprilTagFields.k2026RebuiltWelded);
 
     m_inputs = new VisionIOInputsAutoLogged[ios.length];
+    m_rejectionCounts = new int[ios.length][VisionRejectReason.values().length];
     for (int i = 0; i < ios.length; i++) {
       m_inputs[i] = new VisionIOInputsAutoLogged();
     }
@@ -77,9 +79,14 @@ public class Vision extends SubsystemBase {
         double linearSpeed = Math.hypot(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond);
         double angularSpeed = Math.abs(speeds.omegaRadiansPerSecond);
 
-        String rejection = checkRejection(estimatedPose3d, inputs, linearSpeed, angularSpeed);
+        VisionRejectReason rejection =
+            checkRejection(estimatedPose3d, inputs, linearSpeed, angularSpeed);
         Logger.recordOutput(prefix + "Rejected", rejection != null);
-        Logger.recordOutput(prefix + "RejectionReason", rejection != null ? rejection : "");
+        Logger.recordOutput(prefix + "RejectionReason", rejection != null ? rejection.name() : "");
+
+        if (rejection != null) {
+          m_rejectionCounts[i][rejection.ordinal()]++;
+        }
 
         if (m_enabled && rejection == null) {
           m_drive.addVisionMeasurement(estimatedPose2d, inputs.poseTimestamp, m_curStdDevs);
@@ -89,6 +96,14 @@ public class Vision extends SubsystemBase {
       Logger.recordOutput(prefix + "Connected", inputs.connected);
       Logger.recordOutput(prefix + "HasTargets", inputs.hasTargets);
       Logger.recordOutput(prefix + "TagCount", inputs.targetCount);
+    }
+
+    // Log rejection counts per reason per camera
+    for (int i = 0; i < m_ios.length; i++) {
+      String prefix = "Vision/Camera" + i + "/Rejections/";
+      for (VisionRejectReason reason : VisionRejectReason.values()) {
+        Logger.recordOutput(prefix + reason.name(), m_rejectionCounts[i][reason.ordinal()]);
+      }
     }
 
     // Aggregate telemetry
@@ -160,15 +175,15 @@ public class Vision extends SubsystemBase {
     return bestId;
   }
 
-  /** Returns null if measurement is acceptable, or a rejection reason string. */
-  static String checkRejection(
+  /** Returns null if measurement is acceptable, or a {@link VisionRejectReason}. */
+  static VisionRejectReason checkRejection(
       Pose3d estimatedPose,
       VisionIO.VisionIOInputs inputs,
       double linearSpeedMps,
       double angularSpeedRadPerSec) {
     // Single-tag ambiguity check
     if (inputs.targetCount == 1 && inputs.targetPoseAmbiguities[0] > MAX_AMBIGUITY) {
-      return "ambiguity";
+      return VisionRejectReason.TOO_AMBIGUOUS;
     }
     // Pose outside field bounds
     double x = estimatedPose.getX();
@@ -177,19 +192,19 @@ public class Vision extends SubsystemBase {
         || x > FIELD_LENGTH_METERS + FIELD_MARGIN_METERS
         || y < -FIELD_MARGIN_METERS
         || y > FIELD_WIDTH_METERS + FIELD_MARGIN_METERS) {
-      return "out_of_field";
+      return VisionRejectReason.OUT_OF_FIELD;
     }
     // Z-error too large
     if (Math.abs(estimatedPose.getZ()) > MAX_Z_ERROR_METERS) {
-      return "z_error";
+      return VisionRejectReason.Z_ERROR;
     }
     // Robot spinning too fast
     if (angularSpeedRadPerSec > MAX_ANGULAR_SPEED_RAD_PER_SEC) {
-      return "spinning";
+      return VisionRejectReason.ANGULAR_VEL_TOO_HIGH;
     }
     // Robot moving too fast
     if (linearSpeedMps > MAX_LINEAR_SPEED_MPS) {
-      return "too_fast";
+      return VisionRejectReason.MOVING_TOO_FAST;
     }
     return null;
   }
