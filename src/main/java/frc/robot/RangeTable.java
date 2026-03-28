@@ -22,12 +22,9 @@ public class RangeTable
 // 4.25 in = 20 => k = 4.7
     private final double hoodCoef = (9.0 - 0.0) / 2.0;  // Position/inch
 
-    // BUG FIX (S5-4): FuelConstants.RobotLengthMeters is already in meters, but was being
-    // added to inch values before the inchesToMeters() conversion — mixing units in the sum.
-    // Original (broken) code:
-    //   new Range(Units.inchesToMeters(47.75 / 2 + FuelConstants.RobotLengthMeters / 2 - 1 + 8), ...)
-    // Fix: use RobotLengthInches so the entire expression is in inches before conversion.
-    private static final double kRobotLengthInches = 27 + 2 * 3.5; // frame + bumpers (same as FuelConstants)
+    // BUG FIX (S5-4): Robot length was in meters but added to inch values before
+    // the inchesToMeters() conversion — mixing units in the sum. Fixed by using inches throughout.
+    private static final double kRobotLengthInches = 27 + 2 * 3.5; // frame + bumpers
 
     private Range[] ranges =
     {

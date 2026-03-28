@@ -1,21 +1,23 @@
 package frc.robot;
 
-import com.ctre.phoenix6.CANBus;
-
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 
 import frc.lib.drivetrain.DriveInterface;
+import frc.lib.mechanism.MechanismConfig;
+import frc.lib.mechanism.MechanismIO;
+import frc.lib.mechanism.MechanismIODualTalonFX;
+import frc.lib.mechanism.MechanismIOReplay;
+import frc.lib.mechanism.MechanismIOTalonFX;
+import frc.lib.mechanism.PositionMechanism;
+import frc.lib.mechanism.VelocityMechanism;
 import frc.lib.vision.VisionIO;
-import frc.robot.FuelConstants.IndexerConstants;
-import frc.robot.FuelConstants.IntakeConstants;
-import frc.robot.FuelConstants.ShooterConstants;
+import frc.robot.MechanismConfigs.IndexerConstants;
+import frc.robot.MechanismConfigs.IntakeConstants;
+import frc.robot.MechanismConfigs.ShooterConstants;
 import frc.robot.commands.*;
-import frc.robot.subsystems.PositionMech;
-import frc.robot.subsystems.VelocityMech;
-import frc.robot.subsystems.VelocityMech2;
 
 /**
  * FUEL robot container — adds mechanism subsystems and operator controller bindings
@@ -25,14 +27,12 @@ public class FuelRobotContainer extends RobotContainer {
   private static final double TRIGGER_THRESHOLD = 0.5;
   private static final double DRIVER_TRIGGER_THRESHOLD = 0.05;
 
-  private final CANBus canBus = new CANBus(FuelConstants.MECHANISM_CAN_BUS);
-
-  private final VelocityMech intake;
-  private final PositionMech tilter;
-  private final VelocityMech indexer;
-  private final VelocityMech feeder;
-  private final VelocityMech2 shooter;
-  private final PositionMech hood;
+  private final VelocityMechanism intake;
+  private final PositionMechanism tilter;
+  private final VelocityMechanism indexer;
+  private final VelocityMechanism feeder;
+  private final VelocityMechanism shooter;
+  private final PositionMechanism hood;
   private final RangeTable rangeTable;
 
   private final CommandXboxController m_operatorController = new CommandXboxController(1);
@@ -40,18 +40,17 @@ public class FuelRobotContainer extends RobotContainer {
   public FuelRobotContainer(DriveInterface drive, VisionIO[] visionIOs) {
     super(drive, visionIOs);
 
-    intake = new VelocityMech(canBus, "Intake", IntakeConstants.MotorId);
-    tilter = new PositionMech(canBus, "Tilter", IntakeConstants.TiltMotorId);
-    indexer = new VelocityMech(canBus, "Indexer", IndexerConstants.IndexerId);
-    feeder = new VelocityMech(canBus, "Feeder", IndexerConstants.FeederId);
-    shooter = new VelocityMech2(canBus, "Shooter", ShooterConstants.RightMotorId, ShooterConstants.LeftMotorId);
-    hood = new PositionMech(canBus, "Hood", ShooterConstants.HoodMotorId);
+    intake = new VelocityMechanism(createIO(MechanismConfigs.INTAKE), MechanismConfigs.INTAKE);
+    tilter = new PositionMechanism(createIO(MechanismConfigs.TILT), MechanismConfigs.TILT);
+    indexer = new VelocityMechanism(createIO(MechanismConfigs.INDEXER), MechanismConfigs.INDEXER);
+    feeder = new VelocityMechanism(createIO(MechanismConfigs.FEEDER), MechanismConfigs.FEEDER);
+    shooter = new VelocityMechanism(createIO(MechanismConfigs.SHOOTER), MechanismConfigs.SHOOTER);
+    hood = new PositionMechanism(createIO(MechanismConfigs.HOOD), MechanismConfigs.HOOD);
 
     rangeTable = new RangeTable();
 
     configureFuelDriverBindings();
     configureFuelBindings();
-    storeParameters();
   }
 
   // --- Override base class driver bindings (no-ops, replaced by configureFuelDriverBindings) ---
@@ -68,15 +67,15 @@ public class FuelRobotContainer extends RobotContainer {
 
     // Right Trigger: intake IN
     m_controller.rightTrigger(DRIVER_TRIGGER_THRESHOLD).whileTrue(
-        new VelocityCmd(intake, () -> IntakeConstants.InSpeed, FuelConstants.Forward));
+        new VelocityCmd(intake, () -> IntakeConstants.InSpeed));
 
     // Right Bumper: intake OUT
     m_controller.rightBumper().whileTrue(
-        new VelocityCmd(intake, () -> IntakeConstants.OutSpeed, FuelConstants.Backward));
+        new VelocityCmd(intake, () -> -IntakeConstants.OutSpeed));
 
     // A: deploy intake (4 sequential tilt jogs)
     Command jogIntakeOut = Commands.sequence(
-        new RunCommand(() -> tilter.jogDown(IntakeConstants.TiltStep), tilter),
+        new RunCommand(() -> tilter.jogDown(), tilter),
         Commands.waitSeconds(0.2));
     m_controller.a().onTrue(Commands.sequence(
         jogIntakeOut.asProxy(),
@@ -86,9 +85,9 @@ public class FuelRobotContainer extends RobotContainer {
 
     // POV Left/Right: manual intake tilt
     m_controller.povLeft().whileTrue(
-        new RunCommand(() -> tilter.jogDown(IntakeConstants.TiltStep), tilter));
+        new RunCommand(() -> tilter.jogDown(), tilter));
     m_controller.povRight().whileTrue(
-        new RunCommand(() -> tilter.jogUp(IntakeConstants.TiltStep), tilter));
+        new RunCommand(() -> tilter.jogUp(), tilter));
 
     // Left Bumper: seed field-centric heading
     m_controller.leftBumper().whileTrue(
@@ -102,24 +101,17 @@ public class FuelRobotContainer extends RobotContainer {
   private void configureFuelBindings() {
     CommandXboxController controller = m_operatorController;
 
-    // Intake control (on driver controller)
-    // Right Trigger - Run intake roller IN
-    // Right Bumper - Run intake roller OUT
-    // (Note: these override the sysId controller on port 1 — FUEL uses port 1 for operator)
-
-    // Operator controller bindings (two-controller mode from legacy):
-
-    // Feeder: Right Trigger
+    // Feeder: Right Trigger (backward = negative speed)
     controller.rightTrigger(TRIGGER_THRESHOLD).whileTrue(
-        new VelocityCmd(feeder, () -> IndexerConstants.FeederSpeed, FuelConstants.Backward));
+        new VelocityCmd(feeder, () -> -IndexerConstants.FeederSpeed));
 
     // Indexer: Right Bumper
     controller.rightBumper().whileTrue(
-        new VelocityCmd(indexer, () -> IndexerConstants.Speed, FuelConstants.Forward));
+        new VelocityCmd(indexer, () -> IndexerConstants.Speed));
 
-    // Range shoot: Left Bumper
+    // Range shoot: Left Bumper (15s timeout)
     controller.leftBumper().whileTrue(
-        new RangeShootCmd(shooter, hood, feeder, indexer, rangeTable, getDrive()::getPose));
+        new RangeShootCmd(shooter, hood, feeder, indexer, rangeTable, getDrive()::getPose, 15.0));
 
     // Shooter range presets: A/B/Y
     controller.a().onTrue(new SetShooterRangeCmd(shooter, hood, rangeTable, ShooterConstants.ShortRange));
@@ -128,41 +120,38 @@ public class FuelRobotContainer extends RobotContainer {
 
     // Shooter toggle: Start
     controller.start().toggleOnTrue(
-        new ShootCommand(shooter, () -> ShooterConstants.Speed, FuelConstants.Forward));
+        new ShootCommand(shooter, () -> ShooterConstants.Speed));
 
     // Shooter speed adjust: D-pad left/right + left bumper
     controller.povRight().and(controller.leftBumper()).whileTrue(
-        Commands.runOnce(() -> shooter.speedUp(ShooterConstants.SpeedStep), shooter));
+        Commands.runOnce(() -> shooter.setVelocity(
+            shooter.getTargetVelocity() + ShooterConstants.SpeedStep), shooter));
     controller.povLeft().and(controller.leftBumper()).whileTrue(
-        Commands.runOnce(() -> shooter.speedDown(ShooterConstants.SpeedStep), shooter));
+        Commands.runOnce(() -> {
+          double newSpeed = shooter.getTargetVelocity() - ShooterConstants.SpeedStep;
+          if (newSpeed <= 0) {
+            shooter.stop();
+          } else {
+            shooter.setVelocity(newSpeed);
+          }
+        }, shooter));
 
     // Hood jog: D-pad up/down
-    controller.povUp().whileTrue(new RunCommand(() -> hood.jogUp(ShooterConstants.HoodStep), hood));
-    controller.povDown().whileTrue(new RunCommand(() -> hood.jogDown(ShooterConstants.HoodStep), hood));
+    controller.povUp().whileTrue(new RunCommand(() -> hood.jogUp(), hood));
+    controller.povDown().whileTrue(new RunCommand(() -> hood.jogDown(), hood));
   }
 
-  /** Publish all mechanism PID params to SmartDashboard. */
-  public void storeParameters() {
-    intake.putParams();
-    tilter.putParams();
-    indexer.putParams();
-    feeder.putParams();
-    shooter.putParams();
-    hood.putParams();
-  }
-
-  /** Fetch all mechanism PID params from SmartDashboard. */
-  public void fetchParameters() {
-    intake.getParams();
-    tilter.getParams();
-    indexer.getParams();
-    feeder.getParams();
-    shooter.getParams();
-    hood.getParams();
+  private static MechanismIO createIO(MechanismConfig config) {
+    if (Robot.mode == Robot.Mode.REPLAY) {
+      return new MechanismIOReplay();
+    }
+    return config.secondMotorId >= 0
+        ? new MechanismIODualTalonFX(config)
+        : new MechanismIOTalonFX(config);
   }
 
   public void resetEncoders() {
-    hood.resetEncoders();
-    tilter.resetEncoders();
+    hood.resetPosition();
+    tilter.resetPosition();
   }
 }

@@ -1,100 +1,102 @@
 package frc.robot.commands;
 
-import frc.robot.FuelConstants.ShooterConstants;
+import frc.lib.mechanism.PositionMechanism;
+import frc.lib.mechanism.VelocityMechanism;
 import frc.robot.FieldPositions;
+import frc.robot.MechanismConfigs.IndexerConstants;
 import frc.robot.RangeTable;
-import frc.robot.subsystems.PositionMech;
-import frc.robot.subsystems.VelocityMech;
-import frc.robot.subsystems.VelocityMech2;
 
 import java.util.function.Supplier;
 
 import org.littletonrobotics.junction.Logger;
 
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 
-/** A command for automatic range-based shooting. */
+/**
+ * Automatic range-based shooting. Continuously calculates distance to hub,
+ * sets shooter speed and hood angle from range table, and feeds when shooter
+ * reaches target speed.
+ */
 public class RangeShootCmd extends Command {
-  private final VelocityMech2 shooter;
-  private final PositionMech hood;
-  private final VelocityMech feeder;
-  private final VelocityMech indexer;
-  private final RangeTable rangeTable;
-  private final Supplier<Pose2d> poseProvider;
-  private Translation2d blueHubPos = new Translation2d(Units.inchesToMeters(182.11), Units.inchesToMeters(158.84));
-  private Translation2d redHubPos = new Translation2d(Units.inchesToMeters(651.22 - 182.11), Units.inchesToMeters(158.84));
-  private Pose2d currentPose;
-  private boolean running = false;
-  private boolean poseChanged = false;
-  private double positionTolerance = ShooterConstants.RangePositionTolerance;
+  private final VelocityMechanism m_shooter;
+  private final PositionMechanism m_hood;
+  private final VelocityMechanism m_feeder;
+  private final VelocityMechanism m_indexer;
+  private final RangeTable m_rangeTable;
+  private final Supplier<Pose2d> m_poseSupplier;
+  private final double m_timeoutSeconds;
+  private final Timer m_timer = new Timer();
 
-  public RangeShootCmd(VelocityMech2 shooter, PositionMech hood, VelocityMech feeder, VelocityMech indexer, RangeTable rangeTable, Supplier<Pose2d> poseProvider) {
-    this.shooter = shooter;
-    this.hood = hood;
-    this.indexer = indexer;
-    this.feeder = feeder;
-    this.rangeTable = rangeTable;
-    this.poseProvider = poseProvider;
-    currentPose = poseProvider.get();
+  /**
+   * @param shooter shooter mechanism (dual motor)
+   * @param hood hood position mechanism
+   * @param feeder feeder mechanism
+   * @param indexer indexer mechanism
+   * @param rangeTable lookup table for speed/elevation by distance
+   * @param poseSupplier current robot pose supplier
+   * @param timeoutSeconds auto-finish timeout (0 = no timeout)
+   */
+  public RangeShootCmd(
+      VelocityMechanism shooter,
+      PositionMechanism hood,
+      VelocityMechanism feeder,
+      VelocityMechanism indexer,
+      RangeTable rangeTable,
+      Supplier<Pose2d> poseSupplier,
+      double timeoutSeconds) {
+    m_shooter = shooter;
+    m_hood = hood;
+    m_feeder = feeder;
+    m_indexer = indexer;
+    m_rangeTable = rangeTable;
+    m_poseSupplier = poseSupplier;
+    m_timeoutSeconds = timeoutSeconds;
     addRequirements(shooter, hood, feeder, indexer);
-
-      Logger.recordOutput("RangeShoot/Pose", currentPose);
-      Logger.recordOutput("RangeShoot/Distance", 0);
-      Logger.recordOutput("RangeShoot/RPM", 0);
-      Logger.recordOutput("RangeShoot/Hood", 0);
   }
 
   @Override
   public void initialize() {
-      running = false;
-      poseChanged = false;
+    m_timer.restart();
   }
 
   @Override
   public void execute() {
-      Pose2d pose = poseProvider.get();
-      Translation2d pos = pose.getTranslation();
-      double delta = pos.getDistance(currentPose.getTranslation());
-      {
-        Translation2d hubPos = !FieldPositions.isRedAlliance() ? blueHubPos : redHubPos;
-        double distance = pos.getDistance(hubPos);
+    Pose2d pose = m_poseSupplier.get();
+    Pose2d hubPose = FieldPositions.resolve("HUB");
+    if (hubPose == null) return;
 
-        RangeTable.Range range = rangeTable.getRange(distance);
-        double speed = range.speed;
-        double hoodPos = range.elevation;
-        Logger.recordOutput("RangeShoot/Pose", pose);
-        Logger.recordOutput("RangeShoot/Pose", new Pose2d(hubPos, Rotation2d.kZero));
-        Logger.recordOutput("RangeShoot/Distance", distance);
-        Logger.recordOutput("RangeShoot/RPM", speed);
-        Logger.recordOutput("RangeShoot/Hood", hoodPos);
+    Translation2d hubPos = hubPose.getTranslation();
+    double distance = pose.getTranslation().getDistance(hubPos);
 
-        currentPose = pose;
-        poseChanged = true;
-      }
+    RangeTable.Range range = m_rangeTable.getRange(distance);
+    if (range == null) return;
 
-      if (shooter.atTarget())
-      {
-        running = true;
-        poseChanged = false;
-      }
+    m_shooter.setVelocity(range.speed);
+    m_hood.setPosition(range.elevation);
+
+    Logger.recordOutput("RangeShoot/Distance", distance);
+    Logger.recordOutput("RangeShoot/SpeedRPS", range.speed);
+    Logger.recordOutput("RangeShoot/Hood", range.elevation);
+    Logger.recordOutput("RangeShoot/AtTarget", m_shooter.atTarget());
+
+    if (m_shooter.atTarget()) {
+      m_feeder.setVelocity(IndexerConstants.FeederSpeed);
+      m_indexer.setVelocity(IndexerConstants.Speed);
+    }
   }
 
-    @Override
-    public void end(boolean interrupted)
-    {
-        indexer.stop();
-        feeder.stop();
-        running = false;
-        poseChanged = false;
-    }
+  @Override
+  public void end(boolean interrupted) {
+    m_timer.stop();
+    m_feeder.stop();
+    m_indexer.stop();
+  }
 
-    @Override
-    public boolean isFinished()
-    {
-        return false;
-    }
+  @Override
+  public boolean isFinished() {
+    return m_timeoutSeconds > 0 && m_timer.hasElapsed(m_timeoutSeconds);
+  }
 }

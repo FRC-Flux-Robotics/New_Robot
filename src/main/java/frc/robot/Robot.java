@@ -29,9 +29,9 @@ import edu.wpi.first.apriltag.AprilTagFields;
 
 public class Robot extends LoggedRobot {
   /** Robot operating mode. Change to REPLAY to replay log files. */
-  private enum Mode { REAL, SIM, REPLAY }
+  enum Mode { REAL, SIM, REPLAY }
 
-  private static final Mode mode = Robot.isReal() ? Mode.REAL : Mode.SIM;
+  static final Mode mode = Robot.isReal() ? Mode.REAL : Mode.SIM;
 
   private final RobotContainer m_robotContainer;
   private Command m_autoCommand;

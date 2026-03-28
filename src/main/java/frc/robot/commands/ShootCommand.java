@@ -1,60 +1,40 @@
 package frc.robot.commands;
 
-import frc.robot.FuelConstants;
-import frc.robot.subsystems.VelocityMech2;
+import frc.lib.mechanism.VelocityMechanism;
 
 import java.util.function.DoubleSupplier;
 
 import edu.wpi.first.wpilibj2.command.Command;
 
-/** A command to toggle the shooter on/off. */
+/**
+ * Toggles the shooter on/off. If spinning, stops it. If stopped, starts at supplied speed.
+ * Finishes immediately after toggling.
+ */
 public class ShootCommand extends Command {
-    private final VelocityMech2 velocityMech;
-    private final DoubleSupplier speed;
-    private final int direction;
+  private final VelocityMechanism m_shooter;
+  private final DoubleSupplier m_speedRPS;
 
-    public ShootCommand(VelocityMech2 velocityMech, DoubleSupplier speed, int direction) {
-        this.velocityMech = velocityMech;
-        this.speed = speed;
-        this.direction = direction;
+  /**
+   * @param shooter the shooter mechanism
+   * @param speedRPS supplier returning speed in RPS (sign determines direction)
+   */
+  public ShootCommand(VelocityMechanism shooter, DoubleSupplier speedRPS) {
+    m_shooter = shooter;
+    m_speedRPS = speedRPS;
+    addRequirements(shooter);
+  }
 
-        double v = speed.getAsDouble();
-        velocityMech.setTargetSpeed(v);
-        addRequirements(velocityMech);
+  @Override
+  public void initialize() {
+    if (m_shooter.getTargetVelocity() != 0) {
+      m_shooter.stop();
+    } else {
+      m_shooter.setVelocity(m_speedRPS.getAsDouble());
     }
+  }
 
-    @Override
-    public void initialize()
-    {
-        if (velocityMech.running())
-        {
-            velocityMech.stop();
-        }
-        else
-        {
-            velocityMech.reset();
-
-            double v = speed.getAsDouble();
-            if (direction != FuelConstants.Forward)
-                v = -v;
-             velocityMech.setSpeed(v);
-        }
-    }
-
-    @Override
-    public void execute()
-    {
-    }
-
-    @Override
-    public void end(boolean interrupted)
-    {
-        velocityMech.stop();
-    }
-
-    @Override
-    public boolean isFinished()
-    {
-        return false;
-    }
+  @Override
+  public boolean isFinished() {
+    return true;
+  }
 }

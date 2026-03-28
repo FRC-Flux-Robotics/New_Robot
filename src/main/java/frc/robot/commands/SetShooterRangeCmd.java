@@ -1,51 +1,42 @@
 package frc.robot.commands;
 
+import frc.lib.mechanism.PositionMechanism;
+import frc.lib.mechanism.VelocityMechanism;
 import frc.robot.RangeTable;
-import frc.robot.subsystems.PositionMech;
-import frc.robot.subsystems.VelocityMech2;
 
 import edu.wpi.first.wpilibj2.command.Command;
 
-/** A command to set shooter speed and hood position from a range preset. */
+/**
+ * Sets shooter speed and hood position from a range preset. Finishes immediately.
+ */
 public class SetShooterRangeCmd extends Command {
-  private final VelocityMech2 shooter;
-  private final PositionMech hood;
-  private final RangeTable rangeTable;
-  private final int range;
+  private final VelocityMechanism m_shooter;
+  private final PositionMechanism m_hood;
+  private final RangeTable m_rangeTable;
+  private final int m_rangeIndex;
 
-  public SetShooterRangeCmd(VelocityMech2 shooter, PositionMech hood, RangeTable rangeTable, int range) {
-    this.shooter = shooter;
-    this.hood = hood;
-    this.range = range;
-    this.rangeTable = rangeTable;
-
+  public SetShooterRangeCmd(
+      VelocityMechanism shooter,
+      PositionMechanism hood,
+      RangeTable rangeTable,
+      int rangeIndex) {
+    m_shooter = shooter;
+    m_hood = hood;
+    m_rangeTable = rangeTable;
+    m_rangeIndex = rangeIndex;
     addRequirements(shooter, hood);
   }
 
   @Override
   public void initialize() {
-    double speed = rangeTable.getSpeedPreset(range);
-    double hoodPos = rangeTable.getElevationPreset(range);
-    System.out.println("SetShootCmd: " + speed + " / " + hoodPos);
-
-    shooter.setTargetSpeed(speed);
-    shooter.setSpeed(speed);
-    hood.run(hoodPos);
+    double speedRPS = m_rangeTable.getSpeedPreset(m_rangeIndex);
+    double elevation = m_rangeTable.getElevationPreset(m_rangeIndex);
+    m_shooter.setVelocity(speedRPS);
+    m_hood.setPosition(elevation);
   }
 
-    @Override
-    public void execute()
-    {
-    }
-
-    @Override
-    public void end(boolean interrupted)
-    {
-    }
-
-    @Override
-    public boolean isFinished()
-    {
-        return false;
-    }
+  @Override
+  public boolean isFinished() {
+    return true;
+  }
 }
