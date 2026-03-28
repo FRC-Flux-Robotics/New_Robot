@@ -166,7 +166,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         .withDeadband(m_maxSpeed * config.translationDeadband)
         .withRotationalDeadband(m_maxAngularSpeed * config.rotationDeadband);
 
-    m_io = (io != null) ? io : new DrivetrainIOTalonFX(this);
+    m_io = (io != null) ? io : new DrivetrainIOTalonFX(this, config.canBusName);
 
     configurePathPlanner();
     registerTelemetry(this::logTelemetry);

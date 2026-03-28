@@ -9,10 +9,12 @@ import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import frc.lib.drivetrain.CameraConfig;
 import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.DrivetrainIOReplay;
 import frc.lib.drivetrain.SwerveDrive;
 import frc.lib.util.LoggedTracer;
+import frc.lib.util.PhoenixSignals;
 import frc.lib.vision.VisionIO;
 import frc.lib.vision.VisionIOPhotonVision;
 import frc.lib.vision.VisionIOReplay;
@@ -91,10 +93,12 @@ public class Robot extends LoggedRobot {
               .toArray(VisionIO[]::new);
     }
 
+    CameraConfig[] cameras = config.cameras.toArray(CameraConfig[]::new);
+
     if (config == Robots.FUEL) {
-      m_robotContainer = new FuelRobotContainer(swerveDrive, visionIOs);
+      m_robotContainer = new FuelRobotContainer(swerveDrive, visionIOs, cameras);
     } else {
-      m_robotContainer = new RobotContainer(swerveDrive, visionIOs);
+      m_robotContainer = new RobotContainer(swerveDrive, visionIOs, cameras);
     }
 
     String robotName = config == Robots.CORAL ? "CORAL" : "FUEL";
@@ -107,6 +111,7 @@ public class Robot extends LoggedRobot {
 
   @Override
   public void robotPeriodic() {
+    PhoenixSignals.refreshAll();
     LoggedTracer.reset();
     CommandScheduler.getInstance().run();
     LoggedTracer.trace("Commands");

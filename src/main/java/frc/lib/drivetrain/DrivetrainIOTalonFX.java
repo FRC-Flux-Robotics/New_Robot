@@ -9,6 +9,7 @@ import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.wpilibj.RobotController;
+import frc.lib.util.PhoenixSignals;
 
 /** Real hardware IO — batch-refreshes CAN signals from TalonFX motors, CANcoders, and Pigeon2. */
 public class DrivetrainIOTalonFX implements DrivetrainIO {
@@ -19,9 +20,10 @@ public class DrivetrainIOTalonFX implements DrivetrainIO {
   private final StatusSignal<Current>[] m_steerCurrent;
   private final StatusSignal<Angle>[] m_encoderPosition;
   private final BaseStatusSignal[] m_allSignals;
+  private final int m_signalGroup;
 
   @SuppressWarnings("unchecked")
-  public DrivetrainIOTalonFX(SwerveDrive drivetrain) {
+  public DrivetrainIOTalonFX(SwerveDrive drivetrain, String canBusName) {
     m_gyroYaw = drivetrain.getPigeon2().getYaw();
     m_gyroRate = drivetrain.getPigeon2().getAngularVelocityZWorld();
 
@@ -45,12 +47,12 @@ public class DrivetrainIOTalonFX implements DrivetrainIO {
       m_allSignals[3 + i * 3] = m_steerCurrent[i];
       m_allSignals[4 + i * 3] = m_encoderPosition[i];
     }
+
+    m_signalGroup = PhoenixSignals.register(canBusName, m_allSignals);
   }
 
   @Override
   public void updateInputs(DrivetrainIOInputsAutoLogged inputs) {
-    BaseStatusSignal.refreshAll(m_allSignals);
-
     inputs.gyroYawDeg = m_gyroYaw.getValueAsDouble();
     inputs.gyroRateDegPerSec = m_gyroRate.getValueAsDouble();
     inputs.batteryVoltage = RobotController.getBatteryVoltage();

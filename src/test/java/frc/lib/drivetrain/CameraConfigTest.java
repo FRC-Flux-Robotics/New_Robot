@@ -33,4 +33,30 @@ class CameraConfigTest {
   void nullTransformThrows() {
     assertThrows(IllegalArgumentException.class, () -> new CameraConfig("Cam", null));
   }
+
+  @Test
+  void defaultStdDevMultiplierIsOne() {
+    var transform = new Transform3d(new Translation3d(0.3, 0, 0.25), new Rotation3d());
+    var config = new CameraConfig("TestCam", transform);
+    assertEquals(1.0, config.stdDevMultiplier());
+  }
+
+  @Test
+  void customStdDevMultiplier() {
+    var transform = new Transform3d(new Translation3d(), new Rotation3d());
+    var config = new CameraConfig("Cam", transform, 2.5);
+    assertEquals(2.5, config.stdDevMultiplier());
+  }
+
+  @Test
+  void zeroStdDevMultiplierThrows() {
+    var transform = new Transform3d(new Translation3d(), new Rotation3d());
+    assertThrows(IllegalArgumentException.class, () -> new CameraConfig("Cam", transform, 0.0));
+  }
+
+  @Test
+  void negativeStdDevMultiplierThrows() {
+    var transform = new Transform3d(new Translation3d(), new Rotation3d());
+    assertThrows(IllegalArgumentException.class, () -> new CameraConfig("Cam", transform, -1.0));
+  }
 }

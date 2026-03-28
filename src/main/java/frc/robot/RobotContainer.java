@@ -13,6 +13,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.lib.drivetrain.CameraConfig;
 import frc.lib.drivetrain.DriveInterface;
 import frc.lib.drivetrain.SwerveDrive;
 import frc.lib.vision.VisionIO;
@@ -53,11 +54,11 @@ public class RobotContainer {
 
   private double m_lastDeadband = 0.1;
 
-  public RobotContainer(DriveInterface drive, VisionIO[] visionIOs) {
+  public RobotContainer(DriveInterface drive, VisionIO[] visionIOs, CameraConfig[] cameras) {
     m_drive = drive;
 
     if (visionIOs.length > 0) {
-      m_vision = new Vision(visionIOs, m_drive);
+      m_vision = new Vision(visionIOs, cameras, m_drive);
     } else {
       m_vision = null;
     }

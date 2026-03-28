@@ -11,7 +11,9 @@ import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.lib.drivetrain.CameraConfig;
 import frc.lib.drivetrain.DriveInterface;
 import frc.lib.vision.VisionIO;
 import frc.lib.vision.VisionIOInputsAutoLogged;
@@ -32,7 +34,10 @@ public class Vision extends SubsystemBase {
   static final double MAX_ANGULAR_SPEED_RAD_PER_SEC = Math.toRadians(120);
   static final double MAX_LINEAR_SPEED_MPS = 3.0;
 
+  private static final String kUseNewStdDevsKey = "Vision/UseNewStdDevs";
+
   private final VisionIO[] m_ios;
+  private final CameraConfig[] m_cameras;
   private final VisionIOInputsAutoLogged[] m_inputs;
   private final AprilTagFieldLayout m_fieldLayout;
   private final DriveInterface m_drive;
@@ -42,8 +47,9 @@ public class Vision extends SubsystemBase {
   private Pose2d m_lastVisionPose = new Pose2d();
   private boolean m_enabled = true;
 
-  public Vision(VisionIO[] ios, DriveInterface drive) {
+  public Vision(VisionIO[] ios, CameraConfig[] cameras, DriveInterface drive) {
     m_ios = ios;
+    m_cameras = cameras;
     m_drive = drive;
     m_fieldLayout = AprilTagFieldLayout.loadField(AprilTagFields.k2026RebuiltWelded);
 
@@ -52,6 +58,8 @@ public class Vision extends SubsystemBase {
     for (int i = 0; i < ios.length; i++) {
       m_inputs[i] = new VisionIOInputsAutoLogged();
     }
+
+    SmartDashboard.putBoolean(kUseNewStdDevsKey, true);
   }
 
   @Override
@@ -72,7 +80,7 @@ public class Vision extends SubsystemBase {
                 new Rotation3d(0, 0, inputs.poseRotRadians));
         Pose2d estimatedPose2d = estimatedPose3d.toPose2d();
 
-        updateStdDevs(inputs);
+        updateStdDevs(inputs, i);
         m_lastVisionPose = estimatedPose2d;
 
         var speeds = m_drive.getVelocity();
@@ -111,6 +119,7 @@ public class Vision extends SubsystemBase {
     Logger.recordOutput("Vision/HasTargets", hasTargets());
     Logger.recordOutput("Vision/BestTagId", getTargetID());
     Logger.recordOutput("Vision/Enabled", m_enabled);
+    Logger.recordOutput("Vision/UseNewStdDevs", SmartDashboard.getBoolean(kUseNewStdDevsKey, true));
     Logger.recordOutput("Vision/AutoHeadingDisabled", DriverStation.isAutonomous());
     Logger.recordOutput("Vision/EstimatedPose", m_lastVisionPose);
   }
@@ -209,7 +218,7 @@ public class Vision extends SubsystemBase {
     return null;
   }
 
-  private void updateStdDevs(VisionIO.VisionIOInputs inputs) {
+  private void updateStdDevs(VisionIO.VisionIOInputs inputs, int cameraIndex) {
     if (!inputs.posePresent) {
       m_curStdDevs = kSingleTagStdDevs;
       return;
@@ -236,7 +245,14 @@ public class Vision extends SubsystemBase {
       if (numTags > 1) estStdDevs = kMultiTagStdDevs;
       if (numTags == 1 && avgDist > 4) {
         estStdDevs = VecBuilder.fill(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE);
+      } else if (SmartDashboard.getBoolean(kUseNewStdDevsKey, true)) {
+        // New formula: distance² / tagCount with floor at 1.0, per-camera multiplier
+        double cameraMultiplier =
+            cameraIndex < m_cameras.length ? m_cameras[cameraIndex].stdDevMultiplier() : 1.0;
+        double scaleFactor = Math.max(1.0, avgDist * avgDist / numTags) * cameraMultiplier;
+        estStdDevs = estStdDevs.times(scaleFactor);
       } else {
+        // Old formula: 1 + distance² / 30
         estStdDevs = estStdDevs.times(1 + (avgDist * avgDist / 30));
       }
       m_curStdDevs = estStdDevs;

@@ -18,6 +18,7 @@ import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Temperature;
 import edu.wpi.first.units.measure.Voltage;
+import frc.lib.util.PhoenixSignals;
 import frc.lib.util.PhoenixUtil;
 
 /** Real hardware IO for a single TalonFX motor mechanism with batched CAN refresh. */
@@ -37,6 +38,7 @@ public class MechanismIOTalonFX implements MechanismIO {
   private final StatusSignal<Voltage> m_voltage;
   private final StatusSignal<Temperature> m_temp;
   private final BaseStatusSignal[] m_allSignals;
+  private final int m_signalGroup;
 
   public MechanismIOTalonFX(MechanismConfig config) {
     m_motor = new TalonFX(config.motorId, config.canBus);
@@ -102,6 +104,8 @@ public class MechanismIOTalonFX implements MechanismIO {
         new BaseStatusSignal[] {
           m_position, m_velocity, m_statorCurrent, m_supplyCurrent, m_voltage, m_temp
         };
+
+    m_signalGroup = PhoenixSignals.register(config.canBus, m_allSignals);
   }
 
   /** Returns the underlying TalonFX motor for control requests. */
@@ -136,14 +140,12 @@ public class MechanismIOTalonFX implements MechanismIO {
 
   @Override
   public void updateInputs(MechanismIOInputsAutoLogged inputs) {
-    var status = BaseStatusSignal.refreshAll(m_allSignals);
-
     inputs.positionRotations = m_position.getValueAsDouble();
     inputs.velocityRPS = m_velocity.getValueAsDouble();
     inputs.statorCurrentA = m_statorCurrent.getValueAsDouble();
     inputs.supplyCurrentA = m_supplyCurrent.getValueAsDouble();
     inputs.appliedVoltage = m_voltage.getValueAsDouble();
     inputs.tempCelsius = m_temp.getValueAsDouble();
-    inputs.motorConnected = status.isOK();
+    inputs.motorConnected = PhoenixSignals.isOK(m_signalGroup);
   }
 }

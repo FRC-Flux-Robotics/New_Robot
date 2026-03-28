@@ -4,6 +4,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import frc.lib.drivetrain.CameraConfig;
 import frc.lib.drivetrain.DriveInterface;
 import frc.lib.mechanism.MechanismConfig;
 import frc.lib.mechanism.MechanismIO;
@@ -36,8 +37,8 @@ public class FuelRobotContainer extends RobotContainer {
 
   private final CommandXboxController m_operatorController = new CommandXboxController(1);
 
-  public FuelRobotContainer(DriveInterface drive, VisionIO[] visionIOs) {
-    super(drive, visionIOs);
+  public FuelRobotContainer(DriveInterface drive, VisionIO[] visionIOs, CameraConfig[] cameras) {
+    super(drive, visionIOs, cameras);
 
     intake = new VelocityMechanism(createIO(MechanismConfigs.INTAKE), MechanismConfigs.INTAKE);
     tilter = new PositionMechanism(createIO(MechanismConfigs.TILT), MechanismConfigs.TILT);
