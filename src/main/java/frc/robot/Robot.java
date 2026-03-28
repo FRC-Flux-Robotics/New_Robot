@@ -87,7 +87,11 @@ public class Robot extends LoggedRobot {
           .toArray(VisionIO[]::new);
     }
 
-    m_robotContainer = new RobotContainer(swerveDrive, visionIOs);
+    if (config == Robots.FUEL) {
+      m_robotContainer = new FuelRobotContainer(swerveDrive, visionIOs);
+    } else {
+      m_robotContainer = new RobotContainer(swerveDrive, visionIOs);
+    }
 
     String robotName = config == Robots.CORAL ? "CORAL" : "FUEL";
     Elastic.sendNotification(

@@ -29,7 +29,7 @@ public class RobotContainer {
   private final DriveInterface m_drive;
   private final Vision m_vision; // null if no camera configured
 
-  private final CommandXboxController m_controller = new CommandXboxController(0);
+  protected final CommandXboxController m_controller = new CommandXboxController(0);
   private final CommandXboxController m_sysIdController = new CommandXboxController(1);
 
   // Slew rate limiters (used when Drive/SlewRate is ON)
@@ -159,35 +159,47 @@ public class RobotContainer {
   }
 
   private void configureButtonBindings() {
-    // Idle motors when robot is disabled
+    // Idle motors when robot is disabled (universal)
     RobotModeTriggers.disabled().whileTrue(
         Commands.run(() -> m_drive.setIdle(), m_drive));
 
-    // X button: X-pattern brake (hold position)
+    // X button: X-pattern brake (universal)
     m_controller.x().whileTrue(
         Commands.run(() -> m_drive.setBrake(), m_drive));
 
-    // Y button: drive to nearest AprilTag if vision available, else reset heading
+    // Overridable per-button groups (FuelRobotContainer replaces these)
+    configureDriverYButton();
+    configureDriverBumpers();
+    configureDriverStartButton();
+    configureDriverDPad();
+  }
+
+  /** Y button — default: DriveToTag if vision, else reset heading. */
+  protected void configureDriverYButton() {
     if (m_vision != null) {
       m_controller.y().whileTrue(new DriveToTag(m_vision, m_drive));
     } else {
       m_controller.y().onTrue(
           Commands.runOnce(() -> m_drive.resetHeading(), m_drive));
     }
+  }
 
-    // Right bumper: reset heading
+  /** Bumpers — default: both reset heading. */
+  protected void configureDriverBumpers() {
     m_controller.rightBumper().onTrue(
         Commands.runOnce(() -> m_drive.resetHeading(), m_drive));
-
-    // Left bumper: reset heading (legacy compatibility)
     m_controller.leftBumper().onTrue(
         Commands.runOnce(() -> m_drive.resetHeading(), m_drive));
+  }
 
-    // Start button: reset pose to origin
+  /** Start button — default: reset pose to origin. */
+  protected void configureDriverStartButton() {
     m_controller.start().onTrue(
         Commands.runOnce(() -> m_drive.resetPose(new Pose2d()), m_drive));
+  }
 
-    // D-pad snap-to-angle: gated by Drive/SnapToAngle toggle
+  /** D-pad — default: snap-to-angle (gated by Drive/SnapToAngle toggle). */
+  protected void configureDriverDPad() {
     m_controller.povUp()
         .and(() -> SmartDashboard.getBoolean("Drive/SnapToAngle", false))
         .whileTrue(Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(0)), m_drive));
@@ -288,6 +300,11 @@ public class RobotContainer {
 
   public Command getAutonomousCommand() {
     return m_autoChooser.getSelected();
+  }
+
+  /** Access the drive subsystem (for subclasses like FuelRobotContainer). */
+  protected DriveInterface getDrive() {
+    return m_drive;
   }
 
   public void periodic() {
