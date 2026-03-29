@@ -56,7 +56,8 @@ public class Robot extends LoggedRobot {
 
     switch (mode) {
       case REAL:
-        Logger.addDataReceiver(new WPILOGWriter());
+        // WPILOGWriter requires a USB stick at /U/logs/ — enable when USB is plugged in
+        // Logger.addDataReceiver(new WPILOGWriter());
         Logger.addDataReceiver(new NT4Publisher());
         break;
       case SIM:
