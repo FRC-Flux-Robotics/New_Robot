@@ -10,7 +10,7 @@ import frc.lib.mechanism.MechanismConfig;
  */
 public final class MechanismConfigs {
 
-  private static final String CAN_BUS = "";
+  private static final String CAN_BUS = "Mech";
 
   // Shared current/voltage limits
   private static final double VELOCITY_PEAK_VOLTAGE = 11.0;

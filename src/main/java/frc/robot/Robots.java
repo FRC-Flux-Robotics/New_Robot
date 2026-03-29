@@ -54,9 +54,9 @@ public final class Robots {
           .maxSpeedMps(kMaxSpeedMps)
           .maxAngularRateRadPerSec(Math.PI)
           .speedCoefficient(0.5)
-          // PID - tuned values
-          .driveGains(new PIDGains(0.1, 0, 0, 0, 0.12, 0))
-          .steerGains(new PIDGains(100, 0, 0.5, 0, 0, 0))
+          // PID - matching working FluxRobot-2026 values
+          .driveGains(new PIDGains(0.1, 0, 0, 0, 0.124, 0))
+          .steerGains(new PIDGains(15, 0, 0.9, 0.1, 1.5, 0))
           // Current limits - tuned values
           .driveStatorCurrentLimit(60)
           .driveSupplyCurrentLimit(120)
@@ -104,9 +104,9 @@ public final class Robots {
           .maxSpeedMps(kMaxSpeedMps)
           .maxAngularRateRadPerSec(Math.PI)
           .speedCoefficient(0.5)
-          // PID - same tuned values as CORAL
-          .driveGains(new PIDGains(0.1, 0, 0, 0, 0.12, 0))
-          .steerGains(new PIDGains(100, 0, 0.5, 0, 0, 0))
+          // PID - matching working FluxRobot-2026 values
+          .driveGains(new PIDGains(0.1, 0, 0, 0, 0.124, 0))
+          .steerGains(new PIDGains(15, 0, 0.9, 0.1, 1.5, 0))
           // Current limits - safety baseline
           .driveStatorCurrentLimit(60)
           .driveSupplyCurrentLimit(120)
