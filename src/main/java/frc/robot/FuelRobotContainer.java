@@ -65,6 +65,9 @@ public class FuelRobotContainer extends RobotContainer {
   @Override
   protected void configureDriverDPad() {}
 
+  @Override
+  protected void configureSysIdBindings() {} // Port 1 is operator controller, not SysId
+
   /** Driver controller bindings matching legacy FuelRobotContainer (two-controller mode). */
   private void configureFuelDriverBindings() {
     // Y: reset heading

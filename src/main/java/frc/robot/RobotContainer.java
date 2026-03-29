@@ -211,7 +211,7 @@ public class RobotContainer {
         .whileTrue(Commands.run(() -> snapToAngle(Rotation2d.fromDegrees(90)), m_drive));
   }
 
-  private void configureSysIdBindings() {
+  protected void configureSysIdBindings() {
     if (!(m_drive instanceof SwerveDrive swerve)) return;
 
     // SysId controller (port 1): A/B = dynamic, X/Y = quasistatic
