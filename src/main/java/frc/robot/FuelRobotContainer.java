@@ -14,8 +14,6 @@ import frc.lib.mechanism.MechanismIOTalonFX;
 import frc.lib.mechanism.PositionMechanism;
 import frc.lib.mechanism.VelocityMechanism;
 import frc.lib.vision.VisionIO;
-import frc.robot.MechanismConfigs.IndexerConstants;
-import frc.robot.MechanismConfigs.IntakeConstants;
 import frc.robot.MechanismConfigs.ShooterConstants;
 import frc.robot.commands.*;
 
@@ -49,6 +47,7 @@ public class FuelRobotContainer extends RobotContainer {
 
     rangeTable = new RangeTable();
 
+    MechanismTuning.init();
     configureFuelDriverBindings();
     configureFuelBindings();
   }
@@ -74,10 +73,12 @@ public class FuelRobotContainer extends RobotContainer {
     // Right Trigger: intake IN
     m_controller
         .rightTrigger(DRIVER_TRIGGER_THRESHOLD)
-        .whileTrue(new VelocityCmd(intake, () -> IntakeConstants.InSpeed));
+        .whileTrue(new VelocityCmd(intake, MechanismTuning::intakeInSpeed));
 
     // Right Bumper: intake OUT
-    m_controller.rightBumper().whileTrue(new VelocityCmd(intake, () -> -IntakeConstants.OutSpeed));
+    m_controller
+        .rightBumper()
+        .whileTrue(new VelocityCmd(intake, () -> -MechanismTuning.intakeOutSpeed()));
 
     // A: deploy intake (4 sequential tilt jogs)
     Command jogIntakeOut =
@@ -111,10 +112,10 @@ public class FuelRobotContainer extends RobotContainer {
     // Feeder: Right Trigger (backward = negative speed)
     controller
         .rightTrigger(TRIGGER_THRESHOLD)
-        .whileTrue(new VelocityCmd(feeder, () -> -IndexerConstants.FeederSpeed));
+        .whileTrue(new VelocityCmd(feeder, () -> -MechanismTuning.feederSpeed()));
 
     // Indexer: Right Bumper
-    controller.rightBumper().whileTrue(new VelocityCmd(indexer, () -> IndexerConstants.Speed));
+    controller.rightBumper().whileTrue(new VelocityCmd(indexer, MechanismTuning::indexerSpeed));
 
     // Range shoot: Left Bumper (15s timeout)
     controller
@@ -124,18 +125,12 @@ public class FuelRobotContainer extends RobotContainer {
                 shooter, hood, feeder, indexer, rangeTable, getDrive()::getPose, 15.0));
 
     // Shooter range presets: A/B/Y
-    controller
-        .a()
-        .onTrue(new SetShooterRangeCmd(shooter, hood, rangeTable, ShooterConstants.ShortRange));
-    controller
-        .b()
-        .onTrue(new SetShooterRangeCmd(shooter, hood, rangeTable, ShooterConstants.MidRange));
-    controller
-        .y()
-        .onTrue(new SetShooterRangeCmd(shooter, hood, rangeTable, ShooterConstants.LongRange));
+    controller.a().onTrue(new SetShooterRangeCmd(shooter, hood, ShooterConstants.ShortRange));
+    controller.b().onTrue(new SetShooterRangeCmd(shooter, hood, ShooterConstants.MidRange));
+    controller.y().onTrue(new SetShooterRangeCmd(shooter, hood, ShooterConstants.LongRange));
 
     // Shooter toggle: Start
-    controller.start().toggleOnTrue(new ShootCommand(shooter, () -> ShooterConstants.Speed));
+    controller.start().toggleOnTrue(new ShootCommand(shooter, MechanismTuning::shooterSpeed));
 
     // Shooter speed adjust: D-pad left/right + left bumper
     controller
@@ -143,7 +138,9 @@ public class FuelRobotContainer extends RobotContainer {
         .and(controller.leftBumper())
         .whileTrue(
             Commands.runOnce(
-                () -> shooter.setVelocity(shooter.getTargetVelocity() + ShooterConstants.SpeedStep),
+                () ->
+                    shooter.setVelocity(
+                        shooter.getTargetVelocity() + MechanismTuning.shooterSpeedStep()),
                 shooter));
     controller
         .povLeft()
@@ -151,7 +148,8 @@ public class FuelRobotContainer extends RobotContainer {
         .whileTrue(
             Commands.runOnce(
                 () -> {
-                  double newSpeed = shooter.getTargetVelocity() - ShooterConstants.SpeedStep;
+                  double newSpeed =
+                      shooter.getTargetVelocity() - MechanismTuning.shooterSpeedStep();
                   if (newSpeed <= 0) {
                     shooter.stop();
                   } else {
@@ -172,6 +170,12 @@ public class FuelRobotContainer extends RobotContainer {
     return config.secondMotorId >= 0
         ? new MechanismIODualTalonFX(config)
         : new MechanismIOTalonFX(config);
+  }
+
+  @Override
+  public void periodic() {
+    super.periodic();
+    MechanismTuning.periodic();
   }
 
   public void resetEncoders() {

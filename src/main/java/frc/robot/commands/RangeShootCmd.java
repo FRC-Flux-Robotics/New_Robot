@@ -7,7 +7,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import frc.lib.mechanism.PositionMechanism;
 import frc.lib.mechanism.VelocityMechanism;
 import frc.robot.FieldPositions;
-import frc.robot.MechanismConfigs.IndexerConstants;
+import frc.robot.MechanismTuning;
 import frc.robot.RangeTable;
 import java.util.function.Supplier;
 import org.littletonrobotics.junction.Logger;
@@ -79,8 +79,8 @@ public class RangeShootCmd extends Command {
     Logger.recordOutput("RangeShoot/AtTarget", m_shooter.atTarget());
 
     if (m_shooter.atTarget()) {
-      m_feeder.setVelocity(IndexerConstants.FeederSpeed);
-      m_indexer.setVelocity(IndexerConstants.Speed);
+      m_feeder.setVelocity(MechanismTuning.feederSpeed());
+      m_indexer.setVelocity(MechanismTuning.indexerSpeed());
     }
   }
 

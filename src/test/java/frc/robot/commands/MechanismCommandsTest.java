@@ -9,6 +9,7 @@ import frc.lib.mechanism.MechanismIO;
 import frc.lib.mechanism.MechanismIOInputsAutoLogged;
 import frc.lib.mechanism.PositionMechanism;
 import frc.lib.mechanism.VelocityMechanism;
+import frc.robot.MechanismTuning;
 import frc.robot.RangeTable;
 import org.junit.jupiter.api.Test;
 
@@ -172,14 +173,15 @@ class MechanismCommandsTest {
     PositionStubIO hoodIO = new PositionStubIO();
     VelocityMechanism shooter = makeVelocityMech(shooterIO);
     PositionMechanism hood = makePositionMech(hoodIO);
-    RangeTable rangeTable = new RangeTable();
 
-    SetShooterRangeCmd cmd = new SetShooterRangeCmd(shooter, hood, rangeTable, 0);
+    MechanismTuning.init();
+
+    SetShooterRangeCmd cmd = new SetShooterRangeCmd(shooter, hood, 0);
     cmd.initialize();
 
-    // Range index 0 should set speed and elevation from table
-    double expectedSpeed = rangeTable.getSpeedPreset(0);
-    double expectedElevation = rangeTable.getElevationPreset(0);
+    // Range index 0 should set speed and elevation from tunable short-range defaults
+    double expectedSpeed = MechanismTuning.speedShort();
+    double expectedElevation = MechanismTuning.hoodShort();
 
     assertEquals("setVelocity", shooterIO.lastCall);
     assertEquals(expectedSpeed, shooterIO.lastArg, 0.001);
