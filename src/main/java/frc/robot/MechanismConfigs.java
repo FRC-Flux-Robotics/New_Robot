@@ -76,6 +76,7 @@ public final class MechanismConfigs {
           .name("Shooter")
           .motorId(11)
           .secondMotorId(10)
+          .inverted(true)
           .counterRotating(true)
           .canBus(CAN_BUS)
           .pidGains(SHOOTER_PID)
