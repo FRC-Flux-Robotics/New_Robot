@@ -54,6 +54,13 @@ public class RobotContainer {
 
   private double m_lastDeadband = 0.1;
 
+  // Cached SmartDashboard drive settings (read once per periodic, used by commands)
+  private boolean m_tunableSens = false;
+  private boolean m_slewEnabled = false;
+  private boolean m_slowMode = false;
+  private boolean m_stickClamp = false;
+  private double m_maxRotRate = LEGACY_MAX_ANGULAR_RATE;
+
   public RobotContainer(DriveInterface drive, VisionIO[] visionIOs, CameraConfig[] cameras) {
     m_drive = drive;
 
@@ -99,16 +106,9 @@ public class RobotContainer {
     m_drive.setDefaultCommand(
         Commands.run(
             () -> {
-              boolean tunableSens = SmartDashboard.getBoolean("Drive/TunableSens", false);
-              boolean slewEnabled = SmartDashboard.getBoolean("Drive/SlewRate", false);
-              boolean slowMode = SmartDashboard.getBoolean("Drive/SlowMode", false);
-              boolean stickClamp = SmartDashboard.getBoolean("Drive/StickClamp", false);
-              double maxRotRate =
-                  SmartDashboard.getNumber("Drive/MaxRotRate", LEGACY_MAX_ANGULAR_RATE);
-
               // 1. Sensitivity curves
               double xInput, yInput, rotInput;
-              if (tunableSens) {
+              if (m_tunableSens) {
                 xInput = m_driveSensitivity.transfer(-m_controller.getLeftY());
                 yInput = m_driveSensitivity.transfer(-m_controller.getLeftX());
                 rotInput = m_rotSensitivity.transfer(-m_controller.getRightX());
@@ -119,14 +119,14 @@ public class RobotContainer {
               }
 
               // 2. Stick clamping to unit circle (optional)
-              if (stickClamp) {
+              if (m_stickClamp) {
                 double[] clamped = InputProcessing.clampStickMagnitude(xInput, yInput);
                 xInput = clamped[0];
                 yInput = clamped[1];
               }
 
               // 3. Slew rate limiting (optional, reset on enable transition)
-              if (slewEnabled) {
+              if (m_slewEnabled) {
                 if (!m_prevSlewEnabled) {
                   m_xLimiter.reset(0);
                   m_yLimiter.reset(0);
@@ -136,12 +136,12 @@ public class RobotContainer {
                 yInput = m_yLimiter.calculate(yInput);
                 rotInput = m_rotLimiter.calculate(rotInput);
               }
-              m_prevSlewEnabled = slewEnabled;
+              m_prevSlewEnabled = m_slewEnabled;
 
               // 4. Speed scaling — slow mode via right trigger (optional)
               double speedScale = 1.0;
               double rotScale = 1.0;
-              if (slowMode && m_controller.getRightTriggerAxis() > 0.5) {
+              if (m_slowMode && m_controller.getRightTriggerAxis() > 0.5) {
                 double slowScale = DriverPreferences.slowModeScale();
                 speedScale = slowScale;
                 rotScale = slowScale;
@@ -150,7 +150,7 @@ public class RobotContainer {
               // 5. Final velocities
               double xSpeed = xInput * m_drive.getMaxSpeed() * speedScale;
               double ySpeed = yInput * m_drive.getMaxSpeed() * speedScale;
-              double rot = rotInput * maxRotRate * rotScale;
+              double rot = rotInput * m_maxRotRate * rotScale;
 
               m_drive.drive(xSpeed, ySpeed, rot, true, 0.02);
             },
@@ -261,9 +261,8 @@ public class RobotContainer {
   }
 
   private void snapToAngle(Rotation2d targetAngle) {
-    boolean tunableSens = SmartDashboard.getBoolean("Drive/TunableSens", false);
     double xInput, yInput;
-    if (tunableSens) {
+    if (m_tunableSens) {
       xInput = m_driveSensitivity.transfer(-m_controller.getLeftY());
       yInput = m_driveSensitivity.transfer(-m_controller.getLeftX());
     } else {
@@ -271,20 +270,19 @@ public class RobotContainer {
       yInput = m_legacyDriveSens.transfer(-m_controller.getLeftX());
     }
 
-    if (SmartDashboard.getBoolean("Drive/StickClamp", false)) {
+    if (m_stickClamp) {
       double[] clamped = InputProcessing.clampStickMagnitude(xInput, yInput);
       xInput = clamped[0];
       yInput = clamped[1];
     }
 
-    if (SmartDashboard.getBoolean("Drive/SlewRate", false)) {
+    if (m_slewEnabled) {
       xInput = m_xLimiter.calculate(xInput);
       yInput = m_yLimiter.calculate(yInput);
     }
 
     double speedScale = 1.0;
-    if (SmartDashboard.getBoolean("Drive/SlowMode", false)
-        && m_controller.getRightTriggerAxis() > 0.5) {
+    if (m_slowMode && m_controller.getRightTriggerAxis() > 0.5) {
       speedScale = DriverPreferences.slowModeScale();
     }
 
@@ -305,6 +303,13 @@ public class RobotContainer {
   }
 
   public void periodic() {
+    // Refresh cached dashboard drive settings (one read per cycle instead of per-command)
+    m_tunableSens = SmartDashboard.getBoolean("Drive/TunableSens", false);
+    m_slewEnabled = SmartDashboard.getBoolean("Drive/SlewRate", false);
+    m_slowMode = SmartDashboard.getBoolean("Drive/SlowMode", false);
+    m_stickClamp = SmartDashboard.getBoolean("Drive/StickClamp", false);
+    m_maxRotRate = SmartDashboard.getNumber("Drive/MaxRotRate", LEGACY_MAX_ANGULAR_RATE);
+
     // Update operator perspective from alliance (FMS or dashboard)
     m_drive.setOperatorForward(FieldPositions.operatorForward());
 

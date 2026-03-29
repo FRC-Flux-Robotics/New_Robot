@@ -43,9 +43,16 @@ public class Vision extends SubsystemBase {
   private final DriveInterface m_drive;
   private final int[][] m_rejectionCounts;
 
-  private Matrix<N3, N1> m_curStdDevs = kSingleTagStdDevs;
-  private Pose2d m_lastVisionPose = new Pose2d();
+  private volatile Matrix<N3, N1> m_curStdDevs = kSingleTagStdDevs;
+  private volatile Pose2d m_lastVisionPose = new Pose2d();
   private boolean m_enabled = true;
+
+  // Cached per-periodic best target (avoids re-scanning all cameras per getter)
+  private boolean m_cachedConnected = false;
+  private boolean m_cachedHasTargets = false;
+  private double m_cachedBestYaw = 0;
+  private double m_cachedBestArea = 0;
+  private int m_cachedBestId = -1;
 
   public Vision(VisionIO[] ios, CameraConfig[] cameras, DriveInterface drive) {
     m_ios = ios;
@@ -114,14 +121,54 @@ public class Vision extends SubsystemBase {
       }
     }
 
+    // Cache best target across all cameras (single scan)
+    boolean connected = false;
+    boolean hasTargets = false;
+    double bestArea = 0;
+    double bestYaw = 0;
+    int bestId = -1;
+    StringBuilder visibleIds = new StringBuilder();
+    for (var inputs : m_inputs) {
+      if (inputs.connected) connected = true;
+      if (inputs.connected && inputs.hasTargets) {
+        hasTargets = true;
+        if (inputs.bestTargetArea > bestArea) {
+          bestArea = inputs.bestTargetArea;
+          bestYaw = inputs.bestTargetYaw;
+          bestId = inputs.bestTargetId;
+        }
+        for (int t = 0; t < inputs.targetCount; t++) {
+          int id = inputs.targetFiducialIds[t];
+          // Avoid duplicates from multiple cameras seeing same tag
+          String idStr = String.valueOf(id);
+          if (visibleIds.indexOf(idStr) == -1) {
+            if (visibleIds.length() > 0) visibleIds.append(", ");
+            visibleIds.append(idStr);
+          }
+        }
+      }
+    }
+    m_cachedConnected = connected;
+    m_cachedHasTargets = hasTargets;
+    m_cachedBestArea = bestArea;
+    m_cachedBestYaw = bestYaw;
+    m_cachedBestId = bestId;
+
     // Aggregate telemetry
-    Logger.recordOutput("Vision/Connected", isConnected());
-    Logger.recordOutput("Vision/HasTargets", hasTargets());
-    Logger.recordOutput("Vision/BestTagId", getTargetID());
+    Logger.recordOutput("Vision/Connected", m_cachedConnected);
+    Logger.recordOutput("Vision/HasTargets", m_cachedHasTargets);
+    Logger.recordOutput("Vision/BestTagId", m_cachedBestId);
     Logger.recordOutput("Vision/Enabled", m_enabled);
     Logger.recordOutput("Vision/UseNewStdDevs", SmartDashboard.getBoolean(kUseNewStdDevsKey, true));
     Logger.recordOutput("Vision/AutoHeadingDisabled", DriverStation.isAutonomous());
     Logger.recordOutput("Vision/EstimatedPose", m_lastVisionPose);
+
+    // Dashboard-readable vision pose and visible tags
+    Pose2d visionPose = m_lastVisionPose;
+    SmartDashboard.putNumber("Vision/PoseX", visionPose.getX());
+    SmartDashboard.putNumber("Vision/PoseY", visionPose.getY());
+    SmartDashboard.putNumber("Vision/PoseHeading", visionPose.getRotation().getDegrees());
+    SmartDashboard.putString("Vision/VisibleTagIDs", visibleIds.toString());
   }
 
   public void setEnabled(boolean enabled) {
@@ -133,10 +180,7 @@ public class Vision extends SubsystemBase {
   }
 
   public boolean isConnected() {
-    for (var inputs : m_inputs) {
-      if (inputs.connected) return true;
-    }
-    return false;
+    return m_cachedConnected;
   }
 
   public Pose2d getLastVisionPose() {
@@ -144,44 +188,19 @@ public class Vision extends SubsystemBase {
   }
 
   public boolean hasTargets() {
-    for (var inputs : m_inputs) {
-      if (inputs.connected && inputs.hasTargets) return true;
-    }
-    return false;
+    return m_cachedHasTargets;
   }
 
   public double getTargetYaw() {
-    double bestArea = 0;
-    double bestYaw = 0;
-    for (var inputs : m_inputs) {
-      if (inputs.connected && inputs.hasTargets && inputs.bestTargetArea > bestArea) {
-        bestArea = inputs.bestTargetArea;
-        bestYaw = inputs.bestTargetYaw;
-      }
-    }
-    return bestYaw;
+    return m_cachedBestYaw;
   }
 
   public double getTargetArea() {
-    double bestArea = 0;
-    for (var inputs : m_inputs) {
-      if (inputs.connected && inputs.hasTargets && inputs.bestTargetArea > bestArea) {
-        bestArea = inputs.bestTargetArea;
-      }
-    }
-    return bestArea;
+    return m_cachedBestArea;
   }
 
   public int getTargetID() {
-    double bestArea = 0;
-    int bestId = -1;
-    for (var inputs : m_inputs) {
-      if (inputs.connected && inputs.hasTargets && inputs.bestTargetArea > bestArea) {
-        bestArea = inputs.bestTargetArea;
-        bestId = inputs.bestTargetId;
-      }
-    }
-    return bestId;
+    return m_cachedBestId;
   }
 
   /** Returns null if measurement is acceptable, or a {@link VisionRejectReason}. */
