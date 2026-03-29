@@ -25,7 +25,7 @@ class MechanismCommandsTest {
 
     @Override
     public void updateInputs(MechanismIOInputsAutoLogged inputs) {
-      inputs.velocityRPM = velocity;
+      inputs.velocityRPS = velocity;
       inputs.motorConnected = true;
     }
 
@@ -101,12 +101,12 @@ class MechanismCommandsTest {
 
     cmd.initialize();
     assertEquals("setVelocity", io.lastCall);
-    assertEquals(42.0 / 60.0, io.lastArg, 0.001); // IO receives RPS
+    assertEquals(42.0, io.lastArg);
 
     io.lastCall = "";
     cmd.execute();
     assertEquals("setVelocity", io.lastCall);
-    assertEquals(42.0 / 60.0, io.lastArg, 0.001); // IO receives RPS
+    assertEquals(42.0, io.lastArg);
   }
 
   @Test
@@ -144,7 +144,7 @@ class MechanismCommandsTest {
     cmd.initialize();
 
     assertEquals("setVelocity", io.lastCall);
-    assertEquals(80.0 / 60.0, io.lastArg, 0.001); // IO receives RPS
+    assertEquals(80.0, io.lastArg);
     assertTrue(cmd.isFinished());
   }
 
@@ -184,7 +184,7 @@ class MechanismCommandsTest {
     double expectedElevation = MechanismTuning.hoodShort();
 
     assertEquals("setVelocity", shooterIO.lastCall);
-    assertEquals(expectedSpeed / 60.0, shooterIO.lastArg, 0.001); // IO receives RPS
+    assertEquals(expectedSpeed, shooterIO.lastArg, 0.001);
     assertEquals("setPosition", hoodIO.lastCall);
     assertEquals(expectedElevation, hoodIO.lastArg, 0.001);
     assertTrue(cmd.isFinished());

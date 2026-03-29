@@ -6,41 +6,41 @@ import frc.lib.mechanism.VelocityMechanism;
 import java.util.function.DoubleSupplier;
 
 /**
- * Runs a velocity mechanism at a supplied speed (RPM). Sign of the speed determines direction.
+ * Runs a velocity mechanism at a supplied speed (RPS). Sign of the speed determines direction.
  * Stops on end. Finishes after timeout if set, otherwise runs until cancelled.
  */
 public class VelocityCmd extends Command {
   private final VelocityMechanism m_mechanism;
-  private final DoubleSupplier m_speedRPM;
+  private final DoubleSupplier m_speedRPS;
   private final double m_timeoutSeconds;
   private final Timer m_timer = new Timer();
 
   /**
    * @param mechanism the velocity mechanism to control
-   * @param speedRPM supplier returning speed in RPM (negative = reverse)
+   * @param speedRPS supplier returning speed in RPS (negative = reverse)
    * @param timeoutSeconds seconds before auto-finish (0 = no timeout)
    */
-  public VelocityCmd(VelocityMechanism mechanism, DoubleSupplier speedRPM, double timeoutSeconds) {
+  public VelocityCmd(VelocityMechanism mechanism, DoubleSupplier speedRPS, double timeoutSeconds) {
     m_mechanism = mechanism;
-    m_speedRPM = speedRPM;
+    m_speedRPS = speedRPS;
     m_timeoutSeconds = timeoutSeconds;
     addRequirements(mechanism);
   }
 
   /** No-timeout constructor — runs until cancelled. */
-  public VelocityCmd(VelocityMechanism mechanism, DoubleSupplier speedRPM) {
-    this(mechanism, speedRPM, 0);
+  public VelocityCmd(VelocityMechanism mechanism, DoubleSupplier speedRPS) {
+    this(mechanism, speedRPS, 0);
   }
 
   @Override
   public void initialize() {
     m_timer.restart();
-    m_mechanism.setVelocity(m_speedRPM.getAsDouble());
+    m_mechanism.setVelocity(m_speedRPS.getAsDouble());
   }
 
   @Override
   public void execute() {
-    m_mechanism.setVelocity(m_speedRPM.getAsDouble());
+    m_mechanism.setVelocity(m_speedRPS.getAsDouble());
   }
 
   @Override

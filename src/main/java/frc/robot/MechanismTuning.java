@@ -30,7 +30,7 @@ public final class MechanismTuning {
   private static final String KEY_HOOD_MID = PREFIX + "HoodMid";
   private static final String KEY_HOOD_LONG = PREFIX + "HoodLong";
 
-  // Shooter speed presets (RPM)
+  // Shooter speed presets (RPS)
   private static final String KEY_SPEED_SHORT = PREFIX + "SpeedShort";
   private static final String KEY_SPEED_MID = PREFIX + "SpeedMid";
   private static final String KEY_SPEED_LONG = PREFIX + "SpeedLong";
@@ -42,19 +42,19 @@ public final class MechanismTuning {
   // Save trigger
   private static final String KEY_SAVE = PREFIX + "Save";
 
-  // --- Code defaults (RPM for velocity, rotations for position) ---
-  private static final double DEF_INTAKE_IN_SPEED = 3600.0;
-  private static final double DEF_INTAKE_OUT_SPEED = 3600.0;
-  private static final double DEF_INDEXER_SPEED = 2700.0;
-  private static final double DEF_FEEDER_SPEED = 2400.0;
-  private static final double DEF_SHOOTER_SPEED = 2600.0;
-  private static final double DEF_SHOOTER_SPEED_STEP = 100.0;
+  // --- Code defaults (from MechanismConfigs + RangeTable) ---
+  private static final double DEF_INTAKE_IN_SPEED = 60.0;
+  private static final double DEF_INTAKE_OUT_SPEED = 60.0;
+  private static final double DEF_INDEXER_SPEED = 45.0;
+  private static final double DEF_FEEDER_SPEED = 40.0;
+  private static final double DEF_SHOOTER_SPEED = 2600.0 / 60.0;
+  private static final double DEF_SHOOTER_SPEED_STEP = 100.0 / 60.0;
   private static final double DEF_HOOD_SHORT = 0.0;
   private static final double DEF_HOOD_MID = 2.8;
   private static final double DEF_HOOD_LONG = 6.7;
-  private static final double DEF_SPEED_SHORT = 2400.0;
-  private static final double DEF_SPEED_MID = 2400.0;
-  private static final double DEF_SPEED_LONG = 2800.0;
+  private static final double DEF_SPEED_SHORT = 2000.0 / 60.0;
+  private static final double DEF_SPEED_MID = 2000.0 / 60.0;
+  private static final double DEF_SPEED_LONG = 2300.0 / 60.0;
   private static final double DEF_TILT_DEPLOY = -17.0;
   private static final double DEF_TILT_STOW = 0.0;
 

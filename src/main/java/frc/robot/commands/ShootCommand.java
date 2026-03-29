@@ -10,15 +10,15 @@ import java.util.function.DoubleSupplier;
  */
 public class ShootCommand extends Command {
   private final VelocityMechanism m_shooter;
-  private final DoubleSupplier m_speedRPM;
+  private final DoubleSupplier m_speedRPS;
 
   /**
    * @param shooter the shooter mechanism
-   * @param speedRPM supplier returning speed in RPM (sign determines direction)
+   * @param speedRPS supplier returning speed in RPS (sign determines direction)
    */
-  public ShootCommand(VelocityMechanism shooter, DoubleSupplier speedRPM) {
+  public ShootCommand(VelocityMechanism shooter, DoubleSupplier speedRPS) {
     m_shooter = shooter;
-    m_speedRPM = speedRPM;
+    m_speedRPS = speedRPS;
     addRequirements(shooter);
   }
 
@@ -27,7 +27,7 @@ public class ShootCommand extends Command {
     if (m_shooter.getTargetVelocity() != 0) {
       m_shooter.stop();
     } else {
-      m_shooter.setVelocity(m_speedRPM.getAsDouble());
+      m_shooter.setVelocity(m_speedRPS.getAsDouble());
     }
   }
 

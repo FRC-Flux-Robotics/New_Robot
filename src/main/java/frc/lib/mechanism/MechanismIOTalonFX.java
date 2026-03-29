@@ -141,7 +141,7 @@ public class MechanismIOTalonFX implements MechanismIO {
   @Override
   public void updateInputs(MechanismIOInputsAutoLogged inputs) {
     inputs.positionRotations = m_position.getValueAsDouble();
-    inputs.velocityRPM = m_velocity.getValueAsDouble() * 60.0;
+    inputs.velocityRPS = m_velocity.getValueAsDouble();
     inputs.statorCurrentA = m_statorCurrent.getValueAsDouble();
     inputs.supplyCurrentA = m_supplyCurrent.getValueAsDouble();
     inputs.appliedVoltage = m_voltage.getValueAsDouble();

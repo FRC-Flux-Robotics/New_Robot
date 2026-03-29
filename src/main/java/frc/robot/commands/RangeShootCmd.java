@@ -74,7 +74,7 @@ public class RangeShootCmd extends Command {
     m_hood.setPosition(range.elevation);
 
     Logger.recordOutput("RangeShoot/Distance", distance);
-    Logger.recordOutput("RangeShoot/SpeedRPM", range.speed);
+    Logger.recordOutput("RangeShoot/SpeedRPS", range.speed);
     Logger.recordOutput("RangeShoot/Hood", range.elevation);
     Logger.recordOutput("RangeShoot/AtTarget", m_shooter.atTarget());
 
