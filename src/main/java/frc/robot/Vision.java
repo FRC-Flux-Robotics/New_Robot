@@ -72,7 +72,9 @@ public class Vision extends SubsystemBase {
   @Override
   public void periodic() {
     for (int i = 0; i < m_ios.length; i++) {
-      m_ios[i].updateInputs(m_inputs[i]);
+      // TODO(S9-10): Vision updates disabled — 3-camera processing exceeds 20ms loop budget.
+      // Re-enable after implementing round-robin or async camera processing.
+      // m_ios[i].updateInputs(m_inputs[i]);
       Logger.processInputs("Vision/Camera" + i, m_inputs[i]);
 
       var inputs = m_inputs[i];
