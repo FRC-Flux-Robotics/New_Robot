@@ -20,23 +20,23 @@ public class SetShooterRangeCmd extends Command {
 
   @Override
   public void initialize() {
-    double speedRPS;
+    double speedRPM;
     double elevation;
     switch (m_rangeIndex) {
       case 0:
-        speedRPS = MechanismTuning.speedShort();
+        speedRPM = MechanismTuning.speedShort();
         elevation = MechanismTuning.hoodShort();
         break;
       case 1:
-        speedRPS = MechanismTuning.speedMid();
+        speedRPM = MechanismTuning.speedMid();
         elevation = MechanismTuning.hoodMid();
         break;
       default:
-        speedRPS = MechanismTuning.speedLong();
+        speedRPM = MechanismTuning.speedLong();
         elevation = MechanismTuning.hoodLong();
         break;
     }
-    m_shooter.setVelocity(speedRPS);
+    m_shooter.setVelocity(speedRPM);
     m_hood.setPosition(elevation);
   }
 

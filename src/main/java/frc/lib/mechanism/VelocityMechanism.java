@@ -10,7 +10,7 @@ public class VelocityMechanism extends SubsystemBase {
   private final MechanismConfig m_config;
   private final MechanismIOInputsAutoLogged m_inputs = new MechanismIOInputsAutoLogged();
 
-  private double m_targetVelocity = 0.0;
+  private double m_targetRPM = 0.0;
   private final double m_tolerance;
 
   public VelocityMechanism(MechanismIO io, MechanismConfig config) {
@@ -27,34 +27,34 @@ public class VelocityMechanism extends SubsystemBase {
   public void periodic() {
     m_io.updateInputs(m_inputs);
     Logger.processInputs(m_config.name, m_inputs);
-    Logger.recordOutput(m_config.name + "/TargetVelocity", m_targetVelocity);
+    Logger.recordOutput(m_config.name + "/TargetRPM", m_targetRPM);
     Logger.recordOutput(m_config.name + "/AtTarget", atTarget());
   }
 
-  /** Command the mechanism to a velocity in rotations per second. */
-  public void setVelocity(double velocityRPS) {
-    m_targetVelocity = velocityRPS;
-    m_io.setVelocity(velocityRPS);
+  /** Command the mechanism to a velocity in RPM. */
+  public void setVelocity(double rpm) {
+    m_targetRPM = rpm;
+    m_io.setVelocity(rpm / 60.0); // TalonFX expects RPS
   }
 
   /** Command motor to neutral output and reset target to zero. */
   public void stop() {
-    m_targetVelocity = 0.0;
+    m_targetRPM = 0.0;
     m_io.stop();
   }
 
   /** Whether current velocity is within tolerance of target. */
   public boolean atTarget() {
-    return Math.abs(getVelocity() - m_targetVelocity) <= m_tolerance;
+    return Math.abs(getVelocity() - m_targetRPM) <= m_tolerance;
   }
 
-  /** Current velocity in rotations per second (from last IO update). */
+  /** Current velocity in RPM (from last IO update). */
   public double getVelocity() {
-    return m_inputs.velocityRPS;
+    return m_inputs.velocityRPM;
   }
 
-  /** Get the current target velocity. */
+  /** Get the current target velocity in RPM. */
   public double getTargetVelocity() {
-    return m_targetVelocity;
+    return m_targetRPM;
   }
 }

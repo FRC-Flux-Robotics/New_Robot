@@ -728,7 +728,7 @@
         "layouts": [],
         "containers": [
           {
-            "title": "Intake In (RPS)",
+            "title": "Intake In (RPM)",
             "x": 0.0,
             "y": 0.0,
             "width": 256.0,
@@ -741,7 +741,7 @@
             }
           },
           {
-            "title": "Intake Out (RPS)",
+            "title": "Intake Out (RPM)",
             "x": 256.0,
             "y": 0.0,
             "width": 256.0,
@@ -754,7 +754,7 @@
             }
           },
           {
-            "title": "Indexer (RPS)",
+            "title": "Indexer (RPM)",
             "x": 512.0,
             "y": 0.0,
             "width": 256.0,
@@ -767,7 +767,7 @@
             }
           },
           {
-            "title": "Feeder (RPS)",
+            "title": "Feeder (RPM)",
             "x": 768.0,
             "y": 0.0,
             "width": 256.0,
@@ -806,7 +806,7 @@
             }
           },
           {
-            "title": "Shooter Default (RPS)",
+            "title": "Shooter Default (RPM)",
             "x": 0.0,
             "y": 128.0,
             "width": 256.0,
@@ -819,7 +819,7 @@
             }
           },
           {
-            "title": "Speed Step (RPS)",
+            "title": "Speed Step (RPM)",
             "x": 256.0,
             "y": 128.0,
             "width": 256.0,
@@ -832,7 +832,7 @@
             }
           },
           {
-            "title": "Short Speed (RPS)",
+            "title": "Short Speed (RPM)",
             "x": 0.0,
             "y": 256.0,
             "width": 256.0,
@@ -845,7 +845,7 @@
             }
           },
           {
-            "title": "Mid Speed (RPS)",
+            "title": "Mid Speed (RPM)",
             "x": 256.0,
             "y": 256.0,
             "width": 256.0,
@@ -858,7 +858,7 @@
             }
           },
           {
-            "title": "Long Speed (RPS)",
+            "title": "Long Speed (RPM)",
             "x": 512.0,
             "y": 256.0,
             "width": 256.0,

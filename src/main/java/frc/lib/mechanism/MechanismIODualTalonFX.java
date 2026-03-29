@@ -183,7 +183,7 @@ public class MechanismIODualTalonFX implements MechanismIO {
   @Override
   public void updateInputs(MechanismIOInputsAutoLogged inputs) {
     inputs.positionRotations = m_position.getValueAsDouble();
-    inputs.velocityRPS = m_velocity.getValueAsDouble();
+    inputs.velocityRPM = m_velocity.getValueAsDouble() * 60.0;
     inputs.statorCurrentA =
         m_statorCurrent.getValueAsDouble() + m_followerStatorCurrent.getValueAsDouble();
     inputs.supplyCurrentA =

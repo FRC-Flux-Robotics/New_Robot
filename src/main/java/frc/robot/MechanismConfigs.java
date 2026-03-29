@@ -99,22 +99,22 @@ public final class MechanismConfigs {
           .softLimitReverse(0.0)
           .build();
 
-  /** Intake operational constants. */
+  /** Intake operational constants (RPM). */
   public static final class IntakeConstants {
-    public static final double InSpeed = 60;
-    public static final double OutSpeed = 60;
+    public static final double InSpeed = 3600;
+    public static final double OutSpeed = 3600;
   }
 
-  /** Indexer/feeder operational constants. */
+  /** Indexer/feeder operational constants (RPM). */
   public static final class IndexerConstants {
-    public static final double Speed = 45;
-    public static final double FeederSpeed = 40;
+    public static final double Speed = 2700;
+    public static final double FeederSpeed = 2400;
   }
 
-  /** Shooter operational constants. */
+  /** Shooter operational constants (RPM). */
   public static final class ShooterConstants {
-    public static final double Speed = 2600.0 / 60.0;
-    public static final double SpeedStep = 100.0 / 60.0;
+    public static final double Speed = 2600.0;
+    public static final double SpeedStep = 100.0;
     public static final int ShortRange = 0;
     public static final int MidRange = 1;
     public static final int LongRange = 2;

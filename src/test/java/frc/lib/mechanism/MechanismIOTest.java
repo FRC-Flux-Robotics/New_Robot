@@ -18,7 +18,7 @@ class MechanismIOTest {
     @Override
     public void updateInputs(MechanismIOInputsAutoLogged inputs) {
       inputs.positionRotations = position;
-      inputs.velocityRPS = velocity;
+      inputs.velocityRPM = velocity;
       inputs.statorCurrentA = statorCurrent;
       inputs.supplyCurrentA = supplyCurrent;
       inputs.appliedVoltage = voltage;
@@ -35,7 +35,7 @@ class MechanismIOTest {
     stub.updateInputs(inputs);
 
     assertEquals(10.0, inputs.positionRotations);
-    assertEquals(5.0, inputs.velocityRPS);
+    assertEquals(5.0, inputs.velocityRPM);
     assertEquals(30.0, inputs.statorCurrentA);
     assertEquals(25.0, inputs.supplyCurrentA);
     assertEquals(11.5, inputs.appliedVoltage);
@@ -48,7 +48,7 @@ class MechanismIOTest {
     MechanismIOInputsAutoLogged inputs = new MechanismIOInputsAutoLogged();
 
     assertEquals(0.0, inputs.positionRotations);
-    assertEquals(0.0, inputs.velocityRPS);
+    assertEquals(0.0, inputs.velocityRPM);
     assertEquals(0.0, inputs.statorCurrentA);
     assertEquals(0.0, inputs.supplyCurrentA);
     assertEquals(0.0, inputs.appliedVoltage);
@@ -64,7 +64,7 @@ class MechanismIOTest {
     replay.updateInputs(inputs);
 
     assertEquals(0.0, inputs.positionRotations);
-    assertEquals(0.0, inputs.velocityRPS);
+    assertEquals(0.0, inputs.velocityRPM);
     assertEquals(0.0, inputs.statorCurrentA);
     assertEquals(0.0, inputs.supplyCurrentA);
     assertEquals(0.0, inputs.appliedVoltage);
@@ -85,7 +85,7 @@ class MechanismIOTest {
     stub.updateInputs(inputs);
 
     assertEquals(20.0, inputs.positionRotations);
-    assertEquals(8.0, inputs.velocityRPS);
+    assertEquals(8.0, inputs.velocityRPM);
     // Unchanged fields retain their previous values from the stub
     assertEquals(30.0, inputs.statorCurrentA);
   }

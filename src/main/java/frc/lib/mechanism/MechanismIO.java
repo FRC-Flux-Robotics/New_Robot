@@ -8,7 +8,7 @@ public interface MechanismIO {
   @AutoLog
   class MechanismIOInputs {
     public double positionRotations;
-    public double velocityRPS;
+    public double velocityRPM;
     public double statorCurrentA;
     public double supplyCurrentA;
     public double appliedVoltage;

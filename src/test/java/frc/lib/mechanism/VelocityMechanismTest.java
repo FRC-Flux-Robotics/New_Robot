@@ -18,7 +18,7 @@ class VelocityMechanismTest {
 
     @Override
     public void updateInputs(MechanismIOInputsAutoLogged inputs) {
-      inputs.velocityRPS = velocity;
+      inputs.velocityRPM = velocity;
       inputs.motorConnected = true;
     }
 
@@ -68,7 +68,7 @@ class VelocityMechanismTest {
 
     assertEquals(50.0, mech.getTargetVelocity());
     assertEquals("setVelocity", io.lastCall);
-    assertEquals(50.0, io.lastArg);
+    assertEquals(50.0 / 60.0, io.lastArg, 0.001); // IO receives RPS
   }
 
   @Test
