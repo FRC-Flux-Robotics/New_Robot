@@ -28,7 +28,6 @@ public class RobotContainer {
   private final Vision m_vision; // null if no camera configured
 
   protected final CommandXboxController m_controller = new CommandXboxController(0);
-  private final CommandXboxController m_sysIdController = new CommandXboxController(1);
 
   // Slew rate limiters (used when Drive/SlewRate is ON)
   private SlewRateLimiter m_xLimiter;
@@ -214,14 +213,15 @@ public class RobotContainer {
   protected void configureSysIdBindings() {
     if (!(m_drive instanceof SwerveDrive swerve)) return;
 
-    // SysId controller (port 1): A/B = dynamic, X/Y = quasistatic
-    m_sysIdController.a().whileTrue(swerve.sysIdDynamic(SysIdRoutine.Direction.kForward));
-    m_sysIdController.b().whileTrue(swerve.sysIdDynamic(SysIdRoutine.Direction.kReverse));
-    m_sysIdController.x().whileTrue(swerve.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-    m_sysIdController.y().whileTrue(swerve.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-
-    // Left bumper: wheel radius characterization (spin in place, measure radius)
-    m_sysIdController.leftBumper().whileTrue(swerve.wheelRadiusCharacterization());
+    // SysId controller on port 1 — only created here so subclasses that
+    // override this method (e.g. FuelRobotContainer) never allocate it,
+    // avoiding duplicate controllers on the same HID port.
+    CommandXboxController sysId = new CommandXboxController(1);
+    sysId.a().whileTrue(swerve.sysIdDynamic(SysIdRoutine.Direction.kForward));
+    sysId.b().whileTrue(swerve.sysIdDynamic(SysIdRoutine.Direction.kReverse));
+    sysId.x().whileTrue(swerve.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
+    sysId.y().whileTrue(swerve.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
+    sysId.leftBumper().whileTrue(swerve.wheelRadiusCharacterization());
   }
 
   private void configureAutoChooser() {
