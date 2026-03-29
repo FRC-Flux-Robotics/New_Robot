@@ -133,6 +133,9 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
   private final DrivetrainIO m_io;
   private final DrivetrainIOInputsAutoLogged m_ioInputs = new DrivetrainIOInputsAutoLogged();
 
+  // Cached telemetry state — written by CTRE odometry thread, read by main thread in periodic()
+  private volatile SwerveDriveState m_cachedState;
+
   /** Creates a SwerveDrive with real hardware IO. */
   public SwerveDrive(DrivetrainConfig config) {
     this(config, null);
@@ -169,7 +172,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     m_io = (io != null) ? io : new DrivetrainIOTalonFX(this, config.canBusName);
 
     configurePathPlanner();
-    registerTelemetry(this::logTelemetry);
+    registerTelemetry(this::cacheTelemetry);
 
     if (Utils.isSimulation()) {
       startSimThread();
@@ -569,29 +572,36 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
             });
   }
 
-  private void logTelemetry(SwerveDrivetrain.SwerveDriveState state) {
-    Logger.recordOutput("Drive/Pose", state.Pose);
-    Logger.recordOutput("Drive/Speeds", state.Speeds);
-
-    for (int i = 0; i < state.ModuleStates.length; i++) {
-      Logger.recordOutput("Drive/Module" + i + "/Angle", state.ModuleStates[i].angle.getDegrees());
-      Logger.recordOutput(
-          "Drive/Module" + i + "/Speed", state.ModuleStates[i].speedMetersPerSecond);
-    }
-
-    for (int i = 0; i < state.ModuleTargets.length; i++) {
-      Logger.recordOutput(
-          "Drive/Module" + i + "/TargetAngle", state.ModuleTargets[i].angle.getDegrees());
-      Logger.recordOutput(
-          "Drive/Module" + i + "/TargetSpeed", state.ModuleTargets[i].speedMetersPerSecond);
-    }
-
-    Logger.recordOutput("Drive/OdometryPeriod", state.OdometryPeriod);
+  private void cacheTelemetry(SwerveDrivetrain.SwerveDriveState state) {
+    m_cachedState = state;
   }
 
   @Override
   public void periodic() {
     m_io.updateInputs(m_ioInputs);
     Logger.processInputs("Drive", m_ioInputs);
+
+    // Log telemetry cached from the odometry thread (safe: main thread only)
+    SwerveDriveState state = m_cachedState;
+    if (state != null) {
+      Logger.recordOutput("Drive/Pose", state.Pose);
+      Logger.recordOutput("Drive/Speeds", state.Speeds);
+
+      for (int i = 0; i < state.ModuleStates.length; i++) {
+        Logger.recordOutput(
+            "Drive/Module" + i + "/Angle", state.ModuleStates[i].angle.getDegrees());
+        Logger.recordOutput(
+            "Drive/Module" + i + "/Speed", state.ModuleStates[i].speedMetersPerSecond);
+      }
+
+      for (int i = 0; i < state.ModuleTargets.length; i++) {
+        Logger.recordOutput(
+            "Drive/Module" + i + "/TargetAngle", state.ModuleTargets[i].angle.getDegrees());
+        Logger.recordOutput(
+            "Drive/Module" + i + "/TargetSpeed", state.ModuleTargets[i].speedMetersPerSecond);
+      }
+
+      Logger.recordOutput("Drive/OdometryPeriod", state.OdometryPeriod);
+    }
   }
 }
