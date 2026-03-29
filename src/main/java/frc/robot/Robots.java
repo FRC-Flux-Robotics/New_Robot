@@ -128,7 +128,7 @@ public final class Robots {
           // Vision — left camera (TODO: measure actual transform on robot)
           .camera(
               new CameraConfig(
-                  "OV9281-5-left",
+                  "OV9281-2",
                   new Transform3d(
                       new Translation3d(
                           Units.inchesToMeters(-10.875),
@@ -138,7 +138,7 @@ public final class Robots {
           // Vision — right camera (TODO: measure actual transform on robot)
           .camera(
               new CameraConfig(
-                  "OV9281-5-right",
+                  "OV9281-4",
                   new Transform3d(
                       new Translation3d(
                           Units.inchesToMeters(-10.875),
