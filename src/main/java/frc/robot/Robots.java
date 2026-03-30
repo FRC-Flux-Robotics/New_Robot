@@ -9,6 +9,86 @@ import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.ModuleConfig;
 import frc.lib.drivetrain.PIDGains;
 
+/**
+ * Robot-specific drivetrain configurations for CORAL and FUEL.
+ *
+ * <h2>Shared Constants</h2>
+ *
+ * <table>
+ *   <tr><th>Parameter</th><th>Value</th></tr>
+ *   <tr><td>Motor</td><td>Kraken x60 (free speed 96.7 rps)</td></tr>
+ *   <tr><td>Drive Gear Ratio</td><td>6.3947</td></tr>
+ *   <tr><td>Steer Gear Ratio</td><td>12.1</td></tr>
+ *   <tr><td>Coupling Ratio</td><td>4.5</td></tr>
+ *   <tr><td>Wheel Radius</td><td>2.0 in</td></tr>
+ *   <tr><td>Max Speed (12V)</td><td>~4.83 m/s</td></tr>
+ *   <tr><td>Speed Coefficient</td><td>0.5 (teleop = ~2.42 m/s)</td></tr>
+ *   <tr><td>Max Angular Rate</td><td>π rad/s (0.5 rot/s)</td></tr>
+ *   <tr><td>Translation Deadband</td><td>0.02</td></tr>
+ *   <tr><td>Rotation Deadband</td><td>0.02</td></tr>
+ * </table>
+ *
+ * <h3>PID Gains</h3>
+ *
+ * <table>
+ *   <tr><th>Controller</th><th>kP</th><th>kI</th><th>kD</th><th>kS</th><th>kV</th><th>kA</th></tr>
+ *   <tr><td>Steer</td><td>15</td><td>0</td><td>0.9</td><td>0.1</td><td>1.5</td><td>0</td></tr>
+ *   <tr><td>Drive</td><td>0.1</td><td>0</td><td>0</td><td>0</td><td>0.124</td><td>0</td></tr>
+ * </table>
+ *
+ * <h3>Current Limits</h3>
+ *
+ * <table>
+ *   <tr><th>Parameter</th><th>Value</th></tr>
+ *   <tr><td>Drive Stator</td><td>60 A</td></tr>
+ *   <tr><td>Drive Supply</td><td>120 A</td></tr>
+ *   <tr><td>Steer Stator</td><td>60 A</td></tr>
+ * </table>
+ *
+ * <h2>CORAL</h2>
+ *
+ * <table>
+ *   <tr><th>Parameter</th><th>Value</th></tr>
+ *   <tr><td>CAN Bus</td><td>"CANdace"</td></tr>
+ *   <tr><td>Pigeon ID</td><td>24</td></tr>
+ *   <tr><td>Track</td><td>23.5 × 23.5 in</td></tr>
+ *   <tr><td>Camera</td><td>OV9281 at (0.3m, 0, 0.25m)</td></tr>
+ * </table>
+ *
+ * <table>
+ *   <tr><th>Module</th><th>Drive</th><th>Steer</th><th>Encoder</th><th>Offset</th><th>Inv Drive</th></tr>
+ *   <tr><td>FL</td><td>7</td><td>8</td><td>23</td><td>+0.1213</td><td>no</td></tr>
+ *   <tr><td>FR</td><td>1</td><td>2</td><td>20</td><td>-0.2949</td><td>yes</td></tr>
+ *   <tr><td>BL</td><td>5</td><td>6</td><td>22</td><td>+0.0408</td><td>no</td></tr>
+ *   <tr><td>BR</td><td>3</td><td>4</td><td>21</td><td>-0.3770</td><td>yes</td></tr>
+ * </table>
+ *
+ * <h2>FUEL</h2>
+ *
+ * <table>
+ *   <tr><th>Parameter</th><th>Value</th></tr>
+ *   <tr><td>CAN Bus</td><td>"Drivetrain"</td></tr>
+ *   <tr><td>Pigeon ID</td><td>20</td></tr>
+ *   <tr><td>Track</td><td>22.25 × 22.25 in</td></tr>
+ * </table>
+ *
+ * <table>
+ *   <tr><th>Module</th><th>Drive</th><th>Steer</th><th>Encoder</th><th>Offset</th><th>Inv Drive</th></tr>
+ *   <tr><td>FL</td><td>2</td><td>1</td><td>21</td><td>+0.1052</td><td>no</td></tr>
+ *   <tr><td>FR</td><td>4</td><td>3</td><td>22</td><td>-0.1206</td><td>yes</td></tr>
+ *   <tr><td>BL</td><td>6</td><td>5</td><td>23</td><td>-0.4668</td><td>no</td></tr>
+ *   <tr><td>BR</td><td>8</td><td>7</td><td>24</td><td>-0.0371</td><td>yes</td></tr>
+ * </table>
+ *
+ * <p>Vision cameras (FUEL):
+ *
+ * <table>
+ *   <tr><th>Camera</th><th>Position (in)</th><th>Rotation (deg)</th></tr>
+ *   <tr><td>OV9281-5 (center)</td><td>(-11.75, 0, 21.875)</td><td>(0, -10, 0)</td></tr>
+ *   <tr><td>OV9281-2 (left)</td><td>(-1.875, 16.375, 20.875)</td><td>(0, 0, 15)</td></tr>
+ *   <tr><td>OV9281-4 (right)</td><td>(-1.875, -16.375, 20.875)</td><td>(0, 0, -15)</td></tr>
+ * </table>
+ */
 public final class Robots {
 
   // Kraken x60 free speed: 96.7 rps, drive ratio: 6.3947, wheel radius: 2.0 in
