@@ -197,34 +197,34 @@ public final class Robots {
           // Track
           .trackWidthInches(22.25)
           .trackLengthInches(22.25)
-          // Vision — center camera
+          // Vision — center camera (measured from FluxRobot-2026: X = -27/2 + 1.75 = -11.75")
           .camera(
               new CameraConfig(
                   "OV9281-5",
                   new Transform3d(
                       new Translation3d(
-                          Units.inchesToMeters(-10.875), 0, Units.inchesToMeters(21.875)),
+                          Units.inchesToMeters(-11.75), 0, Units.inchesToMeters(21.875)),
                       new Rotation3d(0, Units.degreesToRadians(-10), 0))))
-          // Vision — left camera (TODO: measure actual transform on robot)
+          // Vision — left camera (measured from FluxRobot-2026)
           .camera(
               new CameraConfig(
                   "OV9281-2",
                   new Transform3d(
                       new Translation3d(
-                          Units.inchesToMeters(-10.875),
-                          Units.inchesToMeters(5.0),
-                          Units.inchesToMeters(21.875)),
-                      new Rotation3d(0, Units.degreesToRadians(-10), Units.degreesToRadians(30)))))
-          // Vision — right camera (TODO: measure actual transform on robot)
+                          Units.inchesToMeters(-1.875),
+                          Units.inchesToMeters(16.375),
+                          Units.inchesToMeters(20.875)),
+                      new Rotation3d(0, 0, Units.degreesToRadians(15)))))
+          // Vision — right camera (measured from FluxRobot-2026)
           .camera(
               new CameraConfig(
                   "OV9281-4",
                   new Transform3d(
                       new Translation3d(
-                          Units.inchesToMeters(-10.875),
-                          Units.inchesToMeters(-5.0),
-                          Units.inchesToMeters(21.875)),
-                      new Rotation3d(0, Units.degreesToRadians(-10), Units.degreesToRadians(-30)))))
+                          Units.inchesToMeters(-1.875),
+                          Units.inchesToMeters(-16.375),
+                          Units.inchesToMeters(20.875)),
+                      new Rotation3d(0, 0, Units.degreesToRadians(-15)))))
           .build();
 
   private Robots() {}
