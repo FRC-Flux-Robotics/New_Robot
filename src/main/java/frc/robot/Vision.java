@@ -11,6 +11,7 @@ import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.lib.drivetrain.CameraConfig;
@@ -46,6 +47,7 @@ public class Vision extends SubsystemBase {
   private volatile Matrix<N3, N1> m_curStdDevs = kSingleTagStdDevs;
   private volatile Pose2d m_lastVisionPose = new Pose2d();
   private boolean m_enabled = true;
+  private int m_nextCameraIndex = 0;
 
   // Cached per-periodic best target (avoids re-scanning all cameras per getter)
   private boolean m_cachedConnected = false;
@@ -71,12 +73,24 @@ public class Vision extends SubsystemBase {
 
   @Override
   public void periodic() {
-    for (int i = 0; i < m_ios.length; i++) {
-      // TODO(S9-10): Vision updates disabled — 3-camera processing exceeds 20ms loop budget.
-      // Re-enable after implementing round-robin or async camera processing.
-      // m_ios[i].updateInputs(m_inputs[i]);
-      Logger.processInputs("Vision/Camera" + i, m_inputs[i]);
+    // Round-robin: update one camera per cycle to stay within 20ms loop budget
+    int updatedCamera = m_nextCameraIndex;
+    double t0 = Timer.getFPGATimestamp();
+    m_ios[updatedCamera].updateInputs(m_inputs[updatedCamera]);
+    Logger.recordOutput(
+        "Performance/Vision/Camera" + updatedCamera + "UpdateMs",
+        (Timer.getFPGATimestamp() - t0) * 1000.0);
+    m_nextCameraIndex = (m_nextCameraIndex + 1) % m_ios.length;
+    Logger.recordOutput("Vision/UpdatedCamera", updatedCamera);
 
+    // Log all cameras' inputs every cycle (AdvantageKit replay requirement)
+    for (int i = 0; i < m_ios.length; i++) {
+      Logger.processInputs("Vision/Camera" + i, m_inputs[i]);
+    }
+
+    // Process only the freshly updated camera (rejection, std devs, pose estimation)
+    {
+      int i = updatedCamera;
       var inputs = m_inputs[i];
       String prefix = "Vision/Camera" + i + "/";
 
@@ -203,6 +217,11 @@ public class Vision extends SubsystemBase {
 
   public int getTargetID() {
     return m_cachedBestId;
+  }
+
+  /** Returns which camera will be updated next cycle (package-private for testing). */
+  int getNextCameraIndex() {
+    return m_nextCameraIndex;
   }
 
   /** Returns null if measurement is acceptable, or a {@link VisionRejectReason}. */
