@@ -13,6 +13,7 @@ import frc.lib.drivetrain.CameraConfig;
 import frc.lib.drivetrain.DrivetrainConfig;
 import frc.lib.drivetrain.DrivetrainIOReplay;
 import frc.lib.drivetrain.SwerveDrive;
+import frc.lib.util.LogFileManager;
 import frc.lib.util.LoggedTracer;
 import frc.lib.util.PhoenixSignals;
 import frc.lib.vision.VisionIO;
@@ -56,6 +57,7 @@ public class Robot extends LoggedRobot {
 
     switch (mode) {
       case REAL:
+        Logger.addDataReceiver(new WPILOGWriter(LogFileManager.getLogPath()));
         Logger.addDataReceiver(new NT4Publisher());
         break;
       case SIM:
