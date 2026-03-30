@@ -17,6 +17,7 @@ import frc.lib.drivetrain.CameraConfig;
 import frc.lib.drivetrain.DriveInterface;
 import frc.lib.drivetrain.SwerveDrive;
 import frc.lib.vision.VisionIO;
+import frc.robot.commands.CameraValidationCmd;
 
 /** Owns subsystems, default commands, button bindings, and auto chooser. */
 public class RobotContainer {
@@ -26,6 +27,7 @@ public class RobotContainer {
 
   private final DriveInterface m_drive;
   private final Vision m_vision; // null if no camera configured
+  private final CameraConfig[] m_cameras;
 
   protected final CommandXboxController m_controller = new CommandXboxController(0);
 
@@ -47,7 +49,7 @@ public class RobotContainer {
   private final PiecewiseSensitivity m_legacyRotSens =
       new PiecewiseSensitivity(0.09, 0.6, 0.1, 0.5, 1.0);
 
-  private final SendableChooser<Command> m_autoChooser = new SendableChooser<>();
+  protected final SendableChooser<Command> m_autoChooser = new SendableChooser<>();
   private final SendableChooser<String> m_posePresetChooser = new SendableChooser<>();
   private final Field2d m_field = new Field2d();
 
@@ -62,6 +64,7 @@ public class RobotContainer {
 
   public RobotContainer(DriveInterface drive, VisionIO[] visionIOs, CameraConfig[] cameras) {
     m_drive = drive;
+    m_cameras = cameras;
 
     if (visionIOs.length > 0) {
       m_vision = new Vision(visionIOs, cameras, m_drive);
@@ -232,6 +235,8 @@ public class RobotContainer {
     m_autoChooser.addOption("Precision Square", Autos.precisionSquare(m_drive));
     if (m_vision != null) {
       m_autoChooser.addOption("Drive to Nearest Tag", Autos.driveToNearestTag(m_vision, m_drive));
+      m_autoChooser.addOption(
+          "Camera Validation", new CameraValidationCmd(m_vision, m_drive, m_cameras));
     }
     SmartDashboard.putData("Auto Chooser", m_autoChooser);
   }

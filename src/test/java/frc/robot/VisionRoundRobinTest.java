@@ -100,8 +100,7 @@ class VisionRoundRobinTest {
   }
 
   private static CameraConfig dummyCamera(String name) {
-    return new CameraConfig(
-        name, new Transform3d(new Translation3d(), new Rotation3d()));
+    return new CameraConfig(name, new Transform3d(new Translation3d(), new Rotation3d()));
   }
 
   private Vision createVision(CountingVisionIO[] ios) {
@@ -130,9 +129,10 @@ class VisionRoundRobinTest {
 
   @Test
   void roundRobinIndexWraps() {
-    var ios = new CountingVisionIO[] {
-        new CountingVisionIO(), new CountingVisionIO(), new CountingVisionIO()
-    };
+    var ios =
+        new CountingVisionIO[] {
+          new CountingVisionIO(), new CountingVisionIO(), new CountingVisionIO()
+        };
     Vision vision = createVision(ios);
 
     assertEquals(0, vision.getNextCameraIndex());
@@ -158,9 +158,10 @@ class VisionRoundRobinTest {
 
   @Test
   void onlyUpdatedCameraIsProcessed() {
-    var ios = new CountingVisionIO[] {
-        new CountingVisionIO(), new CountingVisionIO(), new CountingVisionIO()
-    };
+    var ios =
+        new CountingVisionIO[] {
+          new CountingVisionIO(), new CountingVisionIO(), new CountingVisionIO()
+        };
     var drive = new StubDrive();
     CameraConfig[] cameras = {dummyCamera("c0"), dummyCamera("c1"), dummyCamera("c2")};
     Vision vision = new Vision(ios, cameras, drive);
@@ -196,6 +197,7 @@ class VisionRoundRobinTest {
 
     // Cycle 3: updates camera 2 (no pose) — no new vision measurement
     vision.periodic();
-    assertEquals(1, drive.visionMeasurementCount, "Camera 1's stale data should not be reprocessed");
+    assertEquals(
+        1, drive.visionMeasurementCount, "Camera 1's stale data should not be reprocessed");
   }
 }

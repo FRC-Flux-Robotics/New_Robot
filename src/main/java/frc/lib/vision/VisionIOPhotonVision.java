@@ -1,6 +1,7 @@
 package frc.lib.vision;
 
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.wpilibj.DriverStation;
 import frc.lib.drivetrain.CameraConfig;
 import java.util.Comparator;
@@ -27,6 +28,11 @@ public class VisionIOPhotonVision implements VisionIO {
         new PhotonPoseEstimator(
             fieldLayout, PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, config.robotToCamera());
     m_poseEstimator.setMultiTagFallbackStrategy(PoseStrategy.LOWEST_AMBIGUITY);
+  }
+
+  @Override
+  public void setTransform(Transform3d robotToCamera) {
+    m_poseEstimator.setRobotToCameraTransform(robotToCamera);
   }
 
   @Override

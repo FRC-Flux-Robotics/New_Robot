@@ -1,9 +1,16 @@
 package frc.lib.vision;
 
+import edu.wpi.first.math.geometry.Transform3d;
 import org.littletonrobotics.junction.AutoLog;
 
 /** Hardware abstraction for vision camera data. One instance per camera. */
 public interface VisionIO {
+
+  /**
+   * Updates the robot-to-camera transform at runtime (for live calibration). Default no-op for
+   * replay/sim.
+   */
+  default void setTransform(Transform3d robotToCamera) {}
 
   @AutoLog
   class VisionIOInputs {

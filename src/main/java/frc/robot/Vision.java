@@ -8,9 +8,12 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Preferences;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -56,6 +59,11 @@ public class Vision extends SubsystemBase {
   private double m_cachedBestArea = 0;
   private int m_cachedBestId = -1;
 
+  // Camera transform tuning keys
+  private static final String kCamTunePrefix = "CamTune/";
+  private static final String kCamTuneApplyKey = kCamTunePrefix + "Apply";
+  private static final String kCamTuneSaveKey = kCamTunePrefix + "Save";
+
   public Vision(VisionIO[] ios, CameraConfig[] cameras, DriveInterface drive) {
     m_ios = ios;
     m_cameras = cameras;
@@ -69,10 +77,114 @@ public class Vision extends SubsystemBase {
     }
 
     SmartDashboard.putBoolean(kUseNewStdDevsKey, true);
+
+    // Publish per-camera transform values for live tuning
+    initCameraTuning();
+  }
+
+  private void initCameraTuning() {
+    for (int i = 0; i < m_cameras.length; i++) {
+      Transform3d t = m_cameras[i].robotToCamera();
+      String prefix = kCamTunePrefix + "Cam" + i + "/";
+
+      // Load from Preferences if saved, otherwise use code defaults (in cm and degrees)
+      double xCm = Preferences.getDouble(prefix + "X_cm", t.getX() * 100.0);
+      double yCm = Preferences.getDouble(prefix + "Y_cm", t.getY() * 100.0);
+      double zCm = Preferences.getDouble(prefix + "Z_cm", t.getZ() * 100.0);
+      double rollDeg =
+          Preferences.getDouble(prefix + "Roll_deg", Math.toDegrees(t.getRotation().getX()));
+      double pitchDeg =
+          Preferences.getDouble(prefix + "Pitch_deg", Math.toDegrees(t.getRotation().getY()));
+      double yawDeg =
+          Preferences.getDouble(prefix + "Yaw_deg", Math.toDegrees(t.getRotation().getZ()));
+
+      SmartDashboard.putString(prefix + "Name", m_cameras[i].name());
+      SmartDashboard.putNumber(prefix + "X_cm", xCm);
+      SmartDashboard.putNumber(prefix + "Y_cm", yCm);
+      SmartDashboard.putNumber(prefix + "Z_cm", zCm);
+      SmartDashboard.putNumber(prefix + "Roll_deg", rollDeg);
+      SmartDashboard.putNumber(prefix + "Pitch_deg", pitchDeg);
+      SmartDashboard.putNumber(prefix + "Yaw_deg", yawDeg);
+
+      // If saved values differ from code defaults, apply them on startup
+      if (Preferences.containsKey(prefix + "X_cm")) {
+        applyTransform(i);
+      }
+    }
+
+    SmartDashboard.putBoolean(kCamTuneApplyKey, false);
+    SmartDashboard.putBoolean(kCamTuneSaveKey, false);
+  }
+
+  private void applyTransform(int camIndex) {
+    String prefix = kCamTunePrefix + "Cam" + camIndex + "/";
+    Transform3d origT = m_cameras[camIndex].robotToCamera();
+
+    double xM = SmartDashboard.getNumber(prefix + "X_cm", origT.getX() * 100.0) / 100.0;
+    double yM = SmartDashboard.getNumber(prefix + "Y_cm", origT.getY() * 100.0) / 100.0;
+    double zM = SmartDashboard.getNumber(prefix + "Z_cm", origT.getZ() * 100.0) / 100.0;
+    double rollRad =
+        Math.toRadians(
+            SmartDashboard.getNumber(
+                prefix + "Roll_deg", Math.toDegrees(origT.getRotation().getX())));
+    double pitchRad =
+        Math.toRadians(
+            SmartDashboard.getNumber(
+                prefix + "Pitch_deg", Math.toDegrees(origT.getRotation().getY())));
+    double yawRad =
+        Math.toRadians(
+            SmartDashboard.getNumber(
+                prefix + "Yaw_deg", Math.toDegrees(origT.getRotation().getZ())));
+
+    Transform3d newTransform =
+        new Transform3d(new Translation3d(xM, yM, zM), new Rotation3d(rollRad, pitchRad, yawRad));
+    m_ios[camIndex].setTransform(newTransform);
+  }
+
+  private void saveCameraTuning() {
+    for (int i = 0; i < m_cameras.length; i++) {
+      String prefix = kCamTunePrefix + "Cam" + i + "/";
+      Transform3d origT = m_cameras[i].robotToCamera();
+      Preferences.setDouble(
+          prefix + "X_cm", SmartDashboard.getNumber(prefix + "X_cm", origT.getX() * 100.0));
+      Preferences.setDouble(
+          prefix + "Y_cm", SmartDashboard.getNumber(prefix + "Y_cm", origT.getY() * 100.0));
+      Preferences.setDouble(
+          prefix + "Z_cm", SmartDashboard.getNumber(prefix + "Z_cm", origT.getZ() * 100.0));
+      Preferences.setDouble(
+          prefix + "Roll_deg",
+          SmartDashboard.getNumber(
+              prefix + "Roll_deg", Math.toDegrees(origT.getRotation().getX())));
+      Preferences.setDouble(
+          prefix + "Pitch_deg",
+          SmartDashboard.getNumber(
+              prefix + "Pitch_deg", Math.toDegrees(origT.getRotation().getY())));
+      Preferences.setDouble(
+          prefix + "Yaw_deg",
+          SmartDashboard.getNumber(prefix + "Yaw_deg", Math.toDegrees(origT.getRotation().getZ())));
+    }
+  }
+
+  private void checkCameraTuningButtons() {
+    if (SmartDashboard.getBoolean(kCamTuneApplyKey, false)) {
+      for (int i = 0; i < m_cameras.length; i++) {
+        applyTransform(i);
+      }
+      SmartDashboard.putBoolean(kCamTuneApplyKey, false);
+      DriverStation.reportWarning("Camera transforms updated from dashboard", false);
+    }
+    if (SmartDashboard.getBoolean(kCamTuneSaveKey, false)) {
+      saveCameraTuning();
+      SmartDashboard.putBoolean(kCamTuneSaveKey, false);
+      DriverStation.reportWarning("Camera transforms saved to Preferences", false);
+    }
   }
 
   @Override
   public void periodic() {
+    // Check for live camera tuning adjustments
+    checkCameraTuningButtons();
+
     // Round-robin: update one camera per cycle to stay within 20ms loop budget
     int updatedCamera = m_nextCameraIndex;
     double t0 = Timer.getFPGATimestamp();
@@ -137,6 +249,29 @@ public class Vision extends SubsystemBase {
       }
     }
 
+    // Per-camera identification: name, status, visible tags, best target direction
+    // Use this to identify which physical camera is which name:
+    // cover one camera at a time and see which entry goes "BLOCKED"
+    for (int i = 0; i < m_ios.length; i++) {
+      var inputs = m_inputs[i];
+      String camName = i < m_cameras.length ? m_cameras[i].name() : "Camera" + i;
+      StringBuilder idInfo = new StringBuilder(camName + ": ");
+      if (!inputs.connected) {
+        idInfo.append("DISCONNECTED");
+      } else if (!inputs.hasTargets) {
+        idInfo.append("BLOCKED (no tags)");
+      } else {
+        idInfo.append("sees tags [");
+        for (int t = 0; t < inputs.targetCount; t++) {
+          if (t > 0) idInfo.append(", ");
+          idInfo.append(inputs.targetFiducialIds[t]);
+        }
+        idInfo.append(
+            String.format("] best=ID%d yaw=%.1f°", inputs.bestTargetId, inputs.bestTargetYaw));
+      }
+      SmartDashboard.putString("CamID/Cam" + i, idInfo.toString());
+    }
+
     // Cache best target across all cameras (single scan)
     boolean connected = false;
     boolean hasTargets = false;
@@ -185,6 +320,49 @@ public class Vision extends SubsystemBase {
     SmartDashboard.putNumber("Vision/PoseY", visionPose.getY());
     SmartDashboard.putNumber("Vision/PoseHeading", visionPose.getRotation().getDegrees());
     SmartDashboard.putString("Vision/VisibleTagIDs", visibleIds.toString());
+
+    // Per-camera pose validation: shows each camera's pose estimate and error vs odometry
+    Pose2d odomPose = m_drive.getPose();
+    for (int i = 0; i < m_inputs.length; i++) {
+      var inputs = m_inputs[i];
+      String prefix = "Vision/Camera" + i + "/";
+      if (inputs.posePresent) {
+        Pose2d camPose =
+            new Pose2d(inputs.poseX, inputs.poseY, new Rotation2d(inputs.poseRotRadians));
+        SmartDashboard.putNumber(prefix + "PoseX", camPose.getX());
+        SmartDashboard.putNumber(prefix + "PoseY", camPose.getY());
+        SmartDashboard.putNumber(prefix + "PoseHeading", camPose.getRotation().getDegrees());
+
+        // Error vs odometry — large values indicate bad camera transform
+        double posError = camPose.getTranslation().getDistance(odomPose.getTranslation());
+        double headingError =
+            Math.abs(camPose.getRotation().minus(odomPose.getRotation()).getDegrees());
+        SmartDashboard.putNumber(prefix + "ErrorMeters", posError);
+        SmartDashboard.putNumber(prefix + "ErrorDegrees", headingError);
+        Logger.recordOutput(prefix + "Pose2d", camPose);
+      }
+    }
+
+    // Multi-camera consistency: max disagreement between any two cameras
+    if (m_inputs.length > 1) {
+      double maxCamDisagreement = 0;
+      for (int i = 0; i < m_inputs.length; i++) {
+        if (!m_inputs[i].posePresent) continue;
+        Pose2d poseI =
+            new Pose2d(
+                m_inputs[i].poseX, m_inputs[i].poseY, new Rotation2d(m_inputs[i].poseRotRadians));
+        for (int j = i + 1; j < m_inputs.length; j++) {
+          if (!m_inputs[j].posePresent) continue;
+          Pose2d poseJ =
+              new Pose2d(
+                  m_inputs[j].poseX, m_inputs[j].poseY, new Rotation2d(m_inputs[j].poseRotRadians));
+          double dist = poseI.getTranslation().getDistance(poseJ.getTranslation());
+          maxCamDisagreement = Math.max(maxCamDisagreement, dist);
+        }
+      }
+      SmartDashboard.putNumber("Vision/CameraDisagreementMeters", maxCamDisagreement);
+      Logger.recordOutput("Vision/CameraDisagreementMeters", maxCamDisagreement);
+    }
   }
 
   public void setEnabled(boolean enabled) {
@@ -201,6 +379,27 @@ public class Vision extends SubsystemBase {
 
   public Pose2d getLastVisionPose() {
     return m_lastVisionPose;
+  }
+
+  /** Returns number of cameras. */
+  public int getCameraCount() {
+    return m_ios.length;
+  }
+
+  /** Returns camera name for the given index. */
+  public String getCameraName(int index) {
+    return m_cameras[index].name();
+  }
+
+  /**
+   * Returns the current pose estimate from a specific camera, or null if no pose available. Used by
+   * camera validation to compare per-camera estimates against known positions.
+   */
+  public Pose2d getCameraPose(int cameraIndex) {
+    if (cameraIndex < 0 || cameraIndex >= m_inputs.length) return null;
+    var inputs = m_inputs[cameraIndex];
+    if (!inputs.posePresent) return null;
+    return new Pose2d(inputs.poseX, inputs.poseY, new Rotation2d(inputs.poseRotRadians));
   }
 
   public boolean hasTargets() {

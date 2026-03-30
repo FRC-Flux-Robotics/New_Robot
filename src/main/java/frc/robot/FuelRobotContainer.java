@@ -1,5 +1,6 @@
 package frc.robot;
 
+import com.pathplanner.lib.auto.NamedCommands;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.RunCommand;
@@ -48,8 +49,72 @@ public class FuelRobotContainer extends RobotContainer {
     rangeTable = new RangeTable();
 
     MechanismTuning.init();
+    registerNamedCommands();
     configureFuelDriverBindings();
     configureFuelBindings();
+  }
+
+  /**
+   * Registers named commands for PathPlanner event markers. These names can be used in the
+   * PathPlanner GUI as event markers on paths — PathPlanner will call the corresponding command
+   * when the robot reaches that marker during path following.
+   */
+  private void registerNamedCommands() {
+    // Intake: run intake + indexer to collect balls
+    NamedCommands.registerCommand(
+        "startIntake",
+        new VelocityCmd(intake, MechanismTuning::intakeInSpeed)
+            .alongWith(new VelocityCmd(indexer, MechanismTuning::indexerSpeed)));
+
+    NamedCommands.registerCommand(
+        "stopIntake",
+        Commands.runOnce(
+            () -> {
+              intake.stop();
+              indexer.stop();
+            },
+            intake,
+            indexer));
+
+    // Shooter: spin up to tunable speed
+    NamedCommands.registerCommand(
+        "spinUpShooter", new ShootCommand(shooter, MechanismTuning::shooterSpeed));
+
+    NamedCommands.registerCommand("stopShooter", Commands.runOnce(() -> shooter.stop(), shooter));
+
+    // Feed: run feeder + indexer to push balls into shooter
+    NamedCommands.registerCommand(
+        "feed",
+        new VelocityCmd(feeder, () -> -MechanismTuning.feederSpeed())
+            .alongWith(new VelocityCmd(indexer, MechanismTuning::indexerSpeed)));
+
+    // Range presets: set shooter speed + hood angle
+    NamedCommands.registerCommand(
+        "setShortRange", new SetShooterRangeCmd(shooter, hood, ShooterConstants.ShortRange));
+    NamedCommands.registerCommand(
+        "setMidRange", new SetShooterRangeCmd(shooter, hood, ShooterConstants.MidRange));
+    NamedCommands.registerCommand(
+        "setLongRange", new SetShooterRangeCmd(shooter, hood, ShooterConstants.LongRange));
+
+    // Range-based auto-shoot (calculates from pose, 5s timeout for auto use)
+    NamedCommands.registerCommand(
+        "rangeShoot",
+        new RangeShootCmd(shooter, hood, feeder, indexer, rangeTable, getDrive()::getPose, 5.0));
+
+    // Stop all mechanisms
+    NamedCommands.registerCommand(
+        "stopAll",
+        Commands.runOnce(
+            () -> {
+              intake.stop();
+              indexer.stop();
+              feeder.stop();
+              shooter.stop();
+            },
+            intake,
+            indexer,
+            feeder,
+            shooter));
   }
 
   // --- Override base class driver bindings (no-ops, replaced by configureFuelDriverBindings) ---
