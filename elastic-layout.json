@@ -964,6 +964,58 @@
               "period": 0.033,
               "show_submit_button": false
             }
+          },
+          {
+            "title": "Shooter Target (RPS)",
+            "x": 1024.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/Shooter/TargetVelocity",
+              "period": 0.033,
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Intake Velocity (RPS)",
+            "x": 1024.0,
+            "y": 384.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/Intake/velocityRPS",
+              "period": 0.033,
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Indexer Velocity (RPS)",
+            "x": 768.0,
+            "y": 384.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/Indexer/velocityRPS",
+              "period": 0.033,
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Feeder Velocity (RPS)",
+            "x": 512.0,
+            "y": 384.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/Feeder/velocityRPS",
+              "period": 0.033,
+              "show_submit_button": false
+            }
           }
         ]
       }

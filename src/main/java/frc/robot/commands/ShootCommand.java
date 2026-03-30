@@ -5,8 +5,8 @@ import frc.lib.mechanism.VelocityMechanism;
 import java.util.function.DoubleSupplier;
 
 /**
- * Toggles the shooter on/off. If spinning, stops it. If stopped, starts at supplied speed. Finishes
- * immediately after toggling.
+ * Runs the shooter at a supplied speed. Stays active until cancelled (works with toggleOnTrue).
+ * Stops the shooter on end.
  */
 public class ShootCommand extends Command {
   private final VelocityMechanism m_shooter;
@@ -24,15 +24,16 @@ public class ShootCommand extends Command {
 
   @Override
   public void initialize() {
-    if (m_shooter.getTargetVelocity() != 0) {
-      m_shooter.stop();
-    } else {
-      m_shooter.setVelocity(m_speedRPS.getAsDouble());
-    }
+    m_shooter.setVelocity(m_speedRPS.getAsDouble());
+  }
+
+  @Override
+  public void end(boolean interrupted) {
+    m_shooter.stop();
   }
 
   @Override
   public boolean isFinished() {
-    return true;
+    return false;
   }
 }

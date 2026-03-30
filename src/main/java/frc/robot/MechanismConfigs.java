@@ -19,8 +19,8 @@ public final class MechanismConfigs {
   private static final double POSITION_CURRENT_LIMIT = 40.0;
 
   private static final PIDGains VELOCITY_PID = new PIDGains(0.11, 0.0, 0.0, 0.01, 0.12, 0.0);
-  // Legacy working values: kP=0.4, kI=0.001, kD=0.00008, no feedforward
-  private static final PIDGains SHOOTER_PID = new PIDGains(0.4, 0.001, 0.00008, 0.0, 0.0, 0.0);
+  // Legacy VelocityMech2 working values: kP=0.5, kI=0, kD=0.0005, kS=0.01, kV=0.12
+  private static final PIDGains SHOOTER_PID = new PIDGains(0.5, 0.0, 0.0005, 0.01, 0.12, 0.0);
   private static final PIDGains POSITION_PID = new PIDGains(2.4, 0.0, 0.1, 0.0, 0.0, 0.0);
 
   public static final MechanismConfig INTAKE =

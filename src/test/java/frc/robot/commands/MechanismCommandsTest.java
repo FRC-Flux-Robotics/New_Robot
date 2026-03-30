@@ -135,34 +135,31 @@ class MechanismCommandsTest {
   // --- ShootCommand tests ---
 
   @Test
-  void shootCommand_startsWhenStopped() {
+  void shootCommand_startsAndStaysRunning() {
     VelocityStubIO io = new VelocityStubIO();
     VelocityMechanism mech = makeVelocityMech(io);
     ShootCommand cmd = new ShootCommand(mech, () -> 80.0);
 
-    // Target is 0 (stopped), so initialize should start shooter
     cmd.initialize();
 
     assertEquals("setVelocity", io.lastCall);
     assertEquals(80.0, io.lastArg);
-    assertTrue(cmd.isFinished());
+    assertFalse(cmd.isFinished()); // stays active for toggleOnTrue
   }
 
   @Test
-  void shootCommand_stopsWhenRunning() {
+  void shootCommand_stopsOnEnd() {
     VelocityStubIO io = new VelocityStubIO();
     VelocityMechanism mech = makeVelocityMech(io);
-
-    // Pre-set velocity so target != 0
-    mech.setVelocity(80.0);
-    assertEquals(80.0, mech.getTargetVelocity());
-
     ShootCommand cmd = new ShootCommand(mech, () -> 80.0);
+
     cmd.initialize();
+    assertEquals("setVelocity", io.lastCall);
+
+    cmd.end(false);
 
     assertEquals("stop", io.lastCall);
     assertEquals(0.0, mech.getTargetVelocity());
-    assertTrue(cmd.isFinished());
   }
 
   // --- SetShooterRangeCmd tests ---
