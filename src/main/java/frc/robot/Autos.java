@@ -1,6 +1,7 @@
 package frc.robot;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.auto.NamedCommands;
 import com.pathplanner.lib.path.PathConstraints;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -78,6 +79,22 @@ public final class Autos {
   /** Follow the "Collect" path created in PathPlanner. */
   public static Command collect(DriveInterface drive) {
     return drive.followPathCommand("Collect");
+  }
+
+  /** Pathfind to Hub from anywhere, brake, then shoot for 10 seconds. */
+  public static Command hub(DriveInterface drive) {
+    PathConstraints constraints = new PathConstraints(2.0, 1.5, Math.PI, Math.PI, 12.0);
+    Pose2d hubPose = new Pose2d(3.5, 4.1, Rotation2d.kZero);
+    return Commands.sequence(
+        // Drive to hub while spinning up shooter so it's ready on arrival
+        Commands.deadline(
+            AutoBuilder.pathfindToPose(hubPose, constraints),
+            NamedCommands.getCommand("spinUpShooter")),
+        Commands.runOnce(() -> drive.setBrake(), drive),
+        Commands.runOnce(() -> drive.drive(0, 0, 0, true, 0.02), drive),
+        // Feed balls through indexer and feeder into shooter
+        NamedCommands.getCommand("feed").withTimeout(10.0),
+        NamedCommands.getCommand("stopAll"));
   }
 
   /** Drive forward 2s, rotate 90 deg for 1s, drive forward 1s, stop. */

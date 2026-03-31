@@ -256,6 +256,7 @@ public class RobotContainer {
     m_autoChooser.addOption("Precision Square", Autos.precisionSquare(m_drive));
     m_autoChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
     m_autoChooser.addOption("Collect", Autos.collect(m_drive));
+    m_autoChooser.addOption("Hub", Autos.hub(m_drive));
     if (m_vision != null) {
       m_autoChooser.addOption("Drive to Nearest Tag", Autos.driveToNearestTag(m_vision, m_drive));
       m_autoChooser.addOption(
