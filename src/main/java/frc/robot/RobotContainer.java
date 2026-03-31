@@ -1,5 +1,6 @@
 package frc.robot;
 
+import com.pathplanner.lib.auto.NamedCommands;
 import com.pathplanner.lib.commands.PathfindingCommand;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -71,6 +72,11 @@ public class RobotContainer {
     } else {
       m_vision = null;
     }
+
+    // Register no-op named commands so PathPlanner paths with event markers
+    // work on robots without mechanisms (e.g., CORAL). FuelRobotContainer
+    // overrides these with real commands.
+    registerDefaultNamedCommands();
 
     DriverPreferences.init();
     FieldPositions.init();
@@ -227,12 +233,29 @@ public class RobotContainer {
     sysId.leftBumper().whileTrue(swerve.wheelRadiusCharacterization());
   }
 
+  /**
+   * Registers no-op named commands for all PathPlanner event markers. Allows paths with markers to
+   * run on robots without mechanisms — the markers just do nothing.
+   */
+  private void registerDefaultNamedCommands() {
+    for (String name :
+        new String[] {
+          "startIntake", "stopIntake", "spinUpShooter", "stopShooter",
+          "feed", "setShortRange", "setMidRange", "setLongRange",
+          "rangeShoot", "stopAll"
+        }) {
+      NamedCommands.registerCommand(name, Commands.none());
+    }
+  }
+
   private void configureAutoChooser() {
     m_autoChooser.setDefaultOption("None", Autos.none());
     m_autoChooser.addOption("Drive Forward", Autos.driveForward(m_drive));
     m_autoChooser.addOption("Forward-Turn-Back", Autos.forwardTurnBack(m_drive));
     m_autoChooser.addOption("PathPlanner Test", Autos.pathPlannerTest(m_drive));
     m_autoChooser.addOption("Precision Square", Autos.precisionSquare(m_drive));
+    m_autoChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
+    m_autoChooser.addOption("Collect", Autos.collect(m_drive));
     if (m_vision != null) {
       m_autoChooser.addOption("Drive to Nearest Tag", Autos.driveToNearestTag(m_vision, m_drive));
       m_autoChooser.addOption(

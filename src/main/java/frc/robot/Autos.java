@@ -70,6 +70,16 @@ public final class Autos {
             }));
   }
 
+  /** Follow the "Hub to Depot" path created in PathPlanner. */
+  public static Command hubToDepot(DriveInterface drive) {
+    return drive.followPathCommand("Hub to Depot");
+  }
+
+  /** Follow the "Collect" path created in PathPlanner. */
+  public static Command collect(DriveInterface drive) {
+    return drive.followPathCommand("Collect");
+  }
+
   /** Drive forward 2s, rotate 90 deg for 1s, drive forward 1s, stop. */
   public static Command forwardTurnBack(DriveInterface drive) {
     return Commands.run(() -> drive.drive(1.0, 0, 0, true, 0.02), drive)
