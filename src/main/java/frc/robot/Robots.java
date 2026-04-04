@@ -84,9 +84,9 @@ import frc.lib.drivetrain.PIDGains;
  *
  * <table>
  *   <tr><th>Camera</th><th>Position (in)</th><th>Rotation (deg)</th></tr>
- *   <tr><td>OV9281-5 (center)</td><td>(-11.75, 0, 21.875)</td><td>(0, -10, 0)</td></tr>
- *   <tr><td>OV9281-2 (left)</td><td>(-1.875, 16.375, 20.875)</td><td>(0, 0, 15)</td></tr>
- *   <tr><td>OV9281-4 (right)</td><td>(-1.875, -16.375, 20.875)</td><td>(0, 0, -15)</td></tr>
+ *   <tr><td>OV9281-2 (center)</td><td>(-11.75, 0, 21.875)</td><td>(0, -10, 0)</td></tr>
+ *   <tr><td>OV9281-1 (left)</td><td>(-1.875, 16.375, 20.875)</td><td>(0, 0, 15)</td></tr>
+ *   <tr><td>OV9281-3 (right)</td><td>(-1.875, -16.375, 20.875)</td><td>(0, 0, -15)</td></tr>
  * </table>
  */
 public final class Robots {
@@ -200,7 +200,7 @@ public final class Robots {
           // Vision — center camera (measured from FluxRobot-2026: X = -27/2 + 1.75 = -11.75")
           .camera(
               new CameraConfig(
-                  "OV9281-5",
+                  "OV9281-2",
                   new Transform3d(
                       new Translation3d(
                           Units.inchesToMeters(-11.75), 0, Units.inchesToMeters(21.875)),
@@ -208,7 +208,7 @@ public final class Robots {
           // Vision — left camera (measured from FluxRobot-2026)
           .camera(
               new CameraConfig(
-                  "OV9281-2",
+                  "OV9281-1",
                   new Transform3d(
                       new Translation3d(
                           Units.inchesToMeters(-1.875),
@@ -218,7 +218,7 @@ public final class Robots {
           // Vision — right camera (measured from FluxRobot-2026)
           .camera(
               new CameraConfig(
-                  "OV9281-4",
+                  "OV9281-3",
                   new Transform3d(
                       new Translation3d(
                           Units.inchesToMeters(-1.875),
