@@ -29,8 +29,21 @@
             }
           },
           {
-            "title": "Auto Chooser",
+            "title": "Robot",
             "x": 640.0,
+            "y": 0.0,
+            "width": 128.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/RobotName",
+              "period": 0.033,
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Auto Chooser",
+            "x": 768.0,
             "y": 0.0,
             "width": 256.0,
             "height": 128.0,
@@ -45,7 +58,7 @@
             "title": "Alliance",
             "x": 640.0,
             "y": 128.0,
-            "width": 256.0,
+            "width": 128.0,
             "height": 128.0,
             "type": "ComboBox Chooser",
             "properties": {
@@ -56,8 +69,8 @@
           },
           {
             "title": "Vision",
-            "x": 640.0,
-            "y": 256.0,
+            "x": 768.0,
+            "y": 128.0,
             "width": 256.0,
             "height": 128.0,
             "type": "Toggle Switch",

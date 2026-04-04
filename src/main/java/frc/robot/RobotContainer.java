@@ -51,6 +51,8 @@ public class RobotContainer {
       new PiecewiseSensitivity(0.09, 0.6, 0.1, 0.5, 1.0);
 
   protected final SendableChooser<Command> m_autoChooser = new SendableChooser<>();
+  private final SendableChooser<Command> m_teleopCmdChooser = new SendableChooser<>();
+  private Command m_activeTeleopCmd = null;
   private final SendableChooser<String> m_posePresetChooser = new SendableChooser<>();
   private final Field2d m_field = new Field2d();
 
@@ -90,6 +92,7 @@ public class RobotContainer {
     configureButtonBindings();
     configureSysIdBindings();
     configureAutoChooser();
+    configureTeleopCommands();
     configurePoseReset();
 
     // Apply initial deadband (legacy 10%)
@@ -265,6 +268,21 @@ public class RobotContainer {
     SmartDashboard.putData("Auto Chooser", m_autoChooser);
   }
 
+  private void configureTeleopCommands() {
+    m_teleopCmdChooser.setDefaultOption("None", Autos.none());
+    m_teleopCmdChooser.addOption("Drive Forward", Autos.driveForward(m_drive));
+    m_teleopCmdChooser.addOption("Forward-Turn-Back", Autos.forwardTurnBack(m_drive));
+    m_teleopCmdChooser.addOption("Precision Square", Autos.precisionSquare(m_drive));
+    m_teleopCmdChooser.addOption("PathPlanner Test", Autos.pathPlannerTest(m_drive));
+    m_teleopCmdChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
+    m_teleopCmdChooser.addOption("Collect", Autos.collect(m_drive));
+    m_teleopCmdChooser.addOption("Hub", Autos.hub(m_drive));
+    SmartDashboard.putData("TeleopCmd/Chooser", m_teleopCmdChooser);
+    SmartDashboard.putBoolean("TeleopCmd/Run", false);
+    SmartDashboard.putBoolean("TeleopCmd/Stop", false);
+    SmartDashboard.putString("TeleopCmd/Status", "Idle");
+  }
+
   private void configurePoseReset() {
     // Alliance-neutral preset positions — resolved for current alliance at apply time
     m_posePresetChooser.setDefaultOption("Origin", "Origin");
@@ -365,6 +383,32 @@ public class RobotContainer {
       if (m_vision.hasTargets()) {
         m_field.getObject("Vision Pose").setPose(m_vision.getLastVisionPose());
       }
+    }
+
+    // Teleop command trigger — run/stop commands from Elastic dashboard
+    if (SmartDashboard.getBoolean("TeleopCmd/Run", false)) {
+      SmartDashboard.putBoolean("TeleopCmd/Run", false);
+      // Cancel any previously running teleop command
+      if (m_activeTeleopCmd != null) {
+        m_activeTeleopCmd.cancel();
+      }
+      m_activeTeleopCmd = m_teleopCmdChooser.getSelected();
+      if (m_activeTeleopCmd != null) {
+        m_activeTeleopCmd.schedule();
+        SmartDashboard.putString("TeleopCmd/Status", "Running");
+      }
+    }
+    if (SmartDashboard.getBoolean("TeleopCmd/Stop", false)) {
+      SmartDashboard.putBoolean("TeleopCmd/Stop", false);
+      if (m_activeTeleopCmd != null) {
+        m_activeTeleopCmd.cancel();
+        m_activeTeleopCmd = null;
+        SmartDashboard.putString("TeleopCmd/Status", "Stopped");
+      }
+    }
+    if (m_activeTeleopCmd != null && m_activeTeleopCmd.isFinished()) {
+      SmartDashboard.putString("TeleopCmd/Status", "Done");
+      m_activeTeleopCmd = null;
     }
 
     // Dashboard preset reset — resolves alliance-neutral name to correct pose

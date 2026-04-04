@@ -7,6 +7,7 @@ package frc.robot;
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.wpilibj.RobotController;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.lib.drivetrain.CameraConfig;
@@ -103,6 +104,7 @@ public class Robot extends LoggedRobot {
     }
 
     String robotName = config == Robots.CORAL ? "CORAL" : "FUEL";
+    SmartDashboard.putString("RobotName", robotName);
     Elastic.sendNotification(
         new Elastic.Notification(
             Elastic.NotificationLevel.INFO,

@@ -80,8 +80,6 @@ public final class FieldPositions {
   public static Pose2d resolve(String name) {
     Pose2d bluePose = POSITIONS.get(name);
     if (bluePose == null) return null;
-    // Origin is always (0,0) regardless of alliance
-    if (name.equals("Origin")) return bluePose;
     return forAlliance(bluePose);
   }
 

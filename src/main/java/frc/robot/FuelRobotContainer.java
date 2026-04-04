@@ -149,6 +149,8 @@ public class FuelRobotContainer extends RobotContainer {
    * A               → Deploy intake (tilt down)
    * B               → Retract intake (tilt up)
    * Right Bumper    → Intake reverse
+   * D-pad Right     → Intake tilt up (manual jog)
+   * D-pad Left      → Intake tilt down (manual jog)
    * D-pad Down      → Reset heading
    * Back            → Reset encoders
    * </pre>
@@ -194,6 +196,12 @@ public class FuelRobotContainer extends RobotContainer {
                 jogIntakeIn.asProxy(),
                 jogIntakeIn.asProxy()));
 
+    // D-pad Right: intake tilt up (manual jog)
+    m_controller.povRight().whileTrue(new RunCommand(() -> tilter.jogUp(), tilter));
+
+    // D-pad Left: intake tilt down (manual jog)
+    m_controller.povLeft().whileTrue(new RunCommand(() -> tilter.jogDown(), tilter));
+
     // D-pad Down: reset heading
     m_controller.povDown().onTrue(Commands.runOnce(() -> getDrive().resetHeading(), getDrive()));
 
@@ -205,26 +213,24 @@ public class FuelRobotContainer extends RobotContainer {
    * Operator controller (port 1) — Scott's layout.
    *
    * <pre>
-   * Right Trigger   → Shoot (run indexer + feeder into shooter)
+   * Right Trigger   → Indexer forwards
    * Left Trigger    → Auto-aim at HUB (hold) — faces Hub while driver translates
    * A               → Set Shooter/Hood to Short Range
    * B               → Set Shooter/Hood to Medium Range
    * Y               → Set Shooter/Hood to Long Range
-   * D-pad Up        → Shooter forwards (toggle on/off)
+   * D-pad Up        → Hood up (manual jog)
+   * D-pad Down      → Hood down (manual jog)
    * D-pad Right     → Indexer forwards
    * D-pad Left      → Indexer reverse
-   * Start           → Go to Hub and shoot (pathfind + auto-shoot)
    * </pre>
    */
   private void configureFuelBindings() {
     CommandXboxController controller = m_operatorController;
 
-    // Right Trigger: shoot (indexer + feeder push balls into shooter)
+    // Right Trigger: indexer forwards
     controller
         .rightTrigger(TRIGGER_THRESHOLD)
-        .whileTrue(
-            new VelocityCmd(feeder, () -> -MechanismTuning.feederSpeed())
-                .alongWith(new VelocityCmd(indexer, MechanismTuning::indexerSpeed)));
+        .whileTrue(new VelocityCmd(indexer, MechanismTuning::indexerSpeed));
 
     // Left Trigger: auto-aim at HUB (driver controls translation, robot faces Hub)
     controller
@@ -253,17 +259,17 @@ public class FuelRobotContainer extends RobotContainer {
     controller.b().onTrue(new SetShooterRangeCmd(shooter, hood, ShooterConstants.MidRange));
     controller.y().onTrue(new SetShooterRangeCmd(shooter, hood, ShooterConstants.LongRange));
 
-    // D-pad Up: shooter toggle (on/off)
-    controller.povUp().toggleOnTrue(new ShootCommand(shooter, MechanismTuning::shooterSpeed));
+    // D-pad Up: hood up (manual jog)
+    controller.povUp().whileTrue(new RunCommand(() -> hood.jogUp(), hood));
+
+    // D-pad Down: hood down (manual jog)
+    controller.povDown().whileTrue(new RunCommand(() -> hood.jogDown(), hood));
 
     // D-pad Right: indexer forwards
     controller.povRight().whileTrue(new VelocityCmd(indexer, MechanismTuning::indexerSpeed));
 
     // D-pad Left: indexer reverse
     controller.povLeft().whileTrue(new VelocityCmd(indexer, () -> -MechanismTuning.indexerSpeed()));
-
-    // Start: go to Hub and shoot (pathfind, spin up during travel, then feed)
-    controller.start().onTrue(Autos.hub(getDrive()));
   }
 
   // TODO: Paddle buttons (Right/Left Paddle for driver stick override)

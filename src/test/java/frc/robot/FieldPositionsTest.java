@@ -39,8 +39,8 @@ class FieldPositionsTest {
   }
 
   @Test
-  void resolveOriginAlwaysZero() {
-    // Origin should never be mirrored
+  void resolveOriginBlueAllianceIsZero() {
+    // Default (no FMS, no chooser) is blue alliance — origin at (0,0)
     Pose2d origin = FieldPositions.resolve("Origin");
     assertNotNull(origin);
     assertEquals(0.0, origin.getX(), 0.001);
