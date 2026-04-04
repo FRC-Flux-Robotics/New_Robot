@@ -27,16 +27,16 @@ public final class Autos {
     return new DriveToTag(vision, drive).withTimeout(10.0);
   }
 
-  /** Drive forward at 1 m/s for 2 seconds, then stop. */
+  /** Drive forward at 0.1 m/s for 20 seconds, then stop. */
   public static Command driveForward(DriveInterface drive) {
-    return Commands.run(() -> drive.drive(1.0, 0, 0, true, 0.02), drive)
-        .withTimeout(2.0)
+    return Commands.run(() -> drive.drive(0.1, 0, 0, true, 0.02), drive)
+        .withTimeout(20.0)
         .andThen(Commands.runOnce(() -> drive.drive(0, 0, 0, true, 0.02), drive));
   }
 
   /** PathPlanner test: pathfind to 3 poses in sequence with waits between. */
   public static Command pathPlannerTest(DriveInterface drive) {
-    PathConstraints constraints = new PathConstraints(2.0, 1.5, Math.PI, Math.PI, 12.0);
+    PathConstraints constraints = new PathConstraints(0.2, 0.15, Math.PI * 0.1, Math.PI * 0.1, 12.0);
     try {
       return Commands.sequence(
           AutoBuilder.pathfindToPose(new Pose2d(2, 0, Rotation2d.kZero), constraints),
@@ -53,8 +53,8 @@ public final class Autos {
 
   /** Precision test: drive a 2m square and return to origin. Logs position error. */
   public static Command precisionSquare(DriveInterface drive) {
-    double speed = 1.0; // m/s
-    double sideTime = 2.0; // seconds per side (2m at 1 m/s)
+    double speed = 0.1; // m/s
+    double sideTime = 20.0; // seconds per side (2m at 0.1 m/s)
     double settleTime = 0.5; // pause between sides
 
     return Commands.sequence(
@@ -98,7 +98,7 @@ public final class Autos {
 
   /** Pathfind to start of "Hub to Depot" path, then follow it. */
   public static Command hubToDepot(DriveInterface drive) {
-    PathConstraints constraints = new PathConstraints(2.0, 1.5, Math.PI, Math.PI, 12.0);
+    PathConstraints constraints = new PathConstraints(0.2, 0.15, Math.PI * 0.1, Math.PI * 0.1, 12.0);
     try {
       PathPlannerPath path = PathPlannerPath.fromPathFile("Hub to Depot");
       return AutoBuilder.pathfindThenFollowPath(path, constraints);
@@ -111,7 +111,7 @@ public final class Autos {
 
   /** Pathfind to start of "Collect" path, then follow it. */
   public static Command collect(DriveInterface drive) {
-    PathConstraints constraints = new PathConstraints(2.0, 1.5, Math.PI, Math.PI, 12.0);
+    PathConstraints constraints = new PathConstraints(0.2, 0.15, Math.PI * 0.1, Math.PI * 0.1, 12.0);
     try {
       PathPlannerPath path = PathPlannerPath.fromPathFile("Collect");
       return AutoBuilder.pathfindThenFollowPath(path, constraints);
@@ -124,7 +124,7 @@ public final class Autos {
 
   /** Pathfind to Hub from anywhere, brake, then shoot for 10 seconds. */
   public static Command hub(DriveInterface drive) {
-    PathConstraints constraints = new PathConstraints(2.0, 1.5, Math.PI, Math.PI, 12.0);
+    PathConstraints constraints = new PathConstraints(0.2, 0.15, Math.PI * 0.1, Math.PI * 0.1, 12.0);
     Pose2d hubPose = new Pose2d(3.5, 4.1, Rotation2d.kZero);
     return Commands.sequence(
         // Drive to hub while spinning up shooter so it's ready on arrival
@@ -142,10 +142,10 @@ public final class Autos {
 
   /** Drive forward 2s, rotate 180 deg, drive back 2s, stop. */
   public static Command forwardTurnBack(DriveInterface drive) {
-    return Commands.run(() -> drive.drive(1.0, 0, 0, true, 0.02), drive)
-        .withTimeout(2.0)
-        .andThen(Commands.run(() -> drive.drive(0, 0, Math.PI, true, 0.02), drive).withTimeout(1.0))
-        .andThen(Commands.run(() -> drive.drive(1.0, 0, 0, false, 0.02), drive).withTimeout(2.0))
+    return Commands.run(() -> drive.drive(0.1, 0, 0, true, 0.02), drive)
+        .withTimeout(20.0)
+        .andThen(Commands.run(() -> drive.drive(0, 0, Math.PI * 0.1, true, 0.02), drive).withTimeout(10.0))
+        .andThen(Commands.run(() -> drive.drive(0.1, 0, 0, false, 0.02), drive).withTimeout(20.0))
         .andThen(Commands.runOnce(() -> drive.drive(0, 0, 0, true, 0.02), drive));
   }
 }
