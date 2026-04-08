@@ -2,6 +2,7 @@ package frc.robot.commands;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -37,6 +38,7 @@ public class CameraValidationCmd extends Command {
   private static final double ROTATE_SPEED_RAD_PER_SEC = Math.PI / 4.0; // 45 deg/s
   private static final int NUM_STATIONS = 4; // 0°, 90°, 180°, 270°
   private static final String PREFIX = "CamVal/";
+  private static final String CAMTUNE_PREFIX = "CamTune/";
 
   private final Vision m_vision;
   private final DriveInterface m_drive;
@@ -57,6 +59,11 @@ public class CameraValidationCmd extends Command {
   private double m_pairDisagreementSum;
   private double m_pairDisagreementMax;
   private int m_pairCount;
+
+  // Computed corrections for auto-apply (stored after end())
+  private double[] m_correctionXcm;
+  private double[] m_correctionYcm;
+  private double[] m_correctionYawDeg;
 
   private final Timer m_timer = new Timer();
   private int m_station;
@@ -79,6 +86,9 @@ public class CameraValidationCmd extends Command {
     m_errorSum = new double[camCount];
     m_errorMax = new double[camCount];
     m_sampleCount = new int[camCount];
+    m_correctionXcm = new double[camCount];
+    m_correctionYcm = new double[camCount];
+    m_correctionYawDeg = new double[camCount];
     m_pairDisagreementSum = 0;
     m_pairDisagreementMax = 0;
     m_pairCount = 0;
@@ -234,11 +244,12 @@ public class CameraValidationCmd extends Command {
     } else if (consistencyPassed && !allAbsPassed) {
       overallResult = "CONSISTENCY OK — pose reset may be inaccurate, transforms are fine";
     } else {
-      overallResult = "FAILED — check per-camera Fix recommendations";
+      overallResult = "FAILED — press CamVal/AutoApply to fix, or check per-camera Fix text";
     }
     SmartDashboard.putString(
         PREFIX + "Result", overallResult + " [" + summary.toString().trim() + "]");
-    SmartDashboard.putString(PREFIX + "Status", "Done");
+    SmartDashboard.putString(PREFIX + "Status", "Done — AutoApply available");
+    SmartDashboard.putBoolean(PREFIX + "AutoApply", false);
     Logger.recordOutput(PREFIX + "Result", overallResult);
   }
 
@@ -287,9 +298,17 @@ public class CameraValidationCmd extends Command {
     // Build recommendation string
     StringBuilder fix = new StringBuilder();
 
+    // Store corrections for auto-apply (negate: vision error → transform adjustment)
+    m_correctionXcm[camIdx] = -avgX * 100;
+    m_correctionYcm[camIdx] = -avgY * 100;
+    m_correctionYawDeg[camIdx] = -avgDeg;
+
     double absError = Math.hypot(avgX, avgY);
     if (absError < ABSOLUTE_THRESHOLD_METERS && Math.abs(avgDeg) < 3.0) {
       fix.append("Looks good, no changes needed");
+      m_correctionXcm[camIdx] = 0;
+      m_correctionYcm[camIdx] = 0;
+      m_correctionYawDeg[camIdx] = 0;
     } else {
       if (errorVariesWithRotation) {
         // Error pattern changes with robot rotation → likely a yaw offset error
@@ -341,10 +360,56 @@ public class CameraValidationCmd extends Command {
     Logger.recordOutput(PREFIX + "Cam" + camIdx + "/AvgErrorDeg", avgDeg);
     Logger.recordOutput(
         PREFIX + "Cam" + camIdx + "/ErrorVariesWithRotation", errorVariesWithRotation);
+
+    // Store corrections on SmartDashboard for AutoApply to read
+    SmartDashboard.putNumber(PREFIX + "Cam" + camIdx + "/CorrXcm", m_correctionXcm[camIdx]);
+    SmartDashboard.putNumber(PREFIX + "Cam" + camIdx + "/CorrYcm", m_correctionYcm[camIdx]);
+    SmartDashboard.putNumber(PREFIX + "Cam" + camIdx + "/CorrYawDeg", m_correctionYawDeg[camIdx]);
   }
 
   @Override
   public boolean isFinished() {
     return !m_rotating && m_station >= NUM_STATIONS;
+  }
+
+  /**
+   * Checks SmartDashboard for the AutoApply button and applies stored corrections to the CamTune
+   * values. Call this from Vision.periodic() so it works even after the command has finished.
+   *
+   * @param cameraCount number of cameras to check
+   */
+  public static void checkAutoApply(int cameraCount) {
+    if (!SmartDashboard.getBoolean(PREFIX + "AutoApply", false)) return;
+    SmartDashboard.putBoolean(PREFIX + "AutoApply", false);
+
+    for (int i = 0; i < cameraCount; i++) {
+      String tunePrefix = CAMTUNE_PREFIX + "Cam" + i + "/";
+      String valPrefix = PREFIX + "Cam" + i + "/";
+
+      // Read stored corrections (written by computeRecommendation)
+      double corrXcm = SmartDashboard.getNumber(valPrefix + "CorrXcm", 0);
+      double corrYcm = SmartDashboard.getNumber(valPrefix + "CorrYcm", 0);
+      double corrYawDeg = SmartDashboard.getNumber(valPrefix + "CorrYawDeg", 0);
+
+      // Skip if corrections are tiny
+      if (Math.abs(corrXcm) < 1.0 && Math.abs(corrYcm) < 1.0 && Math.abs(corrYawDeg) < 1.0) {
+        continue;
+      }
+
+      // Read current CamTune values and add corrections
+      double curX = SmartDashboard.getNumber(tunePrefix + "X_cm", 0);
+      double curY = SmartDashboard.getNumber(tunePrefix + "Y_cm", 0);
+      double curYaw = SmartDashboard.getNumber(tunePrefix + "Yaw_deg", 0);
+
+      SmartDashboard.putNumber(tunePrefix + "X_cm", curX + corrXcm);
+      SmartDashboard.putNumber(tunePrefix + "Y_cm", curY + corrYcm);
+      SmartDashboard.putNumber(tunePrefix + "Yaw_deg", curYaw + corrYawDeg);
+    }
+
+    // Trigger the CamTune Apply button so Vision picks up the changes
+    SmartDashboard.putBoolean(CAMTUNE_PREFIX + "Apply", true);
+    DriverStation.reportWarning(
+        "CamVal AutoApply: corrections applied to CamTune — verify and Save if happy", false);
+    SmartDashboard.putString(PREFIX + "Status", "AutoApply done — check CamTune values, then Save");
   }
 }

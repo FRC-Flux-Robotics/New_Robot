@@ -21,6 +21,7 @@ import frc.lib.drivetrain.CameraConfig;
 import frc.lib.drivetrain.DriveInterface;
 import frc.lib.vision.VisionIO;
 import frc.lib.vision.VisionIOInputsAutoLogged;
+import frc.robot.commands.CameraValidationCmd;
 import org.littletonrobotics.junction.Logger;
 
 /** Vision subsystem: processes VisionIO inputs for pose estimation with dynamic std devs. */
@@ -184,6 +185,9 @@ public class Vision extends SubsystemBase {
   public void periodic() {
     // Check for live camera tuning adjustments
     checkCameraTuningButtons();
+
+    // Check for CameraValidation auto-apply (applies corrections from last validation run)
+    CameraValidationCmd.checkAutoApply(m_ios.length);
 
     // Round-robin: update one camera per cycle to stay within 20ms loop budget
     int updatedCamera = m_nextCameraIndex;

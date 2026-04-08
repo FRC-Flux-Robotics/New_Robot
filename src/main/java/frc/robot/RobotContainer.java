@@ -255,7 +255,6 @@ public class RobotContainer {
     m_autoChooser.setDefaultOption("None", Autos.none());
     m_autoChooser.addOption("Drive Forward", Autos.driveForward(m_drive));
     m_autoChooser.addOption("Forward-Turn-Back", Autos.forwardTurnBack(m_drive));
-    m_autoChooser.addOption("PathPlanner Test", Autos.pathPlannerTest(m_drive));
     m_autoChooser.addOption("Precision Square", Autos.precisionSquare(m_drive));
     m_autoChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
     m_autoChooser.addOption("Collect", Autos.collect(m_drive));
@@ -273,7 +272,6 @@ public class RobotContainer {
     m_teleopCmdChooser.addOption("Drive Forward", Autos.driveForward(m_drive));
     m_teleopCmdChooser.addOption("Forward-Turn-Back", Autos.forwardTurnBack(m_drive));
     m_teleopCmdChooser.addOption("Precision Square", Autos.precisionSquare(m_drive));
-    m_teleopCmdChooser.addOption("PathPlanner Test", Autos.pathPlannerTest(m_drive));
     m_teleopCmdChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
     m_teleopCmdChooser.addOption("Collect", Autos.collect(m_drive));
     m_teleopCmdChooser.addOption("Hub", Autos.hub(m_drive));
