@@ -88,11 +88,11 @@ public final class Autos {
             }));
   }
 
-  /** Pathfind to start of "Hub to Depot" path, then follow it. */
+  /** Follow "Hub to Depot" path. Robot must be pre-positioned at hub with pose reset. */
   public static Command hubToDepot(DriveInterface drive) {
     try {
       PathPlannerPath path = PathPlannerPath.fromPathFile("Hub to Depot");
-      return AutoBuilder.pathfindThenFollowPath(path, TEST_CONSTRAINTS);
+      return AutoBuilder.followPath(path);
     } catch (Exception e) {
       edu.wpi.first.wpilibj.DriverStation.reportError(
           "Failed to load path: Hub to Depot", e.getStackTrace());
@@ -100,11 +100,11 @@ public final class Autos {
     }
   }
 
-  /** Pathfind to start of "Collect" path, then follow it. */
+  /** Follow "Collect" path. Robot must be pre-positioned at hub with pose reset. */
   public static Command collect(DriveInterface drive) {
     try {
       PathPlannerPath path = PathPlannerPath.fromPathFile("Collect");
-      return AutoBuilder.pathfindThenFollowPath(path, TEST_CONSTRAINTS);
+      return AutoBuilder.followPath(path);
     } catch (Exception e) {
       edu.wpi.first.wpilibj.DriverStation.reportError(
           "Failed to load path: Collect", e.getStackTrace());
@@ -112,21 +112,39 @@ public final class Autos {
     }
   }
 
-  /** Pathfind to Hub from anywhere, brake, then shoot for 10 seconds. */
+  /** Pathfind to near Hub (outside reef obstacle), brake, then shoot for 10 seconds. */
   public static Command hub(DriveInterface drive) {
-    Pose2d hubPose = new Pose2d(3.5, 4.1, Rotation2d.kZero);
+    Pose2d hubApproach = new Pose2d(3.25, 4.05, Rotation2d.kZero);
     return Commands.sequence(
-        // Drive to hub while spinning up shooter so it's ready on arrival
         Commands.deadline(
-            AutoBuilder.pathfindToPose(hubPose, TEST_CONSTRAINTS),
+            AutoBuilder.pathfindToPose(hubApproach, TEST_CONSTRAINTS),
             NamedCommands.getCommand("spinUpShooter")),
         Commands.runOnce(() -> drive.setBrake(), drive),
         Commands.runOnce(() -> drive.drive(0, 0, 0, true, 0.02), drive),
-        // Keep shooter running while feeding
         Commands.deadline(
             NamedCommands.getCommand("feed").withTimeout(10.0),
             NamedCommands.getCommand("spinUpShooter")),
         NamedCommands.getCommand("stopAll"));
+  }
+
+  /** Follow "To Hub" path, brake, then shoot for 10 seconds. Pre-position robot at path start. */
+  public static Command hubFollow(DriveInterface drive) {
+    try {
+      PathPlannerPath path = PathPlannerPath.fromPathFile("To Hub");
+      return Commands.sequence(
+          Commands.deadline(
+              AutoBuilder.followPath(path), NamedCommands.getCommand("spinUpShooter")),
+          Commands.runOnce(() -> drive.setBrake(), drive),
+          Commands.runOnce(() -> drive.drive(0, 0, 0, true, 0.02), drive),
+          Commands.deadline(
+              NamedCommands.getCommand("feed").withTimeout(10.0),
+              NamedCommands.getCommand("spinUpShooter")),
+          NamedCommands.getCommand("stopAll"));
+    } catch (Exception e) {
+      edu.wpi.first.wpilibj.DriverStation.reportError(
+          "Failed to load path: To Hub", e.getStackTrace());
+      return Commands.none();
+    }
   }
 
   /** Drive forward, rotate 180 deg, drive back, stop. */

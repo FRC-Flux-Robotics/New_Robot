@@ -31,7 +31,7 @@ public class FuelRobotContainer extends RobotContainer {
   private static final double DRIVER_TRIGGER_THRESHOLD = 0.05;
 
   /** Hub position for auto-aim. */
-  private static final Translation2d HUB_POSITION = new Translation2d(3.5, 4.1);
+  private static final Translation2d HUB_POSITION = new Translation2d(3.25, 4.05);
 
   private final VelocityMechanism intake;
   private final PositionMechanism tilter;
@@ -220,8 +220,9 @@ public class FuelRobotContainer extends RobotContainer {
    * Y               → Set Shooter/Hood to Long Range
    * D-pad Up        → Hood up (manual jog)
    * D-pad Down      → Hood down (manual jog)
-   * D-pad Right     → Indexer forwards
-   * D-pad Left      → Indexer reverse
+   * D-pad Right     → Feeder + Indexer forwards
+   * D-pad Left      → Feeder + Indexer reverse
+   * Left Bumper     → Drive override (operator sticks control robot)
    * </pre>
    */
   private void configureFuelBindings() {
@@ -265,16 +266,33 @@ public class FuelRobotContainer extends RobotContainer {
     // D-pad Down: hood down (manual jog)
     controller.povDown().whileTrue(new RunCommand(() -> hood.jogDown(), hood));
 
-    // D-pad Right: indexer forwards
-    controller.povRight().whileTrue(new VelocityCmd(indexer, MechanismTuning::indexerSpeed));
+    // D-pad Right: feeder + indexer forwards
+    controller
+        .povRight()
+        .whileTrue(
+            new VelocityCmd(feeder, () -> -MechanismTuning.feederSpeed())
+                .alongWith(new VelocityCmd(indexer, MechanismTuning::indexerSpeed)));
 
-    // D-pad Left: indexer reverse
-    controller.povLeft().whileTrue(new VelocityCmd(indexer, () -> -MechanismTuning.indexerSpeed()));
+    // D-pad Left: feeder + indexer reverse
+    controller
+        .povLeft()
+        .whileTrue(
+            new VelocityCmd(feeder, MechanismTuning::feederSpeed)
+                .alongWith(new VelocityCmd(indexer, () -> -MechanismTuning.indexerSpeed())));
+
+    // Left Bumper: operator drive override (operator sticks control robot)
+    controller
+        .leftBumper()
+        .whileTrue(
+            Commands.run(
+                () -> {
+                  double xSpeed = -controller.getLeftY() * getDrive().getMaxSpeed();
+                  double ySpeed = -controller.getLeftX() * getDrive().getMaxSpeed();
+                  double rot = -controller.getRightX() * 0.75 * 2 * Math.PI;
+                  getDrive().drive(xSpeed, ySpeed, rot, true, 0.02);
+                },
+                getDrive()));
   }
-
-  // TODO: Paddle buttons (Right/Left Paddle for driver stick override)
-  // Xbox paddles are not standard in WPILib — requires custom HID mapping
-  // or an additional controller input. Implement when hardware is available.
 
   private static MechanismIO createIO(MechanismConfig config) {
     if (Robot.mode == Robot.Mode.REPLAY) {

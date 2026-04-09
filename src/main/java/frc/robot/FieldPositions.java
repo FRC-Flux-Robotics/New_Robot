@@ -23,7 +23,7 @@ public final class FieldPositions {
   private static final Pose2d ORIGIN = new Pose2d();
   private static final Pose2d LEFT = new Pose2d(1.0, 7.0, new Rotation2d());
   private static final Pose2d RIGHT = new Pose2d(1.0, 1.0, new Rotation2d());
-  private static final Pose2d HUB = new Pose2d(3.62, 4.21, new Rotation2d());
+  private static final Pose2d HUB = new Pose2d(3.25, 4.05, new Rotation2d());
 
   private static final Map<String, Pose2d> POSITIONS =
       Map.of(
