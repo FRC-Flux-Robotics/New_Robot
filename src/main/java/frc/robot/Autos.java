@@ -92,7 +92,7 @@ public final class Autos {
   public static Command hubToDepot(DriveInterface drive) {
     try {
       PathPlannerPath path = PathPlannerPath.fromPathFile("Hub to Depot");
-      return AutoBuilder.followPath(path);
+      return SafeAutoBuilder.wrap(path, drive);
     } catch (Exception e) {
       edu.wpi.first.wpilibj.DriverStation.reportError(
           "Failed to load path: Hub to Depot", e.getStackTrace());
@@ -104,7 +104,7 @@ public final class Autos {
   public static Command collect(DriveInterface drive) {
     try {
       PathPlannerPath path = PathPlannerPath.fromPathFile("Collect");
-      return AutoBuilder.followPath(path);
+      return SafeAutoBuilder.wrap(path, drive);
     } catch (Exception e) {
       edu.wpi.first.wpilibj.DriverStation.reportError(
           "Failed to load path: Collect", e.getStackTrace());
@@ -133,7 +133,7 @@ public final class Autos {
       PathPlannerPath path = PathPlannerPath.fromPathFile("To Hub");
       return Commands.sequence(
           Commands.deadline(
-              AutoBuilder.followPath(path), NamedCommands.getCommand("spinUpShooter")),
+              SafeAutoBuilder.wrap(path, drive), NamedCommands.getCommand("spinUpShooter")),
           Commands.runOnce(() -> drive.setBrake(), drive),
           Commands.runOnce(() -> drive.drive(0, 0, 0, true, 0.02), drive),
           Commands.deadline(

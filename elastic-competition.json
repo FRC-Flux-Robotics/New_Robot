@@ -164,6 +164,57 @@
               "topic": "/SmartDashboard/Vision/Enable",
               "period": 0.033
             }
+          },
+          {
+            "title": "Vision Reset",
+            "x": 0.0,
+            "y": 512.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Toggle Button",
+            "properties": {
+              "topic": "/SmartDashboard/Pose/VisionReset",
+              "period": 0.033
+            }
+          },
+          {
+            "title": "Vision Status",
+            "x": 256.0,
+            "y": 512.0,
+            "width": 384.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Pose/VisionStatus",
+              "period": 0.033,
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Auto Status",
+            "x": 640.0,
+            "y": 512.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Auto/Status",
+              "period": 0.033,
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Waypoint",
+            "x": 896.0,
+            "y": 512.0,
+            "width": 384.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Auto/Waypoint",
+              "period": 0.033,
+              "show_submit_button": false
+            }
           }
         ]
       }

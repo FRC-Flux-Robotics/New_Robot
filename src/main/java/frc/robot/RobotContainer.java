@@ -18,7 +18,9 @@ import frc.lib.drivetrain.CameraConfig;
 import frc.lib.drivetrain.DriveInterface;
 import frc.lib.drivetrain.SwerveDrive;
 import frc.lib.vision.VisionIO;
+import frc.robot.commands.AutoCalibrateCmd;
 import frc.robot.commands.CameraValidationCmd;
+import frc.robot.commands.ResetPoseFromVision;
 
 /** Owns subsystems, default commands, button bindings, and auto chooser. */
 public class RobotContainer {
@@ -55,6 +57,7 @@ public class RobotContainer {
   private Command m_activeTeleopCmd = null;
   private final SendableChooser<String> m_posePresetChooser = new SendableChooser<>();
   private final Field2d m_field = new Field2d();
+  private Command m_visionResetCmd = null;
 
   private double m_lastDeadband = 0.1;
 
@@ -94,6 +97,7 @@ public class RobotContainer {
     configureAutoChooser();
     configureTeleopCommands();
     configurePoseReset();
+    SafeAutoBuilder.initDashboard();
 
     // Apply initial deadband (legacy 10%)
     m_drive.setDeadband(0.1, 0.1);
@@ -264,6 +268,7 @@ public class RobotContainer {
       m_autoChooser.addOption("Drive to Nearest Tag", Autos.driveToNearestTag(m_vision, m_drive));
       m_autoChooser.addOption(
           "Camera Validation", new CameraValidationCmd(m_vision, m_drive, m_cameras));
+      m_autoChooser.addOption("Auto Calibrate", new AutoCalibrateCmd(m_vision, m_drive, m_cameras));
     }
     SmartDashboard.putData("Auto Chooser", m_autoChooser);
   }
@@ -299,6 +304,10 @@ public class RobotContainer {
     SmartDashboard.putNumber("Pose/ResetHeading", 0.0);
     SmartDashboard.putBoolean("Pose/AllianceRelative", true);
     SmartDashboard.putBoolean("Pose/ResetTrigger", false);
+
+    // Vision pose reset — collects 3 samples per camera, averages, resets odometry
+    SmartDashboard.putBoolean("Pose/VisionReset", false);
+    SmartDashboard.putString("Pose/VisionStatus", "Ready");
 
     // Vision enable/disable toggle
     SmartDashboard.putBoolean("Vision/Enable", true);
@@ -434,6 +443,19 @@ public class RobotContainer {
       }
       m_drive.resetPose(resetPose);
       SmartDashboard.putBoolean("Pose/ResetTrigger", false);
+    }
+
+    // Vision pose reset — schedule command, track status
+    if (SmartDashboard.getBoolean("Pose/VisionReset", false)) {
+      SmartDashboard.putBoolean("Pose/VisionReset", false);
+      if (m_vision != null && (m_visionResetCmd == null || m_visionResetCmd.isFinished())) {
+        m_visionResetCmd = new ResetPoseFromVision(m_vision, m_drive);
+        m_visionResetCmd.schedule();
+        SmartDashboard.putString("Pose/VisionStatus", "Sampling...");
+      }
+    }
+    if (m_visionResetCmd != null && m_visionResetCmd.isFinished()) {
+      m_visionResetCmd = null;
     }
   }
 }
