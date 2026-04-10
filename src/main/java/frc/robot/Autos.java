@@ -15,8 +15,8 @@ import frc.lib.drivetrain.DriveInterface;
 /** Auto routines for testing and competition. All speeds standardized to TEST_SPEED. */
 public final class Autos {
 
-  /** Shared test speed — slow enough for operator to e-stop. */
-  private static final double TEST_SPEED = 0.2; // m/s
+  /** Shared test speed — above deadband (~0.48 m/s), slow enough for operator to e-stop. */
+  private static final double TEST_SPEED = 0.5; // m/s
 
   private static final double TEST_ACCEL = 0.15; // m/s²
   private static final double TEST_ANG_VEL = Math.PI * 0.1; // rad/s
@@ -112,17 +112,18 @@ public final class Autos {
     }
   }
 
-  /** Pathfind to near Hub (outside reef obstacle), brake, then shoot for 10 seconds. */
+  /** Pathfind to near Hub (outside reef obstacle), brake, spin up, then shoot for 10 seconds. */
   public static Command hub(DriveInterface drive) {
     Pose2d hubApproach = new Pose2d(3.25, 4.05, Rotation2d.kZero);
     return Commands.sequence(
-        Commands.deadline(
-            AutoBuilder.pathfindToPose(hubApproach, TEST_CONSTRAINTS),
-            NamedCommands.getCommand("spinUpShooter")),
+        AutoBuilder.pathfindToPose(hubApproach, TEST_CONSTRAINTS),
         Commands.runOnce(() -> drive.setBrake(), drive),
         Commands.runOnce(() -> drive.drive(0, 0, 0, true, 0.02), drive),
+        // Spin up for 2s, then feed while keeping shooter running
         Commands.deadline(
-            NamedCommands.getCommand("feed").withTimeout(10.0),
+            Commands.sequence(
+                Commands.waitSeconds(2.0),
+                NamedCommands.getCommand("feed").withTimeout(10.0)),
             NamedCommands.getCommand("spinUpShooter")),
         NamedCommands.getCommand("stopAll"));
   }
@@ -150,14 +151,21 @@ public final class Autos {
   /** Drive forward, rotate 180 deg, drive back, stop. */
   public static Command forwardTurnBack(DriveInterface drive) {
     double driveTime = 2.0 / TEST_SPEED; // 2m at TEST_SPEED
-    return Commands.run(() -> drive.drive(TEST_SPEED, 0, 0, true, 0.02), drive)
-        .withTimeout(driveTime)
-        .andThen(
-            Commands.run(() -> drive.drive(0, 0, TEST_ANG_VEL, true, 0.02), drive)
-                .withTimeout(Math.PI / TEST_ANG_VEL))
-        .andThen(
-            Commands.run(() -> drive.drive(TEST_SPEED, 0, 0, false, 0.02), drive)
-                .withTimeout(driveTime))
-        .andThen(Commands.runOnce(() -> drive.drive(0, 0, 0, true, 0.02), drive));
+    Rotation2d turnTarget = Rotation2d.fromDegrees(180);
+    return Commands.sequence(
+        // Leg 1: drive forward (robot-centric)
+        Commands.run(() -> drive.drive(TEST_SPEED, 0, 0, false, 0.02), drive)
+            .withTimeout(driveTime),
+        Commands.runOnce(() -> drive.drive(0, 0, 0, false, 0.02), drive),
+        // Turn 180° using closed-loop heading control
+        Commands.run(
+                () -> drive.driveFieldCentricFacingAngle(0, 0, turnTarget, 0.02), drive)
+            .until(
+                () -> Math.abs(drive.getHeading().minus(turnTarget).getDegrees()) < 5.0)
+            .withTimeout(10.0),
+        // Leg 2: drive forward (robot-centric, now facing back)
+        Commands.run(() -> drive.drive(TEST_SPEED, 0, 0, false, 0.02), drive)
+            .withTimeout(driveTime),
+        Commands.runOnce(() -> drive.drive(0, 0, 0, false, 0.02), drive));
   }
 }
