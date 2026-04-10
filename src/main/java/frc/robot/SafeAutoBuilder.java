@@ -4,10 +4,12 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.path.PathConstraints;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.path.Waypoint;
+import com.pathplanner.lib.util.FlippingUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
@@ -117,6 +119,7 @@ public final class SafeAutoBuilder {
     private boolean m_cancelled;
     private String m_cancelReason;
     private double m_allowedSpeed;
+    private boolean m_shouldFlip;
     private List<Pose2d> m_pathPoses;
     private List<Translation2d> m_waypointAnchors;
     private int m_nextWaypoint;
@@ -138,6 +141,9 @@ public final class SafeAutoBuilder {
       m_pathPoses = null;
       m_waypointAnchors = null;
       m_nextWaypoint = 1;
+
+      // Match PathPlanner's alliance flipping (same check as AutoBuilder.configure)
+      m_shouldFlip = DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red;
 
       SmartDashboard.putString("Auto/Status", "Pre-flight...");
       SmartDashboard.putString("Auto/Waypoint", "");
@@ -175,11 +181,13 @@ public final class SafeAutoBuilder {
           allPassed = false;
         }
 
-        // CHECK 3: Robot position vs path starting position
+        // CHECK 3: Robot position vs path starting position (alliance-aware)
         Optional<Pose2d> pathStart = m_path.getStartingHolonomicPose();
         if (pathStart.isPresent()) {
+          Pose2d expectedStart =
+              m_shouldFlip ? FlippingUtil.flipFieldPose(pathStart.get()) : pathStart.get();
           double startError =
-              m_drive.getPose().getTranslation().getDistance(pathStart.get().getTranslation());
+              m_drive.getPose().getTranslation().getDistance(expectedStart.getTranslation());
           SmartDashboard.putNumber("Auto/StartErrorM", startError);
           Logger.recordOutput("Auto/StartErrorM", startError);
 
@@ -189,8 +197,8 @@ public final class SafeAutoBuilder {
                     + " (%.2f, %.2f)",
                 startError,
                 m_limits.maxStartErrorM,
-                pathStart.get().getX(),
-                pathStart.get().getY(),
+                expectedStart.getX(),
+                expectedStart.getY(),
                 m_drive.getPose().getX(),
                 m_drive.getPose().getY());
             allPassed = false;
@@ -198,15 +206,25 @@ public final class SafeAutoBuilder {
           }
         }
 
-        // Cache path poses for runtime nearest-point check
-        m_pathPoses = m_path.getPathPoses();
+        // Cache path poses for runtime nearest-point check (alliance-aware)
+        List<Pose2d> rawPoses = m_path.getPathPoses();
+        if (m_shouldFlip) {
+          m_pathPoses = new ArrayList<>(rawPoses.size());
+          for (Pose2d p : rawPoses) {
+            m_pathPoses.add(FlippingUtil.flipFieldPose(p));
+          }
+        } else {
+          m_pathPoses = rawPoses;
+        }
 
-        // Cache waypoint anchors for progress tracking
+        // Cache waypoint anchors for progress tracking (alliance-aware)
         List<Waypoint> waypoints = m_path.getWaypoints();
         if (waypoints != null && waypoints.size() >= 2) {
           m_waypointAnchors = new ArrayList<>();
           for (Waypoint wp : waypoints) {
-            m_waypointAnchors.add(wp.anchor());
+            Translation2d anchor =
+                m_shouldFlip ? FlippingUtil.flipFieldPosition(wp.anchor()) : wp.anchor();
+            m_waypointAnchors.add(anchor);
           }
           SmartDashboard.putString(
               "Auto/Waypoint", String.format("Start → WP 1/%d", m_waypointAnchors.size() - 1));
