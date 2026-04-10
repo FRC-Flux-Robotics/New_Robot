@@ -39,9 +39,9 @@ public final class Autos {
 
   /** Drive forward at TEST_SPEED for 10 seconds, then stop. */
   public static Command driveForward(DriveInterface drive) {
-    return Commands.run(() -> drive.drive(TEST_SPEED, 0, 0, true, 0.02), drive)
+    return Commands.run(() -> drive.drive(TEST_SPEED, 0, 0, false, 0.02), drive)
         .withTimeout(10.0)
-        .andThen(Commands.runOnce(() -> drive.drive(0, 0, 0, true, 0.02), drive));
+        .andThen(Commands.runOnce(() -> drive.drive(0, 0, 0, false, 0.02), drive));
   }
 
   /** Precision test: drive a 2m square and return to origin. Logs position error. */
@@ -114,7 +114,7 @@ public final class Autos {
 
   /** Pathfind to near Hub (outside reef obstacle), brake, spin up, then shoot for 10 seconds. */
   public static Command hub(DriveInterface drive) {
-    Pose2d hubApproach = new Pose2d(3.25, 4.05, Rotation2d.kZero);
+    Pose2d hubApproach = FieldPositions.forAlliance(FieldPositions.resolve("HUB"));
     return Commands.sequence(
         AutoBuilder.pathfindToPose(hubApproach, TEST_CONSTRAINTS),
         Commands.runOnce(() -> drive.setBrake(), drive),
@@ -151,17 +151,21 @@ public final class Autos {
   /** Drive forward, rotate 180 deg, drive back, stop. */
   public static Command forwardTurnBack(DriveInterface drive) {
     double driveTime = 2.0 / TEST_SPEED; // 2m at TEST_SPEED
-    Rotation2d turnTarget = Rotation2d.fromDegrees(180);
+    // Capture start heading at runtime, turn 180° relative to it
+    Rotation2d[] turnTarget = new Rotation2d[1];
     return Commands.sequence(
         // Leg 1: drive forward (robot-centric)
         Commands.run(() -> drive.drive(TEST_SPEED, 0, 0, false, 0.02), drive)
             .withTimeout(driveTime),
         Commands.runOnce(() -> drive.drive(0, 0, 0, false, 0.02), drive),
+        // Compute 180° from current heading
+        Commands.runOnce(
+            () -> turnTarget[0] = drive.getHeading().plus(Rotation2d.fromDegrees(180))),
         // Turn 180° using closed-loop heading control
         Commands.run(
-                () -> drive.driveFieldCentricFacingAngle(0, 0, turnTarget, 0.02), drive)
+                () -> drive.driveFieldCentricFacingAngle(0, 0, turnTarget[0], 0.02), drive)
             .until(
-                () -> Math.abs(drive.getHeading().minus(turnTarget).getDegrees()) < 5.0)
+                () -> Math.abs(drive.getHeading().minus(turnTarget[0]).getDegrees()) < 5.0)
             .withTimeout(10.0),
         // Leg 2: drive forward (robot-centric, now facing back)
         Commands.run(() -> drive.drive(TEST_SPEED, 0, 0, false, 0.02), drive)

@@ -114,7 +114,7 @@ public final class MechanismConfigs {
   /** Shooter operational constants. */
   public static final class ShooterConstants {
     public static final double Speed = 2600.0 / 60.0;
-    public static final double SpeedStep = 100.0 / 60.0;
+
     public static final int ShortRange = 0;
     public static final int MidRange = 1;
     public static final int LongRange = 2;

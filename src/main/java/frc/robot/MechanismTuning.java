@@ -23,7 +23,6 @@ public final class MechanismTuning {
 
   // Shooter
   private static final String KEY_SHOOTER_SPEED = PREFIX + "ShooterSpeed";
-  private static final String KEY_SHOOTER_SPEED_STEP = PREFIX + "ShooterSpeedStep";
 
   // Hood presets (rotations)
   private static final String KEY_HOOD_SHORT = PREFIX + "HoodShort";
@@ -48,7 +47,7 @@ public final class MechanismTuning {
   private static final double DEF_INDEXER_SPEED = 45.0;
   private static final double DEF_FEEDER_SPEED = 40.0;
   private static final double DEF_SHOOTER_SPEED = 2600.0 / 60.0;
-  private static final double DEF_SHOOTER_SPEED_STEP = 100.0 / 60.0;
+
   private static final double DEF_HOOD_SHORT = 0.0;
   private static final double DEF_HOOD_MID = 2.8;
   private static final double DEF_HOOD_LONG = 6.7;
@@ -67,7 +66,7 @@ public final class MechanismTuning {
     publish(KEY_INDEXER_SPEED, DEF_INDEXER_SPEED);
     publish(KEY_FEEDER_SPEED, DEF_FEEDER_SPEED);
     publish(KEY_SHOOTER_SPEED, DEF_SHOOTER_SPEED);
-    publish(KEY_SHOOTER_SPEED_STEP, DEF_SHOOTER_SPEED_STEP);
+
     publish(KEY_HOOD_SHORT, DEF_HOOD_SHORT);
     publish(KEY_HOOD_MID, DEF_HOOD_MID);
     publish(KEY_HOOD_LONG, DEF_HOOD_LONG);
@@ -109,9 +108,6 @@ public final class MechanismTuning {
     return SmartDashboard.getNumber(KEY_SHOOTER_SPEED, DEF_SHOOTER_SPEED);
   }
 
-  public static double shooterSpeedStep() {
-    return SmartDashboard.getNumber(KEY_SHOOTER_SPEED_STEP, DEF_SHOOTER_SPEED_STEP);
-  }
 
   public static double hoodShort() {
     return SmartDashboard.getNumber(KEY_HOOD_SHORT, DEF_HOOD_SHORT);
@@ -160,7 +156,7 @@ public final class MechanismTuning {
     persist(KEY_INDEXER_SPEED, DEF_INDEXER_SPEED);
     persist(KEY_FEEDER_SPEED, DEF_FEEDER_SPEED);
     persist(KEY_SHOOTER_SPEED, DEF_SHOOTER_SPEED);
-    persist(KEY_SHOOTER_SPEED_STEP, DEF_SHOOTER_SPEED_STEP);
+
     persist(KEY_HOOD_SHORT, DEF_HOOD_SHORT);
     persist(KEY_HOOD_MID, DEF_HOOD_MID);
     persist(KEY_HOOD_LONG, DEF_HOOD_LONG);
