@@ -5,15 +5,14 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import java.util.Map;
 
 /**
  * Alliance-neutral field positions. All positions defined from blue alliance perspective and
  * automatically mirrored for red alliance at runtime.
  *
- * <p>Alliance source priority: FMS game data > dashboard override > blue default.
+ * <p>Alliance is read from DriverStation (set by FMS at competition, or by the Driver Station
+ * software during practice). No separate dashboard chooser — one source of truth.
  */
 public final class FieldPositions {
 
@@ -32,29 +31,11 @@ public final class FieldPositions {
           "Right", RIGHT,
           "HUB", HUB);
 
-  private static final SendableChooser<Alliance> s_allianceChooser = new SendableChooser<>();
-
   private FieldPositions() {}
 
-  /** Publishes the alliance chooser to SmartDashboard. Call once at startup. */
-  public static void init() {
-    s_allianceChooser.setDefaultOption("Blue", Alliance.Blue);
-    s_allianceChooser.addOption("Red", Alliance.Red);
-    SmartDashboard.putData("Alliance", s_allianceChooser);
-  }
-
-  /**
-   * Returns true if currently on red alliance. Uses FMS data when connected, otherwise falls back
-   * to dashboard chooser.
-   */
+  /** Returns true if currently on red alliance. Set alliance in Driver Station software. */
   public static boolean isRedAlliance() {
-    // FMS data takes priority when available
-    if (DriverStation.isFMSAttached()) {
-      return DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red;
-    }
-    // Dashboard override for practice / testing
-    Alliance selected = s_allianceChooser.getSelected();
-    return selected != null && selected == Alliance.Red;
+    return DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red;
   }
 
   /** Mirrors a blue-alliance pose to red alliance (flips X, rotates 180 deg). */

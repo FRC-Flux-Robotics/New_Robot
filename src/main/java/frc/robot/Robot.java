@@ -77,8 +77,8 @@ public class Robot extends LoggedRobot {
 
     SwerveDrive swerveDrive =
         (mode != Mode.REPLAY)
-            ? new SwerveDrive(config)
-            : new SwerveDrive(config, new DrivetrainIOReplay());
+            ? new SwerveDrive(config, FieldPositions::isRedAlliance)
+            : new SwerveDrive(config, new DrivetrainIOReplay(), FieldPositions::isRedAlliance);
 
     VisionIO[] visionIOs;
     if (mode != Mode.REPLAY) {

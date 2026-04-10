@@ -9,7 +9,6 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
@@ -142,8 +141,8 @@ public final class SafeAutoBuilder {
       m_waypointAnchors = null;
       m_nextWaypoint = 1;
 
-      // Match PathPlanner's alliance flipping (same check as AutoBuilder.configure)
-      m_shouldFlip = DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red;
+      // Use FieldPositions for consistent alliance detection (includes dashboard fallback)
+      m_shouldFlip = FieldPositions.isRedAlliance();
 
       SmartDashboard.putString("Auto/Status", "Pre-flight...");
       SmartDashboard.putString("Auto/Waypoint", "");

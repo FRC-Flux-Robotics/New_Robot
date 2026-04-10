@@ -84,7 +84,6 @@ public class RobotContainer {
     registerDefaultNamedCommands();
 
     DriverPreferences.init();
-    FieldPositions.init();
 
     m_xLimiter = new SlewRateLimiter(DriverPreferences.accelLimit());
     m_yLimiter = new SlewRateLimiter(DriverPreferences.accelLimit());

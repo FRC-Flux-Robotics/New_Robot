@@ -38,13 +38,13 @@ import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import java.util.function.BooleanSupplier;
 import org.littletonrobotics.junction.Logger;
 
 /** Swerve drivetrain implementation backed by CTRE SwerveDrivetrain. */
@@ -52,6 +52,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
     implements DriveInterface {
 
   private final DrivetrainConfig m_config;
+  private final BooleanSupplier m_shouldFlipPath;
   private final double m_maxSpeed;
   private final double m_maxAngularSpeed;
 
@@ -137,12 +138,12 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
   private volatile SwerveDriveState m_cachedState;
 
   /** Creates a SwerveDrive with real hardware IO. */
-  public SwerveDrive(DrivetrainConfig config) {
-    this(config, null);
+  public SwerveDrive(DrivetrainConfig config, BooleanSupplier shouldFlipPath) {
+    this(config, null, shouldFlipPath);
   }
 
   /** Creates a SwerveDrive with the given IO (pass DrivetrainIOReplay for replay mode). */
-  public SwerveDrive(DrivetrainConfig config, DrivetrainIO io) {
+  public SwerveDrive(DrivetrainConfig config, DrivetrainIO io, BooleanSupplier shouldFlipPath) {
     super(
         TalonFX::new,
         TalonFX::new,
@@ -151,6 +152,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         buildModuleConstants(config));
 
     m_config = config;
+    m_shouldFlipPath = shouldFlipPath;
     m_maxSpeed = config.maxSpeedMps * config.speedCoefficient;
     m_maxAngularSpeed = config.maxAngularRateRadPerSec * config.speedCoefficient;
 
@@ -315,7 +317,7 @@ public class SwerveDrive extends SwerveDrivetrain<TalonFX, TalonFX, CANcoder>
         new PPHolonomicDriveController(
             new PIDConstants(10.0, 0.0, 0.0), new PIDConstants(7.0, 0.0, 0.0)),
         buildPathPlannerConfig(m_config),
-        () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
+        m_shouldFlipPath::getAsBoolean,
         this);
   }
 
