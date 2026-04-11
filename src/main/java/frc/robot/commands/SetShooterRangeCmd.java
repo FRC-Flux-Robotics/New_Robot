@@ -41,7 +41,13 @@ public class SetShooterRangeCmd extends Command {
   }
 
   @Override
+  public void end(boolean interrupted) {
+    m_shooter.stop();
+    m_hood.setPosition(0);
+  }
+
+  @Override
   public boolean isFinished() {
-    return true;
+    return false;
   }
 }

@@ -165,24 +165,29 @@ FUEL mechanism motors (intake, shooter, etc.) have per-mechanism limits defined 
 
 | Input | Action |
 |-------|--------|
-| Y Button | Reset heading (overrides drive-to-tag) |
-| Right Bumper | Shoot (spin up + feed when at speed) |
-| Left Bumper | Index forward |
-| Right Trigger | Intake in |
-| Left Trigger | Intake reverse |
-| A Button | Tilt to stow position |
-| B Button | Tilt to score position |
-| D-Pad Up/Down | Jog tilt up/down |
+| Left Trigger | Brake (X-pattern, hold) |
+| Right Trigger | Intake in (hold) |
+| Right Bumper | Intake reverse (hold) |
+| A Button | Deploy intake (tilt down) |
+| B Button | Retract intake (tilt up) |
+| D-Pad Right/Left | Jog intake tilt up/down |
+| D-Pad Down | Reset heading |
+| Back | Reset encoders |
 
-### Port 1 — SysId Controller (Xbox, testing only)
+### Port 1 — Operator (FUEL only)
 
 | Input | Action |
 |-------|--------|
-| A | SysId Dynamic Forward |
-| B | SysId Dynamic Reverse |
-| X | SysId Quasistatic Forward |
-| Y | SysId Quasistatic Reverse |
-| Left Bumper | Wheel Radius Characterization |
+| Right Trigger | Feeder / Mechanum forwards (hold) |
+| Right Bumper | Indexer / Rollers forwards (hold) |
+| Left Trigger | Auto-aim at HUB (hold) — faces Hub while driver translates |
+| A | Toggle Shooter/Hood Short Range (press start, press stop) |
+| B | Toggle Shooter/Hood Medium Range (press start, press stop) |
+| Y | Toggle Shooter/Hood Long Range (press start, press stop) |
+| D-Pad Up/Down | Hood jog up/down |
+| D-Pad Right | Feeder + Indexer forwards |
+| D-Pad Left | Feeder + Indexer reverse |
+| Left Bumper | Drive override (operator sticks control robot) |
 
 ---
 

@@ -213,11 +213,12 @@ public class FuelRobotContainer extends RobotContainer {
    * Operator controller (port 1) — Scott's layout.
    *
    * <pre>
-   * Right Trigger   → Indexer forwards
+   * Right Trigger   → Feeder forwards
+   * Right Bumper    → Indexer forwards
    * Left Trigger    → Auto-aim at HUB (hold) — faces Hub while driver translates
-   * A               → Set Shooter/Hood to Short Range
-   * B               → Set Shooter/Hood to Medium Range
-   * Y               → Set Shooter/Hood to Long Range
+   * A               → Toggle Shooter/Hood Short Range (press start, press stop)
+   * B               → Toggle Shooter/Hood Medium Range (press start, press stop)
+   * Y               → Toggle Shooter/Hood Long Range (press start, press stop)
    * D-pad Up        → Hood up (manual jog)
    * D-pad Down      → Hood down (manual jog)
    * D-pad Right     → Feeder + Indexer forwards
@@ -228,10 +229,13 @@ public class FuelRobotContainer extends RobotContainer {
   private void configureFuelBindings() {
     CommandXboxController controller = m_operatorController;
 
-    // Right Trigger: indexer forwards
+    // Right Trigger: feeder forwards
     controller
         .rightTrigger(TRIGGER_THRESHOLD)
-        .whileTrue(new VelocityCmd(indexer, MechanismTuning::indexerSpeed));
+        .whileTrue(new VelocityCmd(feeder, () -> -MechanismTuning.feederSpeed()));
+
+    // Right Bumper: indexer forwards
+    controller.rightBumper().whileTrue(new VelocityCmd(indexer, MechanismTuning::indexerSpeed));
 
     // Left Trigger: auto-aim at HUB (driver controls translation, robot faces Hub)
     controller
@@ -255,10 +259,10 @@ public class FuelRobotContainer extends RobotContainer {
                 },
                 getDrive()));
 
-    // Shooter range presets: A/B/Y
-    controller.a().onTrue(new SetShooterRangeCmd(shooter, hood, ShooterConstants.ShortRange));
-    controller.b().onTrue(new SetShooterRangeCmd(shooter, hood, ShooterConstants.MidRange));
-    controller.y().onTrue(new SetShooterRangeCmd(shooter, hood, ShooterConstants.LongRange));
+    // Shooter range toggles: A/B/Y (press to start, press again to stop & retract hood)
+    controller.a().toggleOnTrue(new SetShooterRangeCmd(shooter, hood, ShooterConstants.ShortRange));
+    controller.b().toggleOnTrue(new SetShooterRangeCmd(shooter, hood, ShooterConstants.MidRange));
+    controller.y().toggleOnTrue(new SetShooterRangeCmd(shooter, hood, ShooterConstants.LongRange));
 
     // D-pad Up: hood up (manual jog)
     controller.povUp().whileTrue(new RunCommand(() -> hood.jogUp(), hood));

@@ -52,10 +52,13 @@ Print and laminate. One card per role.
 
 ## ON-FIELD: During Match (Operator — FUEL only)
 
-- Intake: RIGHT TRIGGER (in, hold) / LEFT TRIGGER (reverse, hold)
-- Tilt: D-pad UP/DOWN (jog) / A button (stow) / B button (score position)
-- Shoot: RIGHT BUMPER (hold = spin up + feed)
-- Index: LEFT BUMPER (hold = index forward)
+- Shooter: A (short) / B (mid) / Y (long) — toggle on/off
+- Feeder (Mechanum): RIGHT TRIGGER (hold)
+- Indexer (Rollers): RIGHT BUMPER (hold)
+- Hood jog: D-pad UP/DOWN
+- Feeder + Indexer: D-pad RIGHT (fwd) / D-pad LEFT (rev)
+- Auto-aim HUB: LEFT TRIGGER (hold)
+- Drive override: LEFT BUMPER (hold)
 
 ## POST-MATCH: Log Collection
 

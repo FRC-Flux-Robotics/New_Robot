@@ -49,6 +49,7 @@ public final class MechanismConfigs {
           .softLimitReverse(-17.0)
           .build();
 
+  // Rollers
   public static final MechanismConfig INDEXER =
       new MechanismConfig.Builder()
           .name("Indexer")
@@ -60,6 +61,7 @@ public final class MechanismConfigs {
           .supplyCurrentLimit(VELOCITY_CURRENT_LIMIT)
           .build();
 
+  // Mechanum
   public static final MechanismConfig FEEDER =
       new MechanismConfig.Builder()
           .name("Feeder")

@@ -184,7 +184,13 @@ class MechanismCommandsTest {
     assertEquals(expectedSpeed, shooterIO.lastArg, 0.001);
     assertEquals("setPosition", hoodIO.lastCall);
     assertEquals(expectedElevation, hoodIO.lastArg, 0.001);
-    assertTrue(cmd.isFinished());
+    assertFalse(cmd.isFinished());
+
+    // Toggle off: end() should stop shooter and retract hood
+    cmd.end(false);
+    assertEquals("stop", shooterIO.lastCall);
+    assertEquals("setPosition", hoodIO.lastCall);
+    assertEquals(0.0, hoodIO.lastArg, 0.001);
   }
 
   // --- RangeShootCmd tests ---
