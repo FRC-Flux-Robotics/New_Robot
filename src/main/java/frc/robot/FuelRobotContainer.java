@@ -105,7 +105,10 @@ public class FuelRobotContainer extends RobotContainer {
 
     NamedCommands.registerCommand(
         "deployIntake",
-        Commands.runOnce(() -> tilter.setPosition(MechanismTuning.tiltDeploy()), tilter));
+        Commands.sequence(
+            Commands.runOnce(() -> tilter.setPosition(MechanismTuning.tiltDeploy()), tilter),
+            Commands.waitUntil(() -> tilter.atTarget()).withTimeout(2.0),
+            Commands.runOnce(() -> tilter.stop(), tilter)));
 
     NamedCommands.registerCommand(
         "stopAll",

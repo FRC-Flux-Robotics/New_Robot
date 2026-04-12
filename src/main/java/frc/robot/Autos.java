@@ -123,6 +123,24 @@ public final class Autos {
     }
   }
 
+  /** Drive to depot (W1 only), start intake. Test auto. */
+  public static Command hubToW1(DriveInterface drive) {
+    try {
+      PathPlannerPath path = PathPlannerPath.fromPathFile("Hub to W1");
+      return Commands.sequence(
+          SafeAutoBuilder.wrap(path, drive),
+          // Explicit startIntake (not via event marker) to isolate the issue
+          NamedCommands.getCommand("startIntake"),
+          Commands.waitSeconds(3.0),
+          NamedCommands.getCommand("stopIntake"),
+          NamedCommands.getCommand("stopAll"));
+    } catch (Exception e) {
+      edu.wpi.first.wpilibj.DriverStation.reportError(
+          "Failed to load path: Hub to W1", e.getStackTrace());
+      return Commands.none();
+    }
+  }
+
   /** Back up 6 inches and deploy intake. Uses odometry for accurate distance. */
   public static Command backAndDeploy(DriveInterface drive) {
     double distanceMeters = 0.1524; // 6 inches
