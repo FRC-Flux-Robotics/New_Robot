@@ -336,8 +336,9 @@ public class RobotContainer {
     return m_autoChooser.getSelected();
   }
 
-  /** Called on teleop init to clear any lingering teleop command state. */
+  /** Called on teleop init to kill all auto/path commands and hand control to the driver. */
   public void teleopInit() {
+    // Cancel any active teleop command
     if (m_activeTeleopCmd != null) {
       m_activeTeleopCmd.cancel();
       m_activeTeleopCmd = null;
@@ -345,6 +346,9 @@ public class RobotContainer {
     SmartDashboard.putBoolean("TeleopCmd/Run", false);
     SmartDashboard.putBoolean("TeleopCmd/Stop", false);
     SmartDashboard.putString("TeleopCmd/Status", "Idle");
+
+    // Force-stop drivetrain so nothing lingers
+    m_drive.drive(0, 0, 0, true, 0.02);
   }
 
   /** Access the drive subsystem (for subclasses like FuelRobotContainer). */
