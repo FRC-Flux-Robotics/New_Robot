@@ -5,18 +5,26 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import java.util.Map;
 
 /**
  * Alliance-neutral field positions. All positions defined from blue alliance perspective and
  * automatically mirrored for red alliance at runtime.
  *
- * <p>Alliance is read from DriverStation (set by FMS at competition, or by the Driver Station
- * software during practice). No separate dashboard chooser — one source of truth.
+ * <p>Alliance source priority: FMS (at competition) → dashboard chooser (practice/testing). The
+ * dashboard chooser defaults to "Auto" which uses DriverStation, or can be forced to Blue/Red.
  */
 public final class FieldPositions {
 
   public static final double FIELD_LENGTH_METERS = 16.54;
+
+  private static final String AUTO = "auto";
+  private static final String BLUE = "blue";
+  private static final String RED = "red";
+
+  private static final SendableChooser<String> allianceChooser = new SendableChooser<>();
 
   // Blue alliance canonical positions
   private static final Pose2d ORIGIN = new Pose2d();
@@ -33,9 +41,30 @@ public final class FieldPositions {
 
   private FieldPositions() {}
 
-  /** Returns true if currently on red alliance. Set alliance in Driver Station software. */
+  /** Publish alliance chooser to SmartDashboard. Call once from RobotContainer. */
+  public static void init() {
+    allianceChooser.setDefaultOption("Auto (from DS)", AUTO);
+    allianceChooser.addOption("Blue", BLUE);
+    allianceChooser.addOption("Red", RED);
+    SmartDashboard.putData("Alliance", allianceChooser);
+  }
+
+  /**
+   * Returns true if currently on red alliance. Checks dashboard override first, then falls back to
+   * DriverStation (FMS or DS software). Publish resolved value so operators can verify.
+   */
   public static boolean isRedAlliance() {
-    return DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red;
+    String selected = allianceChooser.getSelected();
+    boolean red;
+    if (RED.equals(selected)) {
+      red = true;
+    } else if (BLUE.equals(selected)) {
+      red = false;
+    } else {
+      red = DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red;
+    }
+    SmartDashboard.putString("Alliance/Active", red ? "Red" : "Blue");
+    return red;
   }
 
   /** Mirrors a blue-alliance pose to red alliance (flips X, rotates 180 deg). */

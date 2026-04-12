@@ -89,12 +89,28 @@ public final class Autos {
             }));
   }
 
-  /** Follow "Hub to Depot" path, collect game piece, return to hub and shoot. */
+  /** Back up, deploy intake, follow "Hub to Depot" path, return to hub and shoot. */
   public static Command hubToDepot(DriveInterface drive) {
+    double distanceMeters = 0.1524; // 6 inches
+    Pose2d[] startPose = new Pose2d[1];
+
     try {
       PathPlannerPath path = PathPlannerPath.fromPathFile("Hub to Depot");
       return Commands.sequence(
+          // Back up 6 inches to path start position
+          Commands.runOnce(() -> startPose[0] = drive.getPose()),
+          Commands.run(() -> drive.drive(-TEST_SPEED, 0, 0, false, 0.02), drive)
+              .until(
+                  () ->
+                      drive.getPose().getTranslation().getDistance(startPose[0].getTranslation())
+                          >= distanceMeters)
+              .withTimeout(3.0),
+          Commands.runOnce(() -> drive.drive(0, 0, 0, false, 0.02), drive),
+          // Deploy intake
+          NamedCommands.getCommand("deployIntake"),
+          // Follow path (collect fuel, return to hub)
           SafeAutoBuilder.wrap(path, drive),
+          // Shoot at hub
           Commands.deadline(
               Commands.sequence(
                   Commands.waitSeconds(1.0), NamedCommands.getCommand("feed").withTimeout(10.0)),
@@ -105,6 +121,23 @@ public final class Autos {
           "Failed to load path: Hub to Depot", e.getStackTrace());
       return Commands.none();
     }
+  }
+
+  /** Back up 6 inches and deploy intake. Uses odometry for accurate distance. */
+  public static Command backAndDeploy(DriveInterface drive) {
+    double distanceMeters = 0.1524; // 6 inches
+    Pose2d[] startPose = new Pose2d[1];
+
+    return Commands.sequence(
+        Commands.runOnce(() -> startPose[0] = drive.getPose()),
+        Commands.run(() -> drive.drive(-TEST_SPEED, 0, 0, false, 0.02), drive)
+            .until(
+                () ->
+                    drive.getPose().getTranslation().getDistance(startPose[0].getTranslation())
+                        >= distanceMeters)
+            .withTimeout(3.0),
+        Commands.runOnce(() -> drive.drive(0, 0, 0, false, 0.02), drive),
+        NamedCommands.getCommand("deployIntake"));
   }
 
   /** Follow "Collect" path. Robot must be pre-positioned at hub with pose reset. */
@@ -145,6 +178,34 @@ public final class Autos {
   /** Hub to Depot (collect + shoot), then Collect path. */
   public static Command hubToDepotThenCollect(DriveInterface drive) {
     return Commands.sequence(hubToDepot(drive), collect(drive));
+  }
+
+  /**
+   * Full cycle: back up, deploy intake, collect fuel via Hub to Depot path, shoot at hub, then
+   * drive to neutral zone via Collect path.
+   */
+  public static Command fullCycle(DriveInterface drive) {
+    try {
+      PathPlannerPath hubToDepotPath = PathPlannerPath.fromPathFile("Hub to Depot");
+      PathPlannerPath collectPath = PathPlannerPath.fromPathFile("Collect");
+      return Commands.sequence(
+          // Back up and deploy intake
+          backAndDeploy(drive),
+          // Follow Hub to Depot path (collect fuel, return to hub)
+          SafeAutoBuilder.wrap(hubToDepotPath, drive),
+          // Shoot at hub
+          Commands.deadline(
+              Commands.sequence(
+                  Commands.waitSeconds(1.0), NamedCommands.getCommand("feed").withTimeout(10.0)),
+              NamedCommands.getCommand("spinUpShooter")),
+          NamedCommands.getCommand("stopAll"),
+          // Drive to neutral zone
+          SafeAutoBuilder.wrap(collectPath, drive));
+    } catch (Exception e) {
+      edu.wpi.first.wpilibj.DriverStation.reportError(
+          "Failed to load paths for full cycle", e.getStackTrace());
+      return Commands.none();
+    }
   }
 
   /** Drive forward, rotate 180 deg, drive back, stop. */

@@ -80,6 +80,7 @@ public class RobotContainer {
     // overrides these with real commands.
     registerDefaultNamedCommands();
 
+    FieldPositions.init();
     DriverPreferences.init();
 
     m_xLimiter = new SlewRateLimiter(DriverPreferences.accelLimit());
@@ -110,7 +111,7 @@ public class RobotContainer {
     SmartDashboard.putBoolean("Drive/TunableSens", false);
     SmartDashboard.putBoolean("Drive/SnapToAngle", false);
     SmartDashboard.putNumber("Drive/Deadband", 0.1);
-    SmartDashboard.putNumber("Drive/MaxRotRate", LEGACY_MAX_ANGULAR_RATE);
+    // MaxRotRate now in Preferences (persists across reboots)
   }
 
   private void configureDefaultCommand() {
@@ -245,7 +246,7 @@ public class RobotContainer {
         new String[] {
           "startIntake", "stopIntake", "spinUpShooter", "stopShooter",
           "feed", "setShortRange", "setMidRange", "setLongRange",
-          "rangeShoot", "stopAll"
+          "rangeShoot", "stopAll", "deployIntake"
         }) {
       NamedCommands.registerCommand(name, Commands.none());
     }
@@ -253,19 +254,20 @@ public class RobotContainer {
 
   private void configureAutoChooser() {
     m_autoChooser.setDefaultOption("None", Autos.none());
-    // Auto routines temporarily disabled for debugging
-    // m_autoChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
-    // m_autoChooser.addOption("Collect", Autos.collect(m_drive));
-    // m_autoChooser.addOption("Hub to Depot + Collect", Autos.hubToDepotThenCollect(m_drive));
+    m_autoChooser.addOption("Back + Deploy", Autos.backAndDeploy(m_drive));
+    m_autoChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
+    m_autoChooser.addOption("Collect", Autos.collect(m_drive));
+    m_autoChooser.addOption("Hub to Depot + Collect", Autos.hubToDepotThenCollect(m_drive));
+    m_autoChooser.addOption("Full Cycle", Autos.fullCycle(m_drive));
     SmartDashboard.putData("Auto Chooser", m_autoChooser);
   }
 
   private void configureTeleopCommands() {
     m_teleopCmdChooser.setDefaultOption("None", Autos.none());
-    // Teleop commands temporarily disabled for debugging
-    // m_teleopCmdChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
-    // m_teleopCmdChooser.addOption("Collect", Autos.collect(m_drive));
-    // m_teleopCmdChooser.addOption("Hub to Depot + Collect", Autos.hubToDepotThenCollect(m_drive));
+    m_teleopCmdChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
+    m_teleopCmdChooser.addOption("Collect", Autos.collect(m_drive));
+    m_teleopCmdChooser.addOption("Hub to Depot + Collect", Autos.hubToDepotThenCollect(m_drive));
+    m_teleopCmdChooser.addOption("Full Cycle", Autos.fullCycle(m_drive));
     SmartDashboard.putData("TeleopCmd/Chooser", m_teleopCmdChooser);
     SmartDashboard.putBoolean("TeleopCmd/Run", false);
     SmartDashboard.putBoolean("TeleopCmd/Stop", false);
@@ -363,7 +365,7 @@ public class RobotContainer {
     m_slewEnabled = SmartDashboard.getBoolean("Drive/SlewRate", false);
     m_slowMode = SmartDashboard.getBoolean("Drive/SlowMode", false);
     m_stickClamp = SmartDashboard.getBoolean("Drive/StickClamp", false);
-    m_maxRotRate = SmartDashboard.getNumber("Drive/MaxRotRate", LEGACY_MAX_ANGULAR_RATE);
+    m_maxRotRate = DriverPreferences.maxRotRate();
 
     // Update operator perspective from alliance (FMS or dashboard)
     m_drive.setOperatorForward(FieldPositions.operatorForward());

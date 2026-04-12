@@ -104,6 +104,10 @@ public class FuelRobotContainer extends RobotContainer {
         new RangeShootCmd(shooter, hood, feeder, indexer, rangeTable, getDrive()::getPose, 5.0));
 
     NamedCommands.registerCommand(
+        "deployIntake",
+        Commands.runOnce(() -> tilter.setPosition(MechanismTuning.tiltDeploy()), tilter));
+
+    NamedCommands.registerCommand(
         "stopAll",
         Commands.runOnce(
             () -> {

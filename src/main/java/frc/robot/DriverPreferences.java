@@ -11,6 +11,7 @@ public final class DriverPreferences {
   private static final String KEY_ROT_ACCEL_LIMIT = "driver/rotAccelLimit";
   private static final String KEY_SLOW_MODE_SCALE = "driver/slowModeScale";
   private static final String KEY_DECEL_MULTIPLIER = "driver/decelMultiplier";
+  private static final String KEY_MAX_ROT_RATE = "driver/maxRotRate";
 
   private DriverPreferences() {}
 
@@ -22,6 +23,7 @@ public final class DriverPreferences {
     initIfMissing(KEY_ROT_ACCEL_LIMIT, 3.0);
     initIfMissing(KEY_SLOW_MODE_SCALE, 0.3);
     initIfMissing(KEY_DECEL_MULTIPLIER, 2.0);
+    initIfMissing(KEY_MAX_ROT_RATE, 0.75 * 2 * Math.PI); // 4.71 rad/s
   }
 
   private static void initIfMissing(String key, double defaultValue) {
@@ -52,6 +54,11 @@ public final class DriverPreferences {
 
   public static double decelMultiplier() {
     return clamp(Preferences.getDouble(KEY_DECEL_MULTIPLIER, 2.0), 1.0, 5.0);
+  }
+
+  /** Max turning rate in rad/s. Default 4.71 (0.75 rot/s). */
+  public static double maxRotRate() {
+    return clamp(Preferences.getDouble(KEY_MAX_ROT_RATE, 0.75 * 2 * Math.PI), 0.5, 4 * Math.PI);
   }
 
   private static double clamp(double value, double min, double max) {
