@@ -379,8 +379,9 @@ public class RobotContainer {
       }
     }
 
-    // Teleop command trigger — run/stop commands from Elastic dashboard
-    if (SmartDashboard.getBoolean("TeleopCmd/Run", false)) {
+    // Teleop command trigger — run/stop commands from Elastic dashboard (teleop only)
+    if (edu.wpi.first.wpilibj.DriverStation.isTeleopEnabled()
+        && SmartDashboard.getBoolean("TeleopCmd/Run", false)) {
       SmartDashboard.putBoolean("TeleopCmd/Run", false);
       // Cancel any previously running teleop command
       if (m_activeTeleopCmd != null) {
