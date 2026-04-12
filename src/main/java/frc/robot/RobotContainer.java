@@ -91,8 +91,6 @@ public class RobotContainer {
     configureDefaultCommand();
     configureButtonBindings();
     configureSysIdBindings();
-    configureAutoChooser();
-    configureTeleopCommands();
     configurePoseReset();
     SafeAutoBuilder.initDashboard();
 
@@ -250,6 +248,15 @@ public class RobotContainer {
         }) {
       NamedCommands.registerCommand(name, Commands.none());
     }
+  }
+
+  /**
+   * Populate auto and teleop command choosers. Must be called after all named commands are
+   * registered (i.e. after FuelRobotContainer finishes construction).
+   */
+  public void initAutoChoosers() {
+    configureAutoChooser();
+    configureTeleopCommands();
   }
 
   private void configureAutoChooser() {

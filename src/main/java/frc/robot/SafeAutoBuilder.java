@@ -41,13 +41,14 @@ public final class SafeAutoBuilder {
       double speedOvershootFraction,
       double minEffectiveSpeedMps,
       double collisionDecelMps2,
-      double collisionMinSpeedMps) {
+      double collisionMinSpeedMps,
+      int collisionCyclesRequired) {
 
     /** Sensible defaults for test-speed autos. */
-    public static final Limits DEFAULT = new Limits(2.0, 1.0, 0.5, 0.20, 0.5, 6.0, 0.3);
+    public static final Limits DEFAULT = new Limits(2.0, 1.0, 0.5, 0.20, 0.5, 6.0, 0.3, 5);
 
     /** Relaxed limits for competition (higher speeds allowed). */
-    public static final Limits COMPETITION = new Limits(4.0, 2.0, 1.0, 0.30, 0.5, 10.0, 0.5);
+    public static final Limits COMPETITION = new Limits(4.0, 2.0, 1.0, 0.30, 0.5, 10.0, 0.5, 5);
   }
 
   /** Wrap a PathPlannerPath with safety checks. Builds the follow-path command internally. */
@@ -132,6 +133,7 @@ public final class SafeAutoBuilder {
     private int m_nextWaypoint;
     private double m_prevSpeed;
     private long m_prevTimeNanos;
+    private int m_collisionCycles;
 
     SafePathCommand(Command inner, PathPlannerPath path, DriveInterface drive, Limits limits) {
       m_inner = inner;
@@ -162,6 +164,7 @@ public final class SafeAutoBuilder {
       SmartDashboard.putNumber("Auto/DecelMps2", 0);
       m_prevSpeed = 0;
       m_prevTimeNanos = System.nanoTime();
+      m_collisionCycles = 0;
 
       boolean allPassed = true;
 
@@ -275,7 +278,9 @@ public final class SafeAutoBuilder {
         return;
       }
 
-      // CHECK: Collision detection — sudden deceleration while moving
+      // CHECK: Collision detection — sustained deceleration while moving.
+      // A ball pickup causes a 1-2 cycle spike; a wall hit sustains for many cycles.
+      // Require consecutive cycles above threshold before cancelling.
       long nowNanos = System.nanoTime();
       double dtSeconds = (nowNanos - m_prevTimeNanos) / 1e9;
       if (dtSeconds > 0.005) { // skip if dt is too small (avoid division noise)
@@ -283,14 +288,20 @@ public final class SafeAutoBuilder {
         SmartDashboard.putNumber("Auto/DecelMps2", decel);
         Logger.recordOutput("Auto/DecelMps2", decel);
 
-        // Only trigger if robot was actually moving before the decel
-        boolean collision =
+        boolean decelHigh =
             decel > m_limits.collisionDecelMps2 && m_prevSpeed > m_limits.collisionMinSpeedMps;
-        SmartDashboard.putBoolean("Auto/NoCollision", !collision);
-        if (collision) {
+        if (decelHigh) {
+          m_collisionCycles++;
+        } else {
+          m_collisionCycles = 0;
+        }
+
+        SmartDashboard.putBoolean(
+            "Auto/NoCollision", m_collisionCycles < m_limits.collisionCyclesRequired);
+        if (m_collisionCycles >= m_limits.collisionCyclesRequired) {
           cancel(
-              "Collision detected! Decel %.1f m/s² (limit %.1f), was moving %.2f m/s",
-              decel, m_limits.collisionDecelMps2, m_prevSpeed);
+              "Collision detected! Decel %.1f m/s² sustained for %d cycles, was moving %.2f m/s",
+              decel, m_collisionCycles, m_prevSpeed);
           m_prevSpeed = currentSpeed;
           m_prevTimeNanos = nowNanos;
           return;

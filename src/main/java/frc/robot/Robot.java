@@ -102,6 +102,9 @@ public class Robot extends LoggedRobot {
     } else {
       m_robotContainer = new RobotContainer(swerveDrive, visionIOs, cameras);
     }
+    // Build auto choosers after construction so FuelRobotContainer's named
+    // commands (intake, shooter, etc.) are registered before autos capture them.
+    m_robotContainer.initAutoChoosers();
 
     String robotName = config == Robots.CORAL ? "CORAL" : "FUEL";
     SmartDashboard.putString("RobotName", robotName);
