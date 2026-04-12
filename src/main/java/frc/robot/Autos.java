@@ -17,10 +17,10 @@ import java.util.Set;
 public final class Autos {
 
   /** Shared test speed — above deadband (~0.48 m/s), slow enough for operator to e-stop. */
-  private static final double TEST_SPEED = 0.5; // m/s
+  private static final double TEST_SPEED = 1.0; // m/s
 
-  private static final double TEST_ACCEL = 0.15; // m/s²
-  private static final double TEST_ANG_VEL = Math.PI * 0.1; // rad/s
+  private static final double TEST_ACCEL = 1.0; // m/s²
+  private static final double TEST_ANG_VEL = Math.PI * 0.2; // rad/s
   private static final double TEST_ANG_ACCEL = Math.PI * 0.1; // rad/s²
 
   private static final PathConstraints TEST_CONSTRAINTS =
@@ -140,6 +140,11 @@ public final class Autos {
               NamedCommands.getCommand("stopAll"));
         },
         Set.of());
+  }
+
+  /** Hub to Depot (collect + shoot), then Collect path. */
+  public static Command hubToDepotThenCollect(DriveInterface drive) {
+    return Commands.sequence(hubToDepot(drive), collect(drive));
   }
 
   /** Drive forward, rotate 180 deg, drive back, stop. */

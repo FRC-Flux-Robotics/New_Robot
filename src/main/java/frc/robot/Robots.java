@@ -133,7 +133,7 @@ public final class Robots {
           // Speed
           .maxSpeedMps(kMaxSpeedMps)
           .maxAngularRateRadPerSec(Math.PI)
-          .speedCoefficient(0.5)
+          .speedCoefficient(0.8)
           // PID - matching working FluxRobot-2026 values
           .driveGains(new PIDGains(0.1, 0, 0, 0, 0.124, 0))
           .steerGains(new PIDGains(15, 0, 0.9, 0.1, 1.5, 0))
@@ -183,7 +183,7 @@ public final class Robots {
           // Speed
           .maxSpeedMps(kMaxSpeedMps)
           .maxAngularRateRadPerSec(Math.PI)
-          .speedCoefficient(0.5)
+          .speedCoefficient(0.8)
           // PID - matching working FluxRobot-2026 values
           .driveGains(new PIDGains(0.1, 0, 0, 0, 0.124, 0))
           .steerGains(new PIDGains(15, 0, 0.9, 0.1, 1.5, 0))

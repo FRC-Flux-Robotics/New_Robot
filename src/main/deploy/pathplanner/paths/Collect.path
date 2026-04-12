@@ -32,16 +32,16 @@
     },
     {
       "anchor": {
-        "x": 7.67718954248366,
-        "y": 7.441890547263681
+        "x": 5.74,
+        "y": 7.44
       },
       "prevControl": {
-        "x": 6.67718954248366,
-        "y": 7.441890547263681
+        "x": 5.24,
+        "y": 7.44
       },
       "nextControl": {
-        "x": 7.67718954248366,
-        "y": 8.441890547263679
+        "x": 6.24,
+        "y": 7.44
       },
       "isLocked": false,
       "linkedName": null
@@ -49,24 +49,49 @@
     {
       "anchor": {
         "x": 7.67718954248366,
-        "y": 6.212251243781095
+        "y": 7.007055555555556
+      },
+      "prevControl": {
+        "x": 7.6975138888888885,
+        "y": 7.567361111111111
+      },
+      "nextControl": {
+        "x": 7.6409396995201275,
+        "y": 6.007712797096236
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 7.67718954248366,
+        "y": 4.595305555555555
       },
       "prevControl": {
         "x": 7.67718954248366,
-        "y": 5.712251243781095
+        "y": 4.095305555555555
       },
       "nextControl": null,
       "isLocked": false,
       "linkedName": null
     }
   ],
-  "rotationTargets": [],
+  "rotationTargets": [
+    {
+      "waypointRelativePos": 2.0,
+      "rotationDegrees": 0.0
+    },
+    {
+      "waypointRelativePos": 3.0,
+      "rotationDegrees": -90.0
+    }
+  ],
   "constraintZones": [],
   "pointTowardsZones": [],
   "eventMarkers": [
     {
       "name": "startIntake",
-      "waypointRelativePos": 2.0,
+      "waypointRelativePos": 3.0,
       "endWaypointRelativePos": null,
       "command": {
         "type": "named",
@@ -74,11 +99,22 @@
           "name": "startIntake"
         }
       }
+    },
+    {
+      "name": "stopIntake",
+      "waypointRelativePos": 4.0,
+      "endWaypointRelativePos": null,
+      "command": {
+        "type": "named",
+        "data": {
+          "name": "stopIntake"
+        }
+      }
     }
   ],
   "globalConstraints": {
-    "maxVelocity": 0.5,
-    "maxAcceleration": 0.15,
+    "maxVelocity": 1.0,
+    "maxAcceleration": 1.0,
     "maxAngularVelocity": 18.0,
     "maxAngularAcceleration": 18.0,
     "nominalVoltage": 12.0,
@@ -86,7 +122,7 @@
   },
   "goalEndState": {
     "velocity": 0,
-    "rotation": 90.0
+    "rotation": -90.0
   },
   "reversed": false,
   "folder": null,

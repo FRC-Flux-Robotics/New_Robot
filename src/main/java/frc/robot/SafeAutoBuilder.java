@@ -11,6 +11,7 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import frc.lib.drivetrain.DriveInterface;
 import java.util.ArrayList;
@@ -26,6 +27,9 @@ import org.littletonrobotics.junction.Logger;
  * published to SmartDashboard under "Auto/" prefix with color-coded boolean indicators.
  */
 public final class SafeAutoBuilder {
+
+  /** Time to drive at zero velocity before path starts, letting modules align. */
+  private static final double SETTLE_SECONDS = 0.25;
 
   private SafeAutoBuilder() {}
 
@@ -64,7 +68,11 @@ public final class SafeAutoBuilder {
   /** Full-control overload. */
   public static Command wrap(
       Command innerCommand, PathPlannerPath path, DriveInterface drive, Limits limits) {
-    return new SafePathCommand(innerCommand, path, drive, limits);
+    // Pre-align swerve modules at zero speed before starting the path.
+    // Prevents wiggle caused by modules snapping to new angles under velocity.
+    Command settle =
+        Commands.run(() -> drive.drive(0, 0, 0, true, 0.02), drive).withTimeout(SETTLE_SECONDS);
+    return settle.andThen(new SafePathCommand(innerCommand, path, drive, limits));
   }
 
   /**

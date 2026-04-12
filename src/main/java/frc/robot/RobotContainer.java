@@ -256,29 +256,17 @@ public class RobotContainer {
 
   private void configureAutoChooser() {
     m_autoChooser.setDefaultOption("None", Autos.none());
-    m_autoChooser.addOption("Drive Forward", Autos.driveForward(m_drive));
-    m_autoChooser.addOption("Forward-Turn-Back", Autos.forwardTurnBack(m_drive));
-    m_autoChooser.addOption("Precision Square", Autos.precisionSquare(m_drive));
     m_autoChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
     m_autoChooser.addOption("Collect", Autos.collect(m_drive));
-    m_autoChooser.addOption("Hub", Autos.hub(m_drive));
-    if (m_vision != null) {
-      m_autoChooser.addOption("Drive to Nearest Tag", Autos.driveToNearestTag(m_vision, m_drive));
-      m_autoChooser.addOption(
-          "Camera Validation", new CameraValidationCmd(m_vision, m_drive, m_cameras));
-      m_autoChooser.addOption("Auto Calibrate", new AutoCalibrateCmd(m_vision, m_drive, m_cameras));
-    }
+    m_autoChooser.addOption("Hub to Depot + Collect", Autos.hubToDepotThenCollect(m_drive));
     SmartDashboard.putData("Auto Chooser", m_autoChooser);
   }
 
   private void configureTeleopCommands() {
     m_teleopCmdChooser.setDefaultOption("None", Autos.none());
-    m_teleopCmdChooser.addOption("Drive Forward", Autos.driveForward(m_drive));
-    m_teleopCmdChooser.addOption("Forward-Turn-Back", Autos.forwardTurnBack(m_drive));
-    m_teleopCmdChooser.addOption("Precision Square", Autos.precisionSquare(m_drive));
     m_teleopCmdChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
     m_teleopCmdChooser.addOption("Collect", Autos.collect(m_drive));
-    m_teleopCmdChooser.addOption("Hub", Autos.hub(m_drive));
+    m_teleopCmdChooser.addOption("Hub to Depot + Collect", Autos.hubToDepotThenCollect(m_drive));
     SmartDashboard.putData("TeleopCmd/Chooser", m_teleopCmdChooser);
     SmartDashboard.putBoolean("TeleopCmd/Run", false);
     SmartDashboard.putBoolean("TeleopCmd/Stop", false);
