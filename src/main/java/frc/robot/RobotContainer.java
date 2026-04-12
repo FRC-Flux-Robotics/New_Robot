@@ -1,7 +1,6 @@
 package frc.robot;
 
 import com.pathplanner.lib.auto.NamedCommands;
-import com.pathplanner.lib.commands.PathfindingCommand;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -99,8 +98,8 @@ public class RobotContainer {
     // Apply initial deadband (legacy 10%)
     m_drive.setDeadband(0.1, 0.1);
 
-    // Warmup PathPlanner to avoid latency spike on first pathfinding command
-    PathfindingCommand.warmupCommand().schedule();
+    // NOTE: PathPlanner warmup removed — it auto-scheduled a command that
+    // could interfere with teleop. Accept the one-time latency hit instead.
   }
 
   private void configureDriveStyle() {
@@ -254,17 +253,19 @@ public class RobotContainer {
 
   private void configureAutoChooser() {
     m_autoChooser.setDefaultOption("None", Autos.none());
-    m_autoChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
-    m_autoChooser.addOption("Collect", Autos.collect(m_drive));
-    m_autoChooser.addOption("Hub to Depot + Collect", Autos.hubToDepotThenCollect(m_drive));
+    // Auto routines temporarily disabled for debugging
+    // m_autoChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
+    // m_autoChooser.addOption("Collect", Autos.collect(m_drive));
+    // m_autoChooser.addOption("Hub to Depot + Collect", Autos.hubToDepotThenCollect(m_drive));
     SmartDashboard.putData("Auto Chooser", m_autoChooser);
   }
 
   private void configureTeleopCommands() {
     m_teleopCmdChooser.setDefaultOption("None", Autos.none());
-    m_teleopCmdChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
-    m_teleopCmdChooser.addOption("Collect", Autos.collect(m_drive));
-    m_teleopCmdChooser.addOption("Hub to Depot + Collect", Autos.hubToDepotThenCollect(m_drive));
+    // Teleop commands temporarily disabled for debugging
+    // m_teleopCmdChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
+    // m_teleopCmdChooser.addOption("Collect", Autos.collect(m_drive));
+    // m_teleopCmdChooser.addOption("Hub to Depot + Collect", Autos.hubToDepotThenCollect(m_drive));
     SmartDashboard.putData("TeleopCmd/Chooser", m_teleopCmdChooser);
     SmartDashboard.putBoolean("TeleopCmd/Run", false);
     SmartDashboard.putBoolean("TeleopCmd/Stop", false);
