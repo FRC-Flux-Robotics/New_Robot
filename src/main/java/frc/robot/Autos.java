@@ -110,12 +110,20 @@ public final class Autos {
           NamedCommands.getCommand("deployIntake"),
           // Follow path (collect fuel, return to hub)
           SafeAutoBuilder.wrap(path, drive),
-          // Shoot at hub
-          Commands.deadline(
+          // If path was cancelled by safety, stop everything — don't shoot
+          Commands.either(
+              // Not cancelled: stow intake (raise tilt), then shoot with short range preset
               Commands.sequence(
-                  Commands.waitSeconds(1.0), NamedCommands.getCommand("feed").withTimeout(10.0)),
-              NamedCommands.getCommand("spinUpShooter")),
-          NamedCommands.getCommand("stopAll"));
+                  NamedCommands.getCommand("stowIntake"),
+                  Commands.deadline(
+                      Commands.sequence(
+                          Commands.waitSeconds(1.0),
+                          NamedCommands.getCommand("feed").withTimeout(10.0)),
+                      NamedCommands.getCommand("setShortRange")),
+                  NamedCommands.getCommand("stopAll")),
+              // Cancelled: just stop
+              NamedCommands.getCommand("stopAll"),
+              () -> SmartDashboard.getString("Auto/CancelReason", "").isEmpty()));
     } catch (Exception e) {
       edu.wpi.first.wpilibj.DriverStation.reportError(
           "Failed to load path: Hub to Depot", e.getStackTrace());
@@ -211,14 +219,23 @@ public final class Autos {
           backAndDeploy(drive),
           // Follow Hub to Depot path (collect fuel, return to hub)
           SafeAutoBuilder.wrap(hubToDepotPath, drive),
-          // Shoot at hub
-          Commands.deadline(
+          // If path was cancelled by safety, stop everything — don't shoot
+          Commands.either(
+              // Not cancelled: stow intake (raise tilt), shoot with short range preset, then
+              // collect
               Commands.sequence(
-                  Commands.waitSeconds(1.0), NamedCommands.getCommand("feed").withTimeout(10.0)),
-              NamedCommands.getCommand("spinUpShooter")),
-          NamedCommands.getCommand("stopAll"),
-          // Drive to neutral zone
-          SafeAutoBuilder.wrap(collectPath, drive));
+                  NamedCommands.getCommand("stowIntake"),
+                  Commands.deadline(
+                      Commands.sequence(
+                          Commands.waitSeconds(1.0),
+                          NamedCommands.getCommand("feed").withTimeout(10.0)),
+                      NamedCommands.getCommand("setShortRange")),
+                  NamedCommands.getCommand("stopAll"),
+                  // Drive to neutral zone
+                  SafeAutoBuilder.wrap(collectPath, drive)),
+              // Cancelled: just stop
+              NamedCommands.getCommand("stopAll"),
+              () -> SmartDashboard.getString("Auto/CancelReason", "").isEmpty()));
     } catch (Exception e) {
       edu.wpi.first.wpilibj.DriverStation.reportError(
           "Failed to load paths for full cycle", e.getStackTrace());
