@@ -18,8 +18,6 @@ import frc.lib.drivetrain.CameraConfig;
 import frc.lib.drivetrain.DriveInterface;
 import frc.lib.drivetrain.SwerveDrive;
 import frc.lib.vision.VisionIO;
-import frc.robot.commands.AutoCalibrateCmd;
-import frc.robot.commands.CameraValidationCmd;
 import frc.robot.commands.ResetPoseFromVision;
 
 /** Owns subsystems, default commands, button bindings, and auto chooser. */
@@ -336,6 +334,17 @@ public class RobotContainer {
 
   public Command getAutonomousCommand() {
     return m_autoChooser.getSelected();
+  }
+
+  /** Called on teleop init to clear any lingering teleop command state. */
+  public void teleopInit() {
+    if (m_activeTeleopCmd != null) {
+      m_activeTeleopCmd.cancel();
+      m_activeTeleopCmd = null;
+    }
+    SmartDashboard.putBoolean("TeleopCmd/Run", false);
+    SmartDashboard.putBoolean("TeleopCmd/Stop", false);
+    SmartDashboard.putString("TeleopCmd/Status", "Idle");
   }
 
   /** Access the drive subsystem (for subclasses like FuelRobotContainer). */
