@@ -44,8 +44,8 @@ public final class SafeAutoBuilder {
       double collisionMinSpeedMps,
       int collisionCyclesRequired) {
 
-    /** Sensible defaults for test-speed autos. */
-    public static final Limits DEFAULT = new Limits(2.0, 1.0, 0.5, 0.30, 0.5, 8.0, 0.3, 10);
+    /** Defaults for competition-speed autos. */
+    public static final Limits DEFAULT = new Limits(4.0, 2.0, 1.0, 0.30, 0.5, 10.0, 0.5, 5);
 
     /** Relaxed limits for competition (higher speeds allowed). */
     public static final Limits COMPETITION = new Limits(4.0, 2.0, 1.0, 0.30, 0.5, 10.0, 0.5, 5);

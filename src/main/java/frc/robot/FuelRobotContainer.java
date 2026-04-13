@@ -107,15 +107,14 @@ public class FuelRobotContainer extends RobotContainer {
         "deployIntake",
         Commands.sequence(
             Commands.runOnce(() -> tilter.setPosition(MechanismTuning.tiltDeploy()), tilter),
-            Commands.waitUntil(() -> tilter.atTarget()).withTimeout(2.0),
+            Commands.waitUntil(() -> tilter.atTarget()).withTimeout(1.0),
             Commands.runOnce(() -> tilter.stop(), tilter)));
 
     NamedCommands.registerCommand(
         "stowIntake",
         Commands.sequence(
             Commands.runOnce(() -> tilter.setPosition(MechanismTuning.tiltStow()), tilter),
-            Commands.waitUntil(() -> tilter.atTarget()).withTimeout(2.0),
-            Commands.runOnce(() -> tilter.stop(), tilter)));
+            Commands.waitUntil(() -> tilter.atTarget()).withTimeout(1.0)));
 
     NamedCommands.registerCommand(
         "stopAll",
@@ -125,11 +124,13 @@ public class FuelRobotContainer extends RobotContainer {
               indexer.stop();
               feeder.stop();
               shooter.stop();
+              tilter.stop();
             },
             intake,
             indexer,
             feeder,
-            shooter));
+            shooter,
+            tilter));
   }
 
   // --- Override base class driver bindings (no-ops, replaced by configureFuelDriverBindings) ---

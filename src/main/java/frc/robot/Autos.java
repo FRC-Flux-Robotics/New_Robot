@@ -13,18 +13,18 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import frc.lib.drivetrain.DriveInterface;
 import java.util.Set;
 
-/** Auto routines for testing and competition. All speeds standardized to TEST_SPEED. */
+/** Auto routines for competition. All speeds match teleop max. */
 public final class Autos {
 
-  /** Shared test speed — above deadband (~0.48 m/s), slow enough for operator to e-stop. */
-  private static final double TEST_SPEED = 1.0; // m/s
+  /** Auto speed — matches teleop (kMaxSpeedMps × 0.8 speedCoefficient ≈ 3.86 m/s). */
+  private static final double AUTO_SPEED = 3.86; // m/s
 
-  private static final double TEST_ACCEL = 1.0; // m/s²
-  private static final double TEST_ANG_VEL = Math.PI * 0.2; // rad/s
-  private static final double TEST_ANG_ACCEL = Math.PI * 0.1; // rad/s²
+  private static final double AUTO_ACCEL = 3.0; // m/s²
+  private static final double AUTO_ANG_VEL = Math.PI; // rad/s
+  private static final double AUTO_ANG_ACCEL = Math.PI; // rad/s²
 
-  private static final PathConstraints TEST_CONSTRAINTS =
-      new PathConstraints(TEST_SPEED, TEST_ACCEL, TEST_ANG_VEL, TEST_ANG_ACCEL, 12.0);
+  private static final PathConstraints AUTO_CONSTRAINTS =
+      new PathConstraints(AUTO_SPEED, AUTO_ACCEL, AUTO_ANG_VEL, AUTO_ANG_ACCEL, 12.0);
 
   private Autos() {}
 
@@ -38,16 +38,16 @@ public final class Autos {
     return new DriveToTag(vision, drive).withTimeout(10.0);
   }
 
-  /** Drive forward at TEST_SPEED for 10 seconds, then stop. */
+  /** Drive forward at AUTO_SPEED for 10 seconds, then stop. */
   public static Command driveForward(DriveInterface drive) {
-    return Commands.run(() -> drive.drive(TEST_SPEED, 0, 0, false, 0.02), drive)
+    return Commands.run(() -> drive.drive(AUTO_SPEED, 0, 0, false, 0.02), drive)
         .withTimeout(10.0)
         .andThen(Commands.runOnce(() -> drive.drive(0, 0, 0, false, 0.02), drive));
   }
 
   /** Precision test: drive a 2m square and return to origin. Logs position error. */
   public static Command precisionSquare(DriveInterface drive) {
-    double sideTime = 2.0 / TEST_SPEED; // 2m at TEST_SPEED
+    double sideTime = 2.0 / AUTO_SPEED; // 2m at AUTO_SPEED
     double settleTime = 0.5; // pause between sides
 
     return Commands.sequence(
@@ -61,19 +61,19 @@ public final class Autos {
               SmartDashboard.putString("PrecisionTest/Status", "Running");
             }),
         // Side 1: +X
-        Commands.run(() -> drive.drive(TEST_SPEED, 0, 0, true, 0.02), drive).withTimeout(sideTime),
+        Commands.run(() -> drive.drive(AUTO_SPEED, 0, 0, true, 0.02), drive).withTimeout(sideTime),
         Commands.runOnce(() -> drive.drive(0, 0, 0, true, 0.02), drive),
         Commands.waitSeconds(settleTime),
         // Side 2: +Y
-        Commands.run(() -> drive.drive(0, TEST_SPEED, 0, true, 0.02), drive).withTimeout(sideTime),
+        Commands.run(() -> drive.drive(0, AUTO_SPEED, 0, true, 0.02), drive).withTimeout(sideTime),
         Commands.runOnce(() -> drive.drive(0, 0, 0, true, 0.02), drive),
         Commands.waitSeconds(settleTime),
         // Side 3: -X
-        Commands.run(() -> drive.drive(-TEST_SPEED, 0, 0, true, 0.02), drive).withTimeout(sideTime),
+        Commands.run(() -> drive.drive(-AUTO_SPEED, 0, 0, true, 0.02), drive).withTimeout(sideTime),
         Commands.runOnce(() -> drive.drive(0, 0, 0, true, 0.02), drive),
         Commands.waitSeconds(settleTime),
         // Side 4: -Y
-        Commands.run(() -> drive.drive(0, -TEST_SPEED, 0, true, 0.02), drive).withTimeout(sideTime),
+        Commands.run(() -> drive.drive(0, -AUTO_SPEED, 0, true, 0.02), drive).withTimeout(sideTime),
         Commands.runOnce(() -> drive.drive(0, 0, 0, true, 0.02), drive),
         Commands.runOnce(
             () -> {
@@ -91,15 +91,30 @@ public final class Autos {
 
   /** Back up, deploy intake, follow "Hub to Depot" path, return to hub and shoot. */
   public static Command hubToDepot(DriveInterface drive) {
+    return depotAuto("Hub to Depot", drive);
+  }
+
+  /** Back up, deploy intake, follow "Left to Depot" path, return to hub and shoot. */
+  public static Command leftToDepot(DriveInterface drive) {
+    return depotAuto("Left to Depot", drive);
+  }
+
+  /** Back up, deploy intake, follow "Right to Depot" path, return to hub and shoot. */
+  public static Command rightToDepot(DriveInterface drive) {
+    return depotAuto("Right to Depot", drive);
+  }
+
+  /** Common depot auto: back up, deploy intake, follow path, return to hub, shoot. */
+  private static Command depotAuto(String pathName, DriveInterface drive) {
     double distanceMeters = 0.1524; // 6 inches
     Pose2d[] startPose = new Pose2d[1];
 
     try {
-      PathPlannerPath path = PathPlannerPath.fromPathFile("Hub to Depot");
+      PathPlannerPath path = PathPlannerPath.fromPathFile(pathName);
       return Commands.sequence(
           // Back up 6 inches to path start position
           Commands.runOnce(() -> startPose[0] = drive.getPose()),
-          Commands.run(() -> drive.drive(-TEST_SPEED, 0, 0, false, 0.02), drive)
+          Commands.run(() -> drive.drive(-AUTO_SPEED, 0, 0, false, 0.02), drive)
               .until(
                   () ->
                       drive.getPose().getTranslation().getDistance(startPose[0].getTranslation())
@@ -114,11 +129,11 @@ public final class Autos {
           Commands.either(
               // Not cancelled: stow intake (raise tilt), then shoot with short range preset
               Commands.sequence(
-                  NamedCommands.getCommand("stowIntake"),
                   Commands.deadline(
                       Commands.sequence(
                           Commands.waitSeconds(1.0),
                           NamedCommands.getCommand("feed").withTimeout(10.0)),
+                      NamedCommands.getCommand("stowIntake"),
                       NamedCommands.getCommand("setShortRange")),
                   NamedCommands.getCommand("stopAll")),
               // Cancelled: just stop
@@ -126,25 +141,7 @@ public final class Autos {
               () -> SmartDashboard.getString("Auto/CancelReason", "").isEmpty()));
     } catch (Exception e) {
       edu.wpi.first.wpilibj.DriverStation.reportError(
-          "Failed to load path: Hub to Depot", e.getStackTrace());
-      return Commands.none();
-    }
-  }
-
-  /** Drive to depot (W1 only), start intake. Test auto. */
-  public static Command hubToW1(DriveInterface drive) {
-    try {
-      PathPlannerPath path = PathPlannerPath.fromPathFile("Hub to W1");
-      return Commands.sequence(
-          SafeAutoBuilder.wrap(path, drive),
-          // Explicit startIntake (not via event marker) to isolate the issue
-          NamedCommands.getCommand("startIntake"),
-          Commands.waitSeconds(3.0),
-          NamedCommands.getCommand("stopIntake"),
-          NamedCommands.getCommand("stopAll"));
-    } catch (Exception e) {
-      edu.wpi.first.wpilibj.DriverStation.reportError(
-          "Failed to load path: Hub to W1", e.getStackTrace());
+          "Failed to load path: " + pathName, e.getStackTrace());
       return Commands.none();
     }
   }
@@ -156,7 +153,7 @@ public final class Autos {
 
     return Commands.sequence(
         Commands.runOnce(() -> startPose[0] = drive.getPose()),
-        Commands.run(() -> drive.drive(-TEST_SPEED, 0, 0, false, 0.02), drive)
+        Commands.run(() -> drive.drive(-AUTO_SPEED, 0, 0, false, 0.02), drive)
             .until(
                 () ->
                     drive.getPose().getTranslation().getDistance(startPose[0].getTranslation())
@@ -188,7 +185,7 @@ public final class Autos {
           Pose2d target = FieldPositions.resolve("HUB");
 
           return Commands.sequence(
-              AutoBuilder.pathfindToPose(target, TEST_CONSTRAINTS),
+              AutoBuilder.pathfindToPose(target, AUTO_CONSTRAINTS),
               Commands.runOnce(() -> drive.drive(0, 0, 0, true, 0.02), drive),
               // Spin up for 1s, then feed while keeping shooter running
               Commands.deadline(
@@ -199,11 +196,6 @@ public final class Autos {
               NamedCommands.getCommand("stopAll"));
         },
         Set.of());
-  }
-
-  /** Hub to Depot (collect + shoot), then Collect path. */
-  public static Command hubToDepotThenCollect(DriveInterface drive) {
-    return Commands.sequence(hubToDepot(drive), collect(drive));
   }
 
   /**
@@ -224,11 +216,11 @@ public final class Autos {
               // Not cancelled: stow intake (raise tilt), shoot with short range preset, then
               // collect
               Commands.sequence(
-                  NamedCommands.getCommand("stowIntake"),
                   Commands.deadline(
                       Commands.sequence(
                           Commands.waitSeconds(1.0),
                           NamedCommands.getCommand("feed").withTimeout(10.0)),
+                      NamedCommands.getCommand("stowIntake"),
                       NamedCommands.getCommand("setShortRange")),
                   NamedCommands.getCommand("stopAll"),
                   // Drive to neutral zone
@@ -245,12 +237,12 @@ public final class Autos {
 
   /** Drive forward, rotate 180 deg, drive back, stop. */
   public static Command forwardTurnBack(DriveInterface drive) {
-    double driveTime = 2.0 / TEST_SPEED; // 2m at TEST_SPEED
+    double driveTime = 2.0 / AUTO_SPEED; // 2m at AUTO_SPEED
     // Capture start heading at runtime, turn 180° relative to it
     Rotation2d[] turnTarget = new Rotation2d[1];
     return Commands.sequence(
         // Leg 1: drive forward (robot-centric)
-        Commands.run(() -> drive.drive(TEST_SPEED, 0, 0, false, 0.02), drive)
+        Commands.run(() -> drive.drive(AUTO_SPEED, 0, 0, false, 0.02), drive)
             .withTimeout(driveTime),
         Commands.runOnce(() -> drive.drive(0, 0, 0, false, 0.02), drive),
         // Compute 180° from current heading
@@ -261,7 +253,7 @@ public final class Autos {
             .until(() -> Math.abs(drive.getHeading().minus(turnTarget[0]).getDegrees()) < 5.0)
             .withTimeout(10.0),
         // Leg 2: drive forward (robot-centric, now facing back)
-        Commands.run(() -> drive.drive(TEST_SPEED, 0, 0, false, 0.02), drive)
+        Commands.run(() -> drive.drive(AUTO_SPEED, 0, 0, false, 0.02), drive)
             .withTimeout(driveTime),
         Commands.runOnce(() -> drive.drive(0, 0, 0, false, 0.02), drive));
   }
