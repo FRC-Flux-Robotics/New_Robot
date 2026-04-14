@@ -127,13 +127,12 @@ public final class Autos {
           SafeAutoBuilder.wrap(path, drive),
           // If path was cancelled by safety, stop everything — don't shoot
           Commands.either(
-              // Not cancelled: stow intake (raise tilt), then shoot with short range preset
+              // Not cancelled: shoot with short range preset
               Commands.sequence(
                   Commands.deadline(
                       Commands.sequence(
                           Commands.waitSeconds(1.0),
                           NamedCommands.getCommand("feed").withTimeout(10.0)),
-                      NamedCommands.getCommand("stowIntake"),
                       NamedCommands.getCommand("setShortRange")),
                   NamedCommands.getCommand("stopAll")),
               // Cancelled: just stop
@@ -161,11 +160,10 @@ public final class Autos {
             .withTimeout(3.0),
         Commands.runOnce(() -> drive.drive(0, 0, 0, false, 0.02), drive),
         NamedCommands.getCommand("deployIntake"),
-        // Stow intake, spin up short range, wait 1s, then feed
+        // Spin up short range, wait 1s, then feed
         Commands.deadline(
             Commands.sequence(
                 Commands.waitSeconds(1.0), NamedCommands.getCommand("feed").withTimeout(10.0)),
-            NamedCommands.getCommand("stowIntake"),
             NamedCommands.getCommand("setShortRange")),
         NamedCommands.getCommand("stopAll"));
   }
@@ -227,7 +225,6 @@ public final class Autos {
                       Commands.sequence(
                           Commands.waitSeconds(1.0),
                           NamedCommands.getCommand("feed").withTimeout(10.0)),
-                      NamedCommands.getCommand("stowIntake"),
                       NamedCommands.getCommand("setShortRange")),
                   NamedCommands.getCommand("stopAll"),
                   // Drive to neutral zone
