@@ -261,12 +261,10 @@ public class RobotContainer {
 
   private void configureAutoChooser() {
     m_autoChooser.setDefaultOption("None", Autos.none());
-    m_autoChooser.addOption("Back + Deploy", Autos.backAndDeploy(m_drive));
+    m_autoChooser.addOption("Prefill", Autos.backAndDeploy(m_drive));
     m_autoChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
     m_autoChooser.addOption("Left to Depot", Autos.leftToDepot(m_drive));
     m_autoChooser.addOption("Right to Depot", Autos.rightToDepot(m_drive));
-    m_autoChooser.addOption("Collect", Autos.collect(m_drive));
-    m_autoChooser.addOption("Hub - Full Cycle", Autos.fullCycle(m_drive));
     SmartDashboard.putData("Auto Chooser", m_autoChooser);
   }
 
@@ -275,8 +273,6 @@ public class RobotContainer {
     m_teleopCmdChooser.addOption("Hub to Depot", Autos.hubToDepot(m_drive));
     m_teleopCmdChooser.addOption("Left to Depot", Autos.leftToDepot(m_drive));
     m_teleopCmdChooser.addOption("Right to Depot", Autos.rightToDepot(m_drive));
-    m_teleopCmdChooser.addOption("Collect", Autos.collect(m_drive));
-    m_teleopCmdChooser.addOption("Hub - Full Cycle", Autos.fullCycle(m_drive));
     SmartDashboard.putData("TeleopCmd/Chooser", m_teleopCmdChooser);
     SmartDashboard.putBoolean("TeleopCmd/Run", false);
     SmartDashboard.putBoolean("TeleopCmd/Stop", false);

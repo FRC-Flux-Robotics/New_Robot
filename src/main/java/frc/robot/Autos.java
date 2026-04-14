@@ -146,7 +146,7 @@ public final class Autos {
     }
   }
 
-  /** Back up 6 inches and deploy intake. Uses odometry for accurate distance. */
+  /** Back up 6 inches, deploy intake, and shoot preloaded game piece. */
   public static Command backAndDeploy(DriveInterface drive) {
     double distanceMeters = 0.1524; // 6 inches
     Pose2d[] startPose = new Pose2d[1];
@@ -160,7 +160,14 @@ public final class Autos {
                         >= distanceMeters)
             .withTimeout(3.0),
         Commands.runOnce(() -> drive.drive(0, 0, 0, false, 0.02), drive),
-        NamedCommands.getCommand("deployIntake"));
+        NamedCommands.getCommand("deployIntake"),
+        // Stow intake, spin up short range, wait 1s, then feed
+        Commands.deadline(
+            Commands.sequence(
+                Commands.waitSeconds(1.0), NamedCommands.getCommand("feed").withTimeout(10.0)),
+            NamedCommands.getCommand("stowIntake"),
+            NamedCommands.getCommand("setShortRange")),
+        NamedCommands.getCommand("stopAll"));
   }
 
   /** Follow "Collect" path. Robot must be pre-positioned at hub with pose reset. */
