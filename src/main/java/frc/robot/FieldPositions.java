@@ -28,9 +28,9 @@ public final class FieldPositions {
 
   // Blue alliance canonical positions
   private static final Pose2d ORIGIN = new Pose2d();
-  private static final Pose2d LEFT = new Pose2d(3.1, 6.55, new Rotation2d());
-  private static final Pose2d RIGHT = new Pose2d(3.1, 1.55, new Rotation2d());
-  private static final Pose2d HUB = new Pose2d(3.1, 4.05, new Rotation2d());
+  private static final Pose2d LEFT = new Pose2d(3.227, 6.55, new Rotation2d());
+  private static final Pose2d RIGHT = new Pose2d(3.227, 1.55, new Rotation2d());
+  private static final Pose2d HUB = new Pose2d(3.227, 4.05, new Rotation2d());
 
   private static final Map<String, Pose2d> POSITIONS =
       Map.of(

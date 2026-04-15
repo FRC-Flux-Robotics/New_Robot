@@ -106,7 +106,7 @@ public final class Autos {
 
   /** Common depot auto: back up, deploy intake, follow path, return to hub, shoot. */
   private static Command depotAuto(String pathName, DriveInterface drive) {
-    double distanceMeters = 0.1524; // 6 inches
+    double distanceMeters = 0.2794; // 11 inches
     Pose2d[] startPose = new Pose2d[1];
 
     try {
@@ -145,9 +145,9 @@ public final class Autos {
     }
   }
 
-  /** Back up 6 inches, deploy intake, and shoot preloaded game piece. */
+  /** Back up 11 inches, deploy intake, and shoot preloaded game piece. */
   public static Command backAndDeploy(DriveInterface drive) {
-    double distanceMeters = 0.1524; // 6 inches
+    double distanceMeters = 0.2794; // 11 inches
     Pose2d[] startPose = new Pose2d[1];
 
     return Commands.sequence(

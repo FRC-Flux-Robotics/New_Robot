@@ -215,6 +215,31 @@
               "period": 0.033,
               "show_submit_button": false
             }
+          },
+          {
+            "title": "Pose Preset",
+            "x": 0.0,
+            "y": 640.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "ComboBox Chooser",
+            "properties": {
+              "topic": "/SmartDashboard/Pose/Preset",
+              "period": 0.033,
+              "sort_options": false
+            }
+          },
+          {
+            "title": "Apply Preset",
+            "x": 256.0,
+            "y": 640.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Toggle Button",
+            "properties": {
+              "topic": "/SmartDashboard/Pose/ApplyPreset",
+              "period": 0.033
+            }
           }
         ]
       }
