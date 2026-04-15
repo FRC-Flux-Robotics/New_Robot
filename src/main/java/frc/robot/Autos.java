@@ -16,12 +16,12 @@ import java.util.Set;
 /** Auto routines for competition. All speeds match teleop max. */
 public final class Autos {
 
-  /** Auto speed — matches teleop (kMaxSpeedMps × 0.8 speedCoefficient ≈ 3.86 m/s). */
-  private static final double AUTO_SPEED = 3.86; // m/s
+  /** Auto speed — half teleop for tuning. */
+  private static final double AUTO_SPEED = 1.93; // m/s
 
-  private static final double AUTO_ACCEL = 3.0; // m/s²
-  private static final double AUTO_ANG_VEL = Math.PI; // rad/s
-  private static final double AUTO_ANG_ACCEL = Math.PI; // rad/s²
+  private static final double AUTO_ACCEL = 1.5; // m/s²
+  private static final double AUTO_ANG_VEL = Math.PI / 2; // rad/s
+  private static final double AUTO_ANG_ACCEL = Math.PI / 2; // rad/s²
 
   private static final PathConstraints AUTO_CONSTRAINTS =
       new PathConstraints(AUTO_SPEED, AUTO_ACCEL, AUTO_ANG_VEL, AUTO_ANG_ACCEL, 12.0);
