@@ -1,5 +1,6 @@
 package frc.robot;
 
+import com.pathplanner.lib.util.FlippingUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -11,7 +12,7 @@ import java.util.Map;
 
 /**
  * Alliance-neutral field positions. All positions defined from blue alliance perspective and
- * automatically mirrored for red alliance at runtime.
+ * automatically flipped for red alliance at runtime using PathPlanner's field transform.
  *
  * <p>Alliance source priority: FMS (at competition) → dashboard chooser (practice/testing). The
  * dashboard chooser defaults to "Auto" which uses DriverStation, or can be forced to Blue/Red.
@@ -67,12 +68,9 @@ public final class FieldPositions {
     return red;
   }
 
-  /** Mirrors a blue-alliance pose to red alliance (flips X, rotates 180 deg). */
+  /** Converts a blue pose to red using the same transform as paths and their start checks. */
   public static Pose2d mirror(Pose2d bluePose) {
-    return new Pose2d(
-        FIELD_LENGTH_METERS - bluePose.getX(),
-        bluePose.getY(),
-        bluePose.getRotation().plus(Rotation2d.fromDegrees(180)));
+    return FlippingUtil.flipFieldPose(bluePose);
   }
 
   /** Returns pose resolved for current alliance. */
@@ -80,10 +78,9 @@ public final class FieldPositions {
     return isRedAlliance() ? mirror(bluePose) : bluePose;
   }
 
-  /** Returns translation resolved for current alliance (mirrors X only, no rotation). */
+  /** Returns translation resolved for current alliance using PathPlanner's field transform. */
   public static Translation2d forAlliance(Translation2d blueTranslation) {
-    if (!isRedAlliance()) return blueTranslation;
-    return new Translation2d(FIELD_LENGTH_METERS - blueTranslation.getX(), blueTranslation.getY());
+    return isRedAlliance() ? FlippingUtil.flipFieldPosition(blueTranslation) : blueTranslation;
   }
 
   /** Resolves a named position for the current alliance. Returns null if unknown. */

@@ -125,6 +125,7 @@ public final class SafeAutoBuilder {
     private final Limits m_limits;
 
     private boolean m_cancelled;
+    private boolean m_innerInitialized;
     private String m_cancelReason;
     private double m_allowedSpeed;
     private boolean m_shouldFlip;
@@ -146,6 +147,7 @@ public final class SafeAutoBuilder {
     @Override
     public void initialize() {
       m_cancelled = false;
+      m_innerInitialized = false;
       m_cancelReason = "";
       m_pathPoses = null;
       m_waypointAnchors = null;
@@ -254,6 +256,7 @@ public final class SafeAutoBuilder {
       } else {
         SmartDashboard.putString("Auto/Status", allPassed ? "Running" : "Running (warnings)");
         m_inner.initialize();
+        m_innerInitialized = true;
       }
     }
 
@@ -362,8 +365,11 @@ public final class SafeAutoBuilder {
 
     @Override
     public void end(boolean interrupted) {
-      if (!m_cancelled) {
-        m_inner.end(interrupted);
+      // A runtime safety stop must still clean up PathPlanner's event commands.
+      // A pre-flight rejection never initialized the inner command, so skip it.
+      if (m_innerInitialized) {
+        m_innerInitialized = false;
+        m_inner.end(interrupted || m_cancelled);
       }
 
       SmartDashboard.putBoolean("Auto/Running", false);
@@ -374,6 +380,7 @@ public final class SafeAutoBuilder {
         // Stop the robot
         m_drive.drive(0, 0, 0, true, 0.02);
       } else if (interrupted) {
+        m_drive.drive(0, 0, 0, true, 0.02);
         SmartDashboard.putString("Auto/Status", "Interrupted");
       } else {
         SmartDashboard.putString("Auto/Status", "Done");
