@@ -183,6 +183,8 @@ public class Vision extends SubsystemBase {
 
   @Override
   public void periodic() {
+    double periodicStart = Timer.getFPGATimestamp();
+
     // Check for live camera tuning adjustments
     checkCameraTuningButtons();
 
@@ -244,6 +246,8 @@ public class Vision extends SubsystemBase {
       Logger.recordOutput(prefix + "HasTargets", inputs.hasTargets);
       Logger.recordOutput(prefix + "TagCount", inputs.targetCount);
     }
+
+    double telemetryStart = Timer.getFPGATimestamp();
 
     // Log rejection counts per reason per camera
     for (int i = 0; i < m_ios.length; i++) {
@@ -367,6 +371,10 @@ public class Vision extends SubsystemBase {
       SmartDashboard.putNumber("Vision/CameraDisagreementMeters", maxCamDisagreement);
       Logger.recordOutput("Vision/CameraDisagreementMeters", maxCamDisagreement);
     }
+
+    double periodicEnd = Timer.getFPGATimestamp();
+    Logger.recordOutput("Performance/Vision/TelemetryMs", (periodicEnd - telemetryStart) * 1000.0);
+    Logger.recordOutput("Performance/Vision/PeriodicMs", (periodicEnd - periodicStart) * 1000.0);
   }
 
   public void setEnabled(boolean enabled) {

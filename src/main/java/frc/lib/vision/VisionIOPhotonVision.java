@@ -3,9 +3,11 @@ package frc.lib.vision;
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Timer;
 import frc.lib.drivetrain.CameraConfig;
 import java.util.Comparator;
 import java.util.List;
+import org.littletonrobotics.junction.Logger;
 import org.photonvision.PhotonCamera;
 import org.photonvision.PhotonPoseEstimator;
 import org.photonvision.PhotonPoseEstimator.PoseStrategy;
@@ -19,11 +21,13 @@ public class VisionIOPhotonVision implements VisionIO {
 
   private final PhotonCamera m_camera;
   private final PhotonPoseEstimator m_poseEstimator;
+  private final String m_perfPrefix;
   private int m_disconnectCount = 0;
   private boolean m_connected = true;
 
   public VisionIOPhotonVision(CameraConfig config, AprilTagFieldLayout fieldLayout) {
     m_camera = new PhotonCamera(config.name());
+    m_perfPrefix = "Performance/Vision/" + config.name() + "/";
     m_poseEstimator =
         new PhotonPoseEstimator(
             fieldLayout, PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, config.robotToCamera());
@@ -37,7 +41,11 @@ public class VisionIOPhotonVision implements VisionIO {
 
   @Override
   public void updateInputs(VisionIOInputsAutoLogged inputs) {
+    // Fetch + deserialize cost scales with queued frame count (every unread frame is parsed)
+    double fetchStart = Timer.getFPGATimestamp();
     var results = m_camera.getAllUnreadResults();
+    Logger.recordOutput(m_perfPrefix + "FetchMs", (Timer.getFPGATimestamp() - fetchStart) * 1000.0);
+    Logger.recordOutput(m_perfPrefix + "FramesRead", results.size());
 
     // Connection tracking
     if (!results.isEmpty()) {
@@ -69,6 +77,10 @@ public class VisionIOPhotonVision implements VisionIO {
 
     // Process the latest result
     PhotonPipelineResult latestResult = results.get(results.size() - 1);
+    // Capture-to-now latency of the frame we use (coprocessor pipeline + network + queue wait)
+    Logger.recordOutput(
+        m_perfPrefix + "LatencyMs",
+        (Timer.getFPGATimestamp() - latestResult.getTimestampSeconds()) * 1000.0);
     List<PhotonTrackedTarget> targets = latestResult.getTargets();
 
     // Fill target data
@@ -92,7 +104,10 @@ public class VisionIOPhotonVision implements VisionIO {
     }
 
     // Pose estimation
+    double estimateStart = Timer.getFPGATimestamp();
     var visionEst = m_poseEstimator.update(latestResult);
+    Logger.recordOutput(
+        m_perfPrefix + "PoseEstimateMs", (Timer.getFPGATimestamp() - estimateStart) * 1000.0);
     if (visionEst.isPresent()) {
       var pose = visionEst.get().estimatedPose;
       inputs.posePresent = true;
