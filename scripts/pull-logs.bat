@@ -67,6 +67,12 @@ function Get-LogMetadata {
         }
     }
 
+    # If the RoboRIO clock was un-synced at boot (defaults to 2024-12-18),
+    # ignore the 2024 filename timestamp and use the real file LastWriteTime ($mtime)
+    if ($null -ne $startTs -and $startTs.Year -lt 2025 -and $mtime.Year -ge 2025) {
+        $startTs = $null
+    }
+
     $refTs = if ($null -ne $startTs) { $startTs } else { $mtime }
     return [PSCustomObject]@{
         File    = $File
@@ -78,72 +84,78 @@ function Get-LogMetadata {
     }
 }
 
+# Determine output directory: right next to pull-logs.bat (e.g. Desktop\match-logs\...)
+$ScriptDir = (Get-Location).Path
+$DateStr   = Get-Date -Format "yyyy-MM-dd"
+$TimeStr   = Get-Date -Format "HHmmss"
+
 # 1. Auto-detect RoboRIO (USB 172.22.11.2 -> Wi-Fi 10.104.13.2 -> mDNS)
+#    and stage FRC_UserProgram.log into /home/lvuser/logs in a single SSH call
 $Candidates = @("172.22.11.2", "10.104.13.2", "roboRIO-10413-FRC.local")
 if ($HostIp -ne "") { $Candidates = @($HostIp) }
 
 $SshOpts = @("-o", "ConnectTimeout=3", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=NUL", "-o", "LogLevel=ERROR")
 
 $RioHost = $null
+$RobotName = "FUEL"
+$RemoteFileCount = 0
 Write-Host "Searching for Team 10413 RoboRIO..." -ForegroundColor Cyan
+$PrepCmd = "mkdir -p /home/lvuser/logs; " +
+           "if [ -f /home/lvuser/FRC_UserProgram.log ]; then ln -f /home/lvuser/FRC_UserProgram.log /home/lvuser/logs/FRC_UserProgram_${TimeStr}.log 2>/dev/null || cp -p /home/lvuser/FRC_UserProgram.log /home/lvuser/logs/FRC_UserProgram_${TimeStr}.log 2>/dev/null || true; fi; " +
+           "for f in /home/lvuser/*.wpilog /home/lvuser/*.hoot; do [ -f `"`$f`" ] && ln -f `"`$f`" /home/lvuser/logs/ 2>/dev/null || true; done; " +
+           "if [ -d /media/sda1 ] && [ `"`$(find /media/sda1 -maxdepth 3 \( -name '*.wpilog' -o -name '*.hoot' \) 2>/dev/null | head -n 1)`" != '' ]; then ln -sfn /media/sda1 /home/lvuser/logs/usb_drive 2>/dev/null || true; fi; " +
+           "echo '===OK==='; " +
+           "cat /etc/Robot.comments 2>/dev/null || echo ''; " +
+           "echo '===COUNT==='; " +
+           "find -L /home/lvuser/logs -maxdepth 3 -type f \( -name '*.wpilog' -o -name '*.hoot' -o -name 'FRC_UserProgram*' \) 2>/dev/null | wc -l"
+
 foreach ($ip in $Candidates) {
-    $res = & ssh @SshOpts "lvuser@$ip" "echo ok" 2>$null
-    if ($LASTEXITCODE -eq 0 -and ($res -join "") -match "ok") {
+    $res = (& ssh @SshOpts "lvuser@$ip" $PrepCmd 2>$null) -join "`n"
+    if ($LASTEXITCODE -eq 0 -and $res -match "===OK===") {
         $RioHost = $ip
+        if ($res -match "CORAL") { $RobotName = "CORAL" }
+        if ($res -match "===COUNT===\s*(\d+)") { $RemoteFileCount = [int]$Matches[1] }
         break
     }
 }
 
-$RobotName = "FUEL"
-if ($RioHost) {
-    $Comments = (& ssh @SshOpts "lvuser@$RioHost" "cat /etc/Robot.comments 2>/dev/null || echo ''" 2>$null) -join ""
-    if ($Comments -match "CORAL") { $RobotName = "CORAL" }
-} else {
+if (-not $RioHost) {
     Write-Host "WARNING: Could not reach RoboRIO on ($($Candidates -join ', '))." -ForegroundColor Yellow
     Write-Host "  -> Will still collect & correlate local Driver Station logs on this PC." -ForegroundColor Yellow
 }
 
-# Determine output directory: right next to pull-logs.bat (e.g. Desktop\match-logs\...)
-$ScriptDir = (Get-Location).Path
-$DateStr   = Get-Date -Format "yyyy-MM-dd"
-$TimeStr   = Get-Date -Format "HHmmss"
-$DestDir   = Join-Path $ScriptDir "match-logs\${DateStr}_${RobotName}"
-$RawDir    = Join-Path $DestDir "raw"
+$OutputZip = Join-Path $ScriptDir "match-logs_${DateStr}_${TimeStr}_${RobotName}.zip"
+$WorkDir   = Join-Path ([System.IO.Path]::GetTempPath()) "flux-logs-${DateStr}-${TimeStr}"
+$RawDir    = Join-Path $WorkDir "raw"
+$StageDir  = Join-Path $WorkDir "bundle"
 New-Item -ItemType Directory -Force -Path $RawDir | Out-Null
+New-Item -ItemType Directory -Force -Path $StageDir | Out-Null
 
-# 2. Download Robot Logs (.wpilog, .hoot, FRC_UserProgram.log)
+# 2. Download ALL Robot Logs (.wpilog, .hoot folders, FRC_UserProgram.log) in ONE scp session
 $DownloadedFromRio = $false
 $RemoteDirs = "/home/lvuser/logs /home/lvuser /U /media/sda1"
 if ($RioHost) {
     Write-Host "Connected to RoboRIO ($RobotName) at lvuser@$RioHost" -ForegroundColor Green
-    Write-Host "Saving logs to: $DestDir"
+    Write-Host "Target output archive: $OutputZip"
     Write-Host "------------------------------------------------------------"
 
-    $RemoteFilesRaw = & ssh @SshOpts "lvuser@$RioHost" "find $RemoteDirs -maxdepth 3 \( -name '*.wpilog' -o -name '*.hoot' \) 2>/dev/null | sort -u" 2>$null
-    $RemoteFiles = @($RemoteFilesRaw | Where-Object { $_ -and $_.Trim() -ne "" })
-
-    if ($RemoteFiles.Count -gt 0) {
-        Write-Host "[1/4] Downloading $($RemoteFiles.Count) robot log file(s) (.wpilog / .hoot)..." -ForegroundColor Yellow
-        foreach ($rfile in $RemoteFiles) {
-            $rf = $rfile.Trim()
-            & scp -p @SshOpts "lvuser@${RioHost}:`"$rf`"" "$RawDir\"
+    if ($RemoteFileCount -gt 0) {
+        Write-Host "[1/3] Downloading all $RemoteFileCount robot log file(s) (.wpilog, .hoot, console) in ONE scp session..." -ForegroundColor Yellow
+        & scp -p -r @SshOpts "lvuser@${RioHost}:/home/lvuser/logs/." "$RawDir"
+        if ($LASTEXITCODE -eq 0) {
+            $DownloadedFromRio = $true
         }
-        $DownloadedFromRio = $true
     } else {
-        Write-Host "[1/4] No .wpilog or .hoot files found on RoboRIO." -ForegroundColor Yellow
+        Write-Host "[1/3] No .wpilog or .hoot files found on RoboRIO." -ForegroundColor Yellow
     }
-
-    Write-Host "[2/4] Pulling RoboRIO Java console/crash log (FRC_UserProgram.log)..." -ForegroundColor Cyan
-    & scp -p @SshOpts "lvuser@${RioHost}:/home/lvuser/FRC_UserProgram.log" "$RawDir\FRC_UserProgram_${TimeStr}.log" 2>$null
 } else {
-    Write-Host "[1/4] Skipped RoboRIO .wpilog/.hoot (not connected)." -ForegroundColor DarkGray
-    Write-Host "[2/4] Skipped RoboRIO console log (not connected)." -ForegroundColor DarkGray
+    Write-Host "[1/3] Skipped RoboRIO logs (not connected)." -ForegroundColor DarkGray
 }
 
 # 3. Copy local Driver Station Logs (.dslog / .dsevents)
 $DsLogDir = "C:\Users\Public\Documents\FRC\Log Files"
 if (Test-Path $DsLogDir) {
-    Write-Host "[3/4] Copying recent Driver Station logs (.dslog / .dsevents)..." -ForegroundColor Cyan
+    Write-Host "[2/3] Copying recent Driver Station logs (.dslog / .dsevents)..." -ForegroundColor Cyan
     $DsDest = Join-Path $RawDir "ds-logs"
     New-Item -ItemType Directory -Force -Path $DsDest | Out-Null
     $Cutoff = (Get-Date).AddDays(-2)
@@ -151,11 +163,11 @@ if (Test-Path $DsLogDir) {
         Where-Object { $_.LastWriteTime -ge $Cutoff } |
         Copy-Item -Destination $DsDest -Force
 } else {
-    Write-Host "[3/4] No local Driver Station log folder found at $DsLogDir (skipped)." -ForegroundColor DarkGray
+    Write-Host "[2/3] No local Driver Station log folder found at $DsLogDir (skipped)." -ForegroundColor DarkGray
 }
 
-# 4. Correlate all logs by match into folders and .zip files
-Write-Host "[4/4] Correlating logs by match into folders and .zip archives..." -ForegroundColor Cyan
+# 4. Correlate all logs by match into subfolders and package into ONE single .zip file
+Write-Host "[3/3] Correlating logs by match and packaging into a single .zip file..." -ForegroundColor Cyan
 
 $AllFiles = @(
     Get-ChildItem -Path $RawDir -Recurse -File |
@@ -163,9 +175,8 @@ $AllFiles = @(
     ForEach-Object { Get-LogMetadata -File $_ }
 )
 
-$MatchesOut = Join-Path $DestDir "matches"
 if ($AllFiles.Count -eq 0) {
-    Write-Host "No logs found to correlate in $RawDir." -ForegroundColor Yellow
+    Write-Host "No logs found to package." -ForegroundColor Yellow
 } else {
     $WpiLogs   = @($AllFiles | Where-Object { $_.Kind -eq "WPILOG" } | Sort-Object RefTs, EndTs)
     $OtherLogs = @($AllFiles | Where-Object { $_.Kind -ne "WPILOG" })
@@ -241,7 +252,7 @@ if ($AllFiles.Count -eq 0) {
         } else {
             $idx = $Bundles.Count + 1
             $tsStr = $lf.RefTs.ToString("yyyy-MM-dd_HH-mm-ss")
-            $label = "Match_{0:D2}_{1}_Unmatched" -f $idx, $tsStr
+            $label = "Match_{0:D2}_{1}_Session" -f $idx, $tsStr
             $fileList = New-Object System.Collections.ArrayList
             [void]$fileList.Add($lf)
             [void]$Bundles.Add([PSCustomObject]@{
@@ -255,11 +266,17 @@ if ($AllFiles.Count -eq 0) {
         }
     }
 
-    New-Item -ItemType Directory -Force -Path $MatchesOut | Out-Null
+    $manifestLines = @(
+        "FRC Team 10413 (FLUX Robotics) - Match Log Archive",
+        "Robot:      $RobotName",
+        "Downloaded: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')",
+        "Total Runs: $($Bundles.Count)",
+        "============================================================",
+        ""
+    )
 
     foreach ($b in $Bundles) {
-        $mDir = Join-Path $MatchesOut $b.Label
-        if (Test-Path $mDir) { Remove-Item $mDir -Recurse -Force }
+        $mDir = Join-Path $StageDir $b.Label
         New-Item -ItemType Directory -Force -Path $mDir | Out-Null
 
         $summaryLines = @(
@@ -270,19 +287,34 @@ if ($AllFiles.Count -eq 0) {
         )
 
         foreach ($lf in $b.Files) {
-            $destPath = Join-Path $mDir $lf.File.Name
+            $outName = $lf.File.Name
+            $destPath = Join-Path $mDir $outName
+            if (Test-Path $destPath) {
+                $parentName = $lf.File.Directory.Name
+                $outName = "${parentName}_$($lf.File.Name)"
+                $destPath = Join-Path $mDir $outName
+            }
             Copy-Item -Path $lf.File.FullName -Destination $destPath -Force
             $sizeKb = [Math]::Round($lf.File.Length / 1024.0, 1)
-            $summaryLines += ("  - [{0,-8}] {1} ({2} KB)" -f $lf.Kind, $lf.File.Name, $sizeKb)
+            $summaryLines += ("  - [{0,-8}] {1} ({2} KB)" -f $lf.Kind, $outName, $sizeKb)
         }
 
         $summaryFile = Join-Path $mDir "match-summary.txt"
         $summaryLines | Set-Content -Path $summaryFile -Encoding UTF8
-
-        $zipPath = Join-Path $MatchesOut "$($b.Label).zip"
-        if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-        [System.IO.Compression.ZipFile]::CreateFromDirectory($mDir, $zipPath)
+        $manifestLines += $summaryLines
+        $manifestLines += ""
     }
+
+    $manifestFile = Join-Path $StageDir "README-matches.txt"
+    $manifestLines | Set-Content -Path $manifestFile -Encoding UTF8
+
+    if (Test-Path $OutputZip) { Remove-Item $OutputZip -Force }
+    [System.IO.Compression.ZipFile]::CreateFromDirectory($StageDir, $OutputZip)
+}
+
+# Clean up temporary staging directory so only the single .zip file remains
+if (Test-Path $WorkDir) {
+    Remove-Item -Path $WorkDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 if ($RioHost) {
@@ -307,12 +339,13 @@ if ($RioHost) {
 }
 
 Write-Host "------------------------------------------------------------"
-Write-Host "Done! Per-match folders and .zip archives saved in:" -ForegroundColor Green
-Write-Host "  $MatchesOut" -ForegroundColor White
-if (Test-Path $MatchesOut) {
-    Get-ChildItem -Path $MatchesOut -Filter "*.zip" |
-        Select-Object Name, @{Name="Size (MB)";Expression={[Math]::Round($_.Length / 1MB, 2)}}, LastWriteTime |
-        Format-Table -AutoSize
-    # Open the folder in Windows Explorer automatically
-    Start-Process explorer.exe -ArgumentList "`"$MatchesOut`""
+if (Test-Path $OutputZip) {
+    $zipInfo = Get-Item $OutputZip
+    $sizeMb  = [Math]::Round($zipInfo.Length / 1MB, 2)
+    Write-Host "Done! Created SINGLE archive ($sizeMb MB):" -ForegroundColor Green
+    Write-Host "  $OutputZip" -ForegroundColor White
+    # Open Windows Explorer with the single .zip file highlighted
+    Start-Process explorer.exe -ArgumentList "/select,`"$OutputZip`""
+} else {
+    Write-Host "No log archive created (no robot or Driver Station logs found)." -ForegroundColor Yellow
 }
